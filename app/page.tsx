@@ -1,97 +1,119 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 
 export default function Home() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [questions, setQuestions] = useState([
+    {
+      q: "ما هو نوع الموقع الذي تريده؟",
+      options: ["Landing Page", "E-commerce", "Portfolio"],
+    },
+    {
+      q: "من هو الجمهور المستهدف؟",
+      options: ["شركات ناشئة", "مطورين", "مستخدمين عامين"],
+    },
+    {
+      q: "ما هي الميزة الأساسية؟",
+      options: ["عرض منتجات", "خدمات SaaS", "مدونة"],
+    },
+    {
+      q: "ما هو الطابع العام للتصميم؟",
+      options: ["Minimal", "Futuristic", "Classic"],
+    },
+    {
+      q: "هل تحتاج إلى قسم إضافي؟",
+      options: ["Testimonials", "Pricing", "FAQ"],
+    },
+  ]);
+  const [answers, setAnswers] = useState({});
   const [preview, setPreview] = useState("");
-  const [expanded, setExpanded] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
-
-  const recognitionRef = useRef(null);
-
-  // Speech-to-Text
-  useEffect(() => {
-    if ("webkitSpeechRecognition" in window) {
-      const recognition = new window.webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
-      recognition.onresult = (event) => {
-        setInput(event.results[0][0].transcript);
-      };
-      recognitionRef.current = recognition;
-    }
-  }, []);
-
-  const startVoice = () => {
-    if (recognitionRef.current) recognitionRef.current.start();
-  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-
-    const newMessages = [...messages, { role: "user", content: input }];
-    setMessages(newMessages);
+    setMessages([...messages, { role: "user", content: input }]);
     setInput("");
-    setExpanded(true);
+    setThinking(true);
 
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idea: input }),
-    });
-    const data = await res.json();
+    // محاكاة أنيميشن "Thinking..."
+    setTimeout(async () => {
+      setThinking(false);
 
-    const aiReply = { role: "assistant", content: data.result };
-    setMessages([...newMessages, aiReply]);
+      // إذا الأسئلة لم تُجاب بعد → عرضها
+      if (Object.keys(answers).length < 5) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "لنبدأ بالأسئلة الخاصة بالمشروع:" },
+        ]);
+      } else {
+        // بعد الإجابة على الأسئلة → توليد الموقع
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idea: input, answers }),
+        });
+        const data = await res.json();
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "تم توليد الموقع بنجاح!" },
+        ]);
+        setPreview(data.result);
+      }
+    }, 2000);
+  };
 
-    if (data.result.includes("<html")) {
-      setPreview(data.result);
-    }
-
-    // Text-to-Speech
-    const utterance = new SpeechSynthesisUtterance(aiReply.content);
-    speechSynthesis.speak(utterance);
+  const chooseAnswer = (qIndex, option) => {
+    setAnswers({ ...answers, [qIndex]: option });
   };
 
   return (
-    <div className={`page ${darkMode ? "dark" : "light"} ${expanded ? "workspace" : "chat-only"}`}>
-      {/* CHAT AREA */}
+    <div className="page">
       <div className="chat">
         <div className="messages">
           {messages.map((m, i) => (
             <div key={i} className={`msg ${m.role}`}>
-              {m.role === "assistant" && m.content.includes("<html") ? (
-                <span>Generated website preview updated →</span>
-              ) : (
-                <p>{m.content}</p>
-              )}
+              <p>{m.content}</p>
             </div>
           ))}
+          {thinking && <div className="thinking">Thinking...</div>}
         </div>
+
+        {/* عرض الأسئلة */}
+        {Object.keys(answers).length < 5 &&
+          questions.map((q, i) =>
+            !answers[i] ? (
+              <div key={i} className="question">
+                <p>{q.q}</p>
+                <div className="options">
+                  {q.options.map((opt) => (
+                    <button key={opt} onClick={() => chooseAnswer(i, opt)}>
+                      {opt}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    placeholder="Other..."
+                    onBlur={(e) =>
+                      e.target.value && chooseAnswer(i, e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+            ) : null
+          )}
 
         <div className="input-box">
           <textarea
-            placeholder="Describe your idea..."
+            placeholder="اكتب فكرتك..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
           />
-          <div className="actions">
-            <button className="voice-btn" onClick={startVoice}>🎤</button>
-            <input type="file" className="file-upload" />
-            <button className="send-btn" onClick={sendMessage}>➤</button>
-          </div>
+          <button onClick={sendMessage}>➤</button>
         </div>
       </div>
 
-      {/* PREVIEW AREA */}
+      {/* معاينة الموقع */}
       {preview && (
         <div className="preview">
           <div className="browser-bar">
@@ -104,67 +126,102 @@ export default function Home() {
         </div>
       )}
 
-      {/* STYLE */}
       <style jsx>{`
         .page {
           display: flex;
           min-height: 100vh;
+          background: #0b0b0f;
+          color: white;
           font-family: Inter, Geist, sans-serif;
-          transition: all 0.6s ease;
         }
-        .dark { background: #0b0b0f; color: white; }
-        .light { background: #f9fafb; color: #111; }
-        .chat-only { justify-content: center; align-items: center; }
-        .workspace { display: grid; grid-template-columns: 400px 1fr; }
         .chat {
+          flex: 1;
           display: flex;
           flex-direction: column;
-          height: 100vh;
-          background: rgba(255,255,255,0.03);
-          backdrop-filter: blur(10px);
-          border-right: 1px solid rgba(255,255,255,0.05);
+          padding: 20px;
         }
         .messages {
           flex: 1;
-          padding: 20px;
           overflow-y: auto;
-          animation: fadeIn 0.6s ease;
         }
-        .msg { margin-bottom: 15px; line-height: 1.5; }
-        .msg.user { text-align: right; color: #3b82f6; }
-        .msg.assistant { text-align: left; color: #d1d5db; }
-        .input-box { padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); }
-        textarea {
-          width: 100%;
-          height: 80px;
+        .msg {
+          margin-bottom: 15px;
+        }
+        .msg.user {
+          text-align: right;
+          color: #3b82f6;
+        }
+        .msg.assistant {
+          text-align: left;
+          color: #d1d5db;
+        }
+        .thinking {
+          font-style: italic;
+          color: #9ca3af;
+          animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+          0% { opacity: 0.3; }
+          50% { opacity: 1; }
+          100% { opacity: 0.3; }
+        }
+        .question {
+          margin: 20px 0;
+        }
+        .options {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .options button {
+          background: #3b82f6;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 8px;
+          color: white;
+          cursor: pointer;
+        }
+        .options input {
           background: #14141b;
           border: none;
-          outline: none;
+          padding: 8px;
+          border-radius: 8px;
           color: white;
-          font-size: 16px;
-          border-radius: 12px;
-          padding: 12px;
-          resize: none;
-          margin-bottom: 10px;
-          transition: all 0.3s ease;
         }
-        .actions { display: flex; gap: 10px; }
-        .send-btn, .voice-btn {
-          width: 44px; height: 44px;
-          border-radius: 50%;
+        .input-box {
+          display: flex;
+          gap: 10px;
+          margin-top: 20px;
+        }
+        textarea {
+          flex: 1;
+          background: #14141b;
           border: none;
-          cursor: pointer;
-          background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+          border-radius: 8px;
+          padding: 12px;
           color: white;
-          transition: transform 0.2s ease;
         }
-        .send-btn:hover, .voice-btn:hover { transform: scale(1.1); }
-        .file-upload { color: #9ca3af; }
-        .preview { background: #0f0f15; display: flex; flex-direction: column; }
+        button {
+          background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+          border: none;
+          border-radius: 50%;
+          width: 44px;
+          height: 44px;
+          color: white;
+          cursor: pointer;
+        }
+        .preview {
+          flex: 1;
+          background: #0f0f15;
+          display: flex;
+          flex-direction: column;
+        }
         .browser-bar {
-          display: flex; align-items: center; gap: 8px;
-          padding: 8px 12px; background: #14141b;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: #14141b;
         }
         .dot { width: 10px; height: 10px; border-radius: 50%; }
         .dot.red { background: #ef4444; }
@@ -172,7 +229,6 @@ export default function Home() {
         .dot.green { background: #22c55e; }
         .url { margin-left: 20px; font-size: 12px; color: #9ca3af; }
         iframe { flex: 1; border: none; }
-        @keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
       `}</style>
     </div>
   );
