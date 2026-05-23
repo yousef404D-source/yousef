@@ -1,304 +1,267 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
 export default function Home() {
-  const [idea, setIdea] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [output, setOutput] = useState("");
-  const [model, setModel] = useState("Groq AI");
-
-  // استرجاع آخر فكرة محفوظة
-  useEffect(() => {
-    const savedIdea = localStorage.getItem("lastIdea");
-    if (savedIdea) setIdea(savedIdea);
-  }, []);
-
-  async function generate() {
-    if (!idea.trim()) return;
-
-    setLoading(true);
-    localStorage.setItem("lastIdea", idea);
-
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea, model })
-      });
-
-      const data = await res.json();
-      setOutput(data.result || "");
-    } catch (err) {
-      console.error(err);
-      setOutput("❌ حدث خطأ أثناء التوليد");
-    }
-
-    setLoading(false);
-  }
-
-  function copyOutput() {
-    if (output) {
-      navigator.clipboard.writeText(output);
-      alert("✅ تم نسخ النتيجة!");
-    }
-  }
-
   return (
     <div className="page">
-      <div className="grid-bg"></div>
-
-      {/* TOP BAR */}
-      <header className="topbar">
+      {/* NAVBAR */}
+      <nav className="navbar">
         <div className="logo">
+          {/* شعار الموقع */}
           <div className="logo-mark"></div>
-          <span className="logo-text">NOVA CLIP</span>
+          <span className="logo-text">NovaClip</span>
         </div>
-        <div className="ai-badge">Nova Clip AI Engine</div>
-      </header>
+        <ul className="nav-links">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#testimonials">Testimonials</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+        <button className="cta-btn">Get Started</button>
+      </nav>
 
-      {/* MAIN */}
-      <main className="hero">
-        <h1>Where ideas become reality 🚀</h1>
-        <p>Build apps and websites using AI instantly</p>
+      {/* HERO */}
+      <section className="hero">
+        <h1>Build Websites with AI</h1>
+        <p>From idea to full product in seconds.</p>
+        <div className="hero-actions">
+          <button className="primary-btn">Start Free</button>
+          <button className="secondary-btn">Watch Demo</button>
+        </div>
+      </section>
 
-        {/* PROMPT BOX */}
-        <div className="prompt-box">
-          <textarea
-            placeholder="Describe what you want to build..."
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                generate();
-              }
-            }}
-          />
-
-          <div className="prompt-bottom">
-            <div className="bottom-left">
-              {/* اختيار النموذج */}
-              <select
-                className="model-select"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              >
-                <option>Groq AI</option>
-                <option>OpenAI GPT</option>
-                <option>Claude</option>
-              </select>
-            </div>
-
-            <div className="bottom-right">
-              <button
-                className={`send-btn ${loading ? "loading" : ""}`}
-                onClick={generate}
-              >
-                {loading ? <div className="spinner"></div> : "▶"}
-              </button>
-            </div>
+      {/* FEATURES */}
+      <section id="features" className="features">
+        <h2>Features</h2>
+        <div className="grid">
+          <div className="card">
+            <h3>⚡ Instant Generation</h3>
+            <p>Turn ideas into websites instantly.</p>
+          </div>
+          <div className="card">
+            <h3>🎨 Modern Design</h3>
+            <p>Responsive, clean, and futuristic UI.</p>
+          </div>
+          <div className="card">
+            <h3>🔧 Customizable</h3>
+            <p>Edit and refine your site easily.</p>
           </div>
         </div>
+      </section>
 
-        {/* OUTPUT */}
-        {output && (
-          <div className="result-preview">
-            <div className="result-header">
-              <span>✨ Result</span>
-              <button onClick={copyOutput} className="copy-btn">Copy</button>
-            </div>
-            {output.includes("<html") ? (
-              <iframe srcDoc={output} />
-            ) : (
-              <pre>{output}</pre>
-            )}
+      {/* PRICING */}
+      <section id="pricing" className="pricing">
+        <h2>Pricing</h2>
+        <div className="plans">
+          <div className="plan">
+            <h3>Starter</h3>
+            <p>$0 / month</p>
+            <ul>
+              <li>Basic AI generation</li>
+              <li>Community support</li>
+            </ul>
+            <button>Choose</button>
           </div>
-        )}
-      </main>
+          <div className="plan highlight">
+            <h3>Pro</h3>
+            <p>$19 / month</p>
+            <ul>
+              <li>Advanced AI builder</li>
+              <li>Premium templates</li>
+              <li>Priority support</li>
+            </ul>
+            <button>Choose</button>
+          </div>
+          <div className="plan">
+            <h3>Enterprise</h3>
+            <p>Custom</p>
+            <ul>
+              <li>Unlimited projects</li>
+              <li>Dedicated support</li>
+            </ul>
+            <button>Contact Us</button>
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section id="testimonials" className="testimonials">
+        <h2>What People Say</h2>
+        <div className="quotes">
+          <blockquote>
+            "NovaClip built my startup site in minutes!"
+            <footer>- Sarah, Founder</footer>
+          </blockquote>
+          <blockquote>
+            "The design quality is stunning."
+            <footer>- Ahmed, Designer</footer>
+          </blockquote>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="faq">
+        <h2>FAQ</h2>
+        <details>
+          <summary>How does it work?</summary>
+          <p>Just describe your idea, and AI generates a full site.</p>
+        </details>
+        <details>
+          <summary>Can I edit the site?</summary>
+          <p>Yes, you can customize everything.</p>
+        </details>
+        <details>
+          <summary>Is there a free plan?</summary>
+          <p>Yes, start free with basic features.</p>
+        </details>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="footer">
+        <p>© 2026 NovaClip. All rights reserved.</p>
+      </footer>
 
       {/* STYLE */}
       <style jsx>{`
         .page {
-          min-height: 100vh;
+          font-family: Inter, sans-serif;
           background: #0b0b0f;
           color: white;
-          font-family: Inter, sans-serif;
-          position: relative;
-          overflow: hidden;
         }
-
-        .grid-bg {
-          position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 40px 40px;
-          opacity: 0.4;
-        }
-
-        .topbar {
+        .navbar {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 20px 30px;
-          position: relative;
-          z-index: 10;
+          padding: 20px 40px;
+          background: rgba(255,255,255,0.05);
+          position: sticky;
+          top: 0;
+          backdrop-filter: blur(10px);
         }
-
         .logo {
           display: flex;
           align-items: center;
           gap: 10px;
         }
-
         .logo-mark {
-          width: 14px;
-          height: 14px;
-          border-radius: 4px;
+          width: 20px;
+          height: 20px;
+          border-radius: 6px;
           background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-          box-shadow: 0 0 10px rgba(59,130,246,0.5);
+          box-shadow: 0 0 10px rgba(59,130,246,0.7);
         }
-
         .logo-text {
           font-weight: 800;
+          font-size: 18px;
           letter-spacing: 1px;
         }
-
-        .ai-badge {
-          font-size: 12px;
-          color: #9ca3af;
-          border: 1px solid rgba(255,255,255,0.08);
-          padding: 6px 12px;
-          border-radius: 999px;
+        .nav-links {
+          display: flex;
+          gap: 20px;
+          list-style: none;
         }
-
+        .nav-links a {
+          color: #9ca3af;
+          text-decoration: none;
+        }
+        .cta-btn {
+          background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+          border: none;
+          padding: 10px 20px;
+          border-radius: 999px;
+          color: white;
+          cursor: pointer;
+        }
         .hero {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding-top: 90px;
-          position: relative;
-          z-index: 10;
+          text-align: center;
+          padding: 100px 20px;
         }
-
-        h1 {
+        .hero h1 {
           font-size: 64px;
-          text-align: center;
-          margin-bottom: 10px;
+          margin-bottom: 20px;
         }
-
-        p {
-          color: #9ca3af;
-          text-align: center;
-          margin-bottom: 30px;
-        }
-
-        .prompt-box {
-          width: 800px;
-          background: #14141b;
-          border-radius: 20px;
-          padding: 18px;
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        textarea {
-          width: 100%;
-          height: 120px;
-          background: transparent;
-          border: none;
-          outline: none;
-          color: white;
-          font-size: 16px;
-          resize: none;
-        }
-
-        .prompt-bottom {
+        .hero-actions {
           display: flex;
-          justify-content: space-between;
-          margin-top: 10px;
-        }
-
-        .model-select {
-          background: #20202a;
-          border: 1px solid rgba(255,255,255,0.08);
-          color: white;
-          padding: 8px 14px;
-          border-radius: 999px;
-        }
-
-        .send-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #ffffff, #e5e7eb);
-          color: #0b0b0f;
-          display: flex;
-          align-items: center;
+          gap: 20px;
           justify-content: center;
+        }
+        .primary-btn {
+          background: #3b82f6;
           border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          color: white;
           cursor: pointer;
-          transition: transform 0.2s ease;
         }
-
-        .send-btn:hover {
-          transform: scale(1.1);
+        .secondary-btn {
+          background: transparent;
+          border: 1px solid #3b82f6;
+          padding: 12px 24px;
+          border-radius: 8px;
+          color: #3b82f6;
+          cursor: pointer;
         }
-
-        .spinner {
-          width: 18px;
-          height: 18px;
-          border: 2px solid rgba(0,0,0,0.2);
-          border-top-color: #000;
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
+        .features, .pricing, .testimonials, .faq {
+          padding: 80px 20px;
+          text-align: center;
         }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .result-preview {
-          width: 800px;
-          margin-top: 20px;
-          background: #14141b;
-          border-radius: 20px;
-          padding: 12px;
-        }
-
-        .result-header {
+        .grid {
           display: flex;
-          justify-content: space-between;
-          margin-bottom: 10px;
+          gap: 20px;
+          justify-content: center;
+          margin-top: 30px;
         }
-
-        .copy-btn {
-          background: #20202a;
-          border: 1px solid rgba(255,255,255,0.08);
-          color: #9ca3af;
-          padding: 4px 10px;
-          border-radius: 6px;
-          cursor: pointer;
+        .card {
+          background: #14141b;
+          padding: 20px;
+          border-radius: 12px;
+          width: 250px;
         }
-
-        iframe {
-          width: 100%;
-          height: 500px;
-          border: none;
+        .plans {
+          display: flex;
+          gap: 20px;
+          justify-content: center;
+          margin-top: 30px;
         }
-
-        pre {
-          white-space: pre-wrap;
-          color: #d1d5db;
+        .plan {
+          background: #14141b;
+          padding: 20px;
+          border-radius: 12px;
+          width: 250px;
         }
-
-        @media (max-width: 900px) {
-          .prompt-box, .result-preview {
-            width: 95%;
+        .highlight {
+          border: 2px solid #3b82f6;
+        }
+        .quotes {
+          display: flex;
+          gap: 40px;
+          justify-content: center;
+          margin-top: 30px;
+        }
+        blockquote {
+          background: #14141b;
+          padding: 20px;
+          border-radius: 12px;
+          max-width: 300px;
+        }
+        .faq details {
+          background: #14141b;
+          margin: 10px auto;
+          padding: 10px;
+          border-radius: 8px;
+          max-width: 600px;
+          text-align: left;
+        }
+        .footer {
+          text-align: center;
+          padding: 20px;
+          background: rgba(255,255,255,0.05);
+        }
+        @media(max-width:900px){
+          .grid, .plans, .quotes {
+            flex-direction: column;
+            align-items: center;
           }
-
-          h1 {
+          .hero h1 {
             font-size: 40px;
           }
         }
