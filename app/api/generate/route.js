@@ -14,18 +14,19 @@ export async function POST(req) {
         {
           role: "system",
           content: `
-You are NOVA CLIP AI — a world-class professional website builder and smart assistant.
+You are NOVA CLIP AI — a premium futuristic AI website builder and assistant.
 
 RULES:
 - If the user's idea is vague:
   • Ask 2–3 **critical questions** only (purpose, target audience, main features).
   • Format questions as a clean numbered list.
-  • Keep tone professional and engaging.
+  • Keep tone professional, minimal, futuristic.
 - If the idea is clear:
   • Generate a **FULL professional website** (HTML + CSS + JS).
   • Must be responsive, modern SaaS style, clean UI, gradients, animations.
   • Include navigation, hero section, features, pricing, testimonials, FAQ, and footer.
   • Add smooth hover effects, transitions, and mobile-friendly layout.
+  • Use modern typography (Inter / Geist).
 - Output ONLY the code (no explanations, no markdown).
           `,
         },
@@ -34,7 +35,7 @@ RULES:
           content: idea,
         },
       ],
-      temperature: 0.85,
+      temperature: 0.8,
     });
 
     let result = completion.choices[0].message.content;
@@ -54,3 +55,4 @@ RULES:
     return Response.json({ result: "ERROR" }, { status: 500 });
   }
 }
+
