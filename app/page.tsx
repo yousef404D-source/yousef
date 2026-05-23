@@ -1,11 +1,19 @@
 "use client";
 import { useState } from "react";
 
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export default function Home() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [questions, setQuestions] = useState([
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [preview, setPreview] = useState("");
+
+  const questions = [
     {
       q: "ما هو نوع الموقع الذي تريده؟",
       options: ["Landing Page", "E-commerce", "Portfolio"],
@@ -26,9 +34,7 @@ export default function Home() {
       q: "هل تحتاج إلى قسم إضافي؟",
       options: ["Testimonials", "Pricing", "FAQ"],
     },
-  ]);
-  const [answers, setAnswers] = useState({});
-  const [preview, setPreview] = useState("");
+  ];
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -36,18 +42,15 @@ export default function Home() {
     setInput("");
     setThinking(true);
 
-    // محاكاة أنيميشن "Thinking..."
     setTimeout(async () => {
       setThinking(false);
 
-      // إذا الأسئلة لم تُجاب بعد → عرضها
       if (Object.keys(answers).length < 5) {
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: "لنبدأ بالأسئلة الخاصة بالمشروع:" },
         ]);
       } else {
-        // بعد الإجابة على الأسئلة → توليد الموقع
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -63,7 +66,7 @@ export default function Home() {
     }, 2000);
   };
 
-  const chooseAnswer = (qIndex, option) => {
+  const chooseAnswer = (qIndex: number, option: string) => {
     setAnswers({ ...answers, [qIndex]: option });
   };
 
@@ -165,14 +168,8 @@ export default function Home() {
           50% { opacity: 1; }
           100% { opacity: 0.3; }
         }
-        .question {
-          margin: 20px 0;
-        }
-        .options {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
+        .question { margin: 20px 0; }
+        .options { display: flex; gap: 10px; flex-wrap: wrap; }
         .options button {
           background: #3b82f6;
           border: none;
@@ -188,11 +185,7 @@ export default function Home() {
           border-radius: 8px;
           color: white;
         }
-        .input-box {
-          display: flex;
-          gap: 10px;
-          margin-top: 20px;
-        }
+        .input-box { display: flex; gap: 10px; margin-top: 20px; }
         textarea {
           flex: 1;
           background: #14141b;
