@@ -6,24 +6,39 @@ fal.config({
 
 export async function POST(req) {
   try {
-    const { style } = await req.json();
+    const { styles = [], size = "1024x1024", quality = "high" } = await req.json();
+
+    // بناء الـ prompt بشكل ديناميكي
+    const prompt = `
+Modern UI website background design.
+${styles.map((s) => `Style: ${s}.`).join("\n")}
+High quality futuristic design, gradients, clean UI.
+    `;
+
+    console.log("🚀 Prompt Sent:", prompt);
 
     const result = await fal.subscribe("fal-ai/flux/dev", {
       input: {
-        prompt: `
-Modern UI website background design.
-Style: ${style}.
-High quality futuristic design, gradients, clean UI.
-        `,
+        prompt,
+        size,
+        quality,
       },
     });
 
-    return Response.json({
-      image: result.data.images[0].url,
-    });
+    if (!result?.data?.images?.length) {
+      throw new Error("No images returned from FAL API");
+    }
+
+    // إرجاع كل الصور بدل صورة واحدة
+    const images = result.data.images.map((img) => img.url);
+
+    return Response.json({ images });
 
   } catch (err) {
-    console.error(err);
-    return Response.json({ error: "FAILED" }, { status: 500 });
+    console.error("❌ Error in FAL API:", err.message);
+    return Response.json(
+      { error: "FAILED", details: err.message },
+      { status: 500 }
+    );
   }
 }
