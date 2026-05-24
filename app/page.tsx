@@ -1,7 +1,6 @@
 "use client";
-import { supabase } from "../lib/supabase";
+
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 type Project = {
   id: number;
