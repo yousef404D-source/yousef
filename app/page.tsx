@@ -11,17 +11,22 @@ type Project = {
 };
 
 export default function Home() {
-  const [idea, setIdea] = useState<string>("");
-  const [html, setHtml] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
 
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [idea, setIdea] =
+    useState<string>("");
 
-  // 🌙 DARK MODE
+  const [html, setHtml] =
+    useState<string>("");
+
+  const [loading, setLoading] =
+    useState<boolean>(false);
+
+  const [projects, setProjects] =
+    useState<Project[]>([]);
+
   const [darkMode, setDarkMode] =
     useState<boolean>(true);
 
-  // 👤 USER ID
   const userId = "nova-user";
 
   // 📦 LOAD PROJECTS
@@ -29,8 +34,10 @@ export default function Home() {
     loadProjects();
   }, []);
 
-  // 💾 LOAD SAVED PROJECTS
   async function loadProjects() {
+
+    if (!supabase) return;
+
     const { data, error } =
       await supabase
         .from("projects")
@@ -50,6 +57,9 @@ export default function Home() {
     htmlData: string,
     ideaText: string
   ) {
+
+    if (!supabase) return;
+
     const newProject = {
       id: Date.now(),
       idea: ideaText,
@@ -67,15 +77,16 @@ export default function Home() {
     ]);
   }
 
-  // 🚀 GENERATE WEBSITE
+  // 🚀 GENERATE
   async function generate() {
+
     if (!idea.trim()) return;
 
     setLoading(true);
 
     try {
 
-      // 🧠 Fake AI Delay
+      // 🧠 THINKING DELAY
       await new Promise((resolve) =>
         setTimeout(resolve, 2000)
       );
@@ -121,6 +132,7 @@ export default function Home() {
       HTMLTextAreaElement
     >
   ) {
+
     if (
       e.key === "Enter" &&
       !e.shiftKey
@@ -131,6 +143,7 @@ export default function Home() {
   }
 
   return (
+
     <div
       className={
         darkMode
@@ -139,7 +152,7 @@ export default function Home() {
       }
     >
 
-      {/* 🌙☀️ MODE BUTTON */}
+      {/* 🌙 THEME BUTTON */}
       <button
         className="theme-btn"
         onClick={() =>
@@ -153,8 +166,11 @@ export default function Home() {
 
       {/* 🌌 BACKGROUND */}
       <div className="bg">
+
         <div className="orb orb1"></div>
+
         <div className="orb orb2"></div>
+
       </div>
 
       {/* 🚀 HERO */}
@@ -169,7 +185,7 @@ export default function Home() {
           with AI power
         </p>
 
-        {/* 💬 CHAT BOX */}
+        {/* 💬 CHAT */}
         <div className="chat-box">
 
           <textarea
@@ -193,11 +209,14 @@ export default function Home() {
               ? "🧠 Thinking..."
               : "🚀 Generate"}
           </button>
+
         </div>
 
         {/* 🤖 THINKING */}
         {loading && (
+
           <div className="thinking">
+
             <div className="thinking-box">
               ⚡ AI analyzing...
             </div>
@@ -209,29 +228,38 @@ export default function Home() {
             <div className="thinking-box">
               🧠 Generating code...
             </div>
+
           </div>
         )}
 
         {/* 🖥️ PREVIEW */}
         {html && (
+
           <div className="preview">
 
             <div className="preview-top">
+
               <div className="dots">
+
                 <span></span>
+
                 <span></span>
+
                 <span></span>
+
               </div>
 
               <p>
                 Live Preview
               </p>
+
             </div>
 
             <iframe
               srcDoc={html}
               title="preview"
             />
+
           </div>
         )}
 
@@ -251,6 +279,7 @@ export default function Home() {
         )}
 
         {projects.map((p) => (
+
           <div
             key={p.id}
             className="project-card"
@@ -260,7 +289,9 @@ export default function Home() {
           >
             {p.idea}
           </div>
+
         ))}
+
       </div>
 
       {/* 🎨 STYLES */}
@@ -269,10 +300,10 @@ export default function Home() {
         .page {
           min-height: 100vh;
           padding: 40px;
-          font-family: Arial;
-          transition: 0.3s;
           overflow-x: hidden;
           position: relative;
+          transition: 0.3s;
+          font-family: Arial;
         }
 
         .dark {
@@ -331,9 +362,9 @@ export default function Home() {
         .hero {
           position: relative;
           z-index: 2;
-          text-align: center;
           max-width: 900px;
           margin: auto;
+          text-align: center;
         }
 
         h1 {
@@ -343,7 +374,6 @@ export default function Home() {
 
         p {
           opacity: 0.7;
-          margin-top: -10px;
         }
 
         .chat-box {
@@ -359,9 +389,9 @@ export default function Home() {
         textarea {
           width: 100%;
           height: 160px;
-          resize: none;
           border: none;
           outline: none;
+          resize: none;
           background: transparent;
           color: inherit;
           font-size: 18px;
@@ -380,10 +410,9 @@ export default function Home() {
         .thinking {
           margin-top: 25px;
           display: flex;
-          gap: 10px;
           justify-content: center;
+          gap: 10px;
           flex-wrap: wrap;
-          animation: fadeUp 0.5s ease;
         }
 
         .thinking-box {
@@ -396,8 +425,8 @@ export default function Home() {
           margin-top: 40px;
           border-radius: 25px;
           overflow: hidden;
-          animation: fadeUp 0.6s ease;
           border: 1px solid rgba(255,255,255,0.1);
+          animation: fadeUp 0.6s ease;
         }
 
         .preview-top {
@@ -455,18 +484,22 @@ export default function Home() {
         }
 
         @keyframes fadeUp {
+
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform:
+              translateY(20px);
           }
 
           to {
             opacity: 1;
-            transform: translateY(0px);
+            transform:
+              translateY(0px);
           }
         }
 
       `}</style>
+
     </div>
   );
 }
