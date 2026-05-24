@@ -7,8 +7,6 @@ import {
   FaBolt,
   FaBrain,
   FaLock,
-  FaMagic,
-  FaEye,
   FaBug,
   FaStop,
 } from "react-icons/fa";
@@ -21,50 +19,46 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function GeneratorPage() {
   // 🔒 ACCESS
-  const [access, setAccess] = useState(false);
-  const [password, setPassword] = useState("");
-  const SITE_PASSWORD = "yousefyousefyousef505";
+  const [access, setAccess] = useState<boolean>(false);
+  const [password, setPassword] = useState<string>("");
 
-  const unlockSite = () => {
+  const SITE_PASSWORD: string = "yousefyousefyousef505";
+
+  const unlockSite = (): void => {
     if (password === SITE_PASSWORD) setAccess(true);
     else alert("❌ Wrong Password");
   };
 
-  // 🚀 CORE STATES
-  const [prompt, setPrompt] = useState("");
-  const [result, setResult] = useState("");
-  const [displayed, setDisplayed] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [thinking, setThinking] = useState(false);
-  const [history, setHistory] = useState([]);
+  // 🚀 CORE STATE
+  const [prompt, setPrompt] = useState<string>("");
+  const [result, setResult] = useState<string>("");
+  const [displayed, setDisplayed] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [thinking, setThinking] = useState<boolean>(false);
+  const [history, setHistory] = useState<string[]>([]);
 
-  const [projectType, setProjectType] = useState("Website");
-  const [language, setLanguage] = useState("English");
+  const [projectType, setProjectType] = useState<string>("Website");
+  const [language, setLanguage] = useState<string>("English");
 
-  // ⚙️ FEATURES
-  const [threeD, setThreeD] = useState(false);
+  const [threeD, setThreeD] = useState<boolean>(false);
 
-  // 🧠 MEMORY
-  const [userStyle, setUserStyle] = useState({ vibe: "futuristic" });
+  const [userStyle] = useState<{ vibe: string }>({
+    vibe: "futuristic",
+  });
 
   // 🎤 VOICE
   const { transcript, listening, resetTranscript } =
     useSpeechRecognition();
 
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🌙 LOAD VOICE → PROMPT
+  // 🧠 VOICE → INPUT
   useEffect(() => {
     if (transcript) setPrompt(transcript);
   }, [transcript]);
 
-  // 🧠 SAVE MEMORY
-  useEffect(() => {
-    localStorage.setItem("nova-style", JSON.stringify(userStyle));
-  }, [userStyle]);
-
   // 🎤 TOGGLE VOICE
-  const toggleVoice = () => {
+  const toggleVoice = (): void => {
     if (listening) {
       SpeechRecognition.stopListening();
       resetTranscript();
@@ -76,30 +70,37 @@ export default function GeneratorPage() {
     }
   };
 
-  // ⌨️ ENTER KEY FIX
-  const handleKeyDown = (e) => {
+  // ⌨️ ENTER KEY FIX (TYPE FIXED ✅)
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ): void => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       generate();
     }
   };
 
-  // ✍️ TYPE ANIMATION FIXED
-  const typeText = (text) => {
+  // ✍️ TYPE ANIMATION
+  const typeText = (text: string): void => {
     let i = 0;
     setDisplayed("");
 
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
 
     intervalRef.current = setInterval(() => {
       setDisplayed(text.slice(0, i));
       i++;
-      if (i > text.length) clearInterval(intervalRef.current);
+
+      if (i > text.length && intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     }, 8);
   };
 
   // 🚀 GENERATE
-  const generate = async () => {
+  const generate = async (): Promise<void> => {
     if (!prompt) return;
 
     setLoading(true);
@@ -110,7 +111,9 @@ export default function GeneratorPage() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           prompt,
           projectType,
@@ -120,12 +123,12 @@ export default function GeneratorPage() {
       });
 
       const data = await res.json();
-      const full = data.result || "No result";
+      const full: string = data.result || "No result";
 
       setResult(full);
       typeText(full);
 
-      setHistory((prev) => {
+      setHistory((prev: string[]) => {
         const updated = [prompt, ...prev];
         return updated.slice(0, 20);
       });
@@ -138,9 +141,9 @@ export default function GeneratorPage() {
   };
 
   // 🐞 DEBUG
-  const debugAI = () => {
+  const debugAI = (): void => {
     if (!result) return alert("No result to debug");
-    alert("🧠 Debug mode active (hook ready)");
+    alert("🧠 Debug mode ready");
   };
 
   // 🔒 LOCK SCREEN
@@ -149,13 +152,16 @@ export default function GeneratorPage() {
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <motion.div className="p-10 rounded-2xl bg-zinc-900 text-center">
           <FaLock size={50} />
+
           <h1 className="text-2xl mt-4">Nova Clip Locked</h1>
 
           <input
             type="password"
             className="mt-4 p-3 w-full rounded bg-black border"
             placeholder="Password"
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
           />
 
           <button
@@ -192,7 +198,9 @@ export default function GeneratorPage() {
       <textarea
         className="w-full p-4 bg-zinc-900 rounded"
         value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+          setPrompt(e.target.value)
+        }
         onKeyDown={handleKeyDown}
         placeholder="Write your idea..."
       />
@@ -254,7 +262,7 @@ export default function GeneratorPage() {
       <div className="mt-6">
         <h2 className="text-xl mb-2">History</h2>
 
-        {history.map((h, i) => (
+        {history.map((h: string, i: number) => (
           <div
             key={i}
             className="p-2 bg-zinc-800 mt-2 rounded cursor-pointer"
