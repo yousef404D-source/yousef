@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
 
 type Project = {
   id: number;
@@ -12,16 +17,44 @@ type Project = {
 
 export default function Home() {
 
-  // 🔒 PASSWORD SYSTEM
+  // 🔒 PASSWORD
   const [access, setAccess] =
-    useState<boolean>(false);
+    useState(false);
 
   const [password, setPassword] =
-    useState<string>("");
+    useState("");
 
   const SITE_PASSWORD =
     "yousefyousefyousef505";
 
+  // 🌙 THEME
+  const [darkMode, setDarkMode] =
+    useState(true);
+
+  // 💬 CHAT
+  const [idea, setIdea] =
+    useState("");
+
+  const [messages, setMessages] =
+    useState<Message[]>([]);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  // 🌐 WEBSITE
+  const [html, setHtml] =
+    useState("");
+
+  // 📂 PROJECTS
+  const [projects, setProjects] =
+    useState<Project[]>([]);
+
+  const userId = "nova-user";
+
+  const bottomRef =
+    useRef<HTMLDivElement>(null);
+
+  // 🔒 LOGIN
   function unlockSite() {
 
     if (
@@ -29,33 +62,17 @@ export default function Home() {
     ) {
       setAccess(true);
     } else {
-      alert("❌ Wrong Password");
+      alert("Wrong Password");
     }
   }
 
-  // 🚀 STATES
-  const [idea, setIdea] =
-    useState<string>("");
-
-  const [html, setHtml] =
-    useState<string>("");
-
-  const [loading, setLoading] =
-    useState<boolean>(false);
-
-  const [projects, setProjects] =
-    useState<Project[]>([]);
-
-  const [darkMode, setDarkMode] =
-    useState<boolean>(true);
-
-  const userId = "nova-user";
-
-  // 📦 LOAD PROJECTS
+  // 📂 LOAD PROJECTS
   useEffect(() => {
+
     if (access) {
       loadProjects();
     }
+
   }, [access]);
 
   async function loadProjects() {
@@ -76,7 +93,7 @@ export default function Home() {
     }
   }
 
-  // 💾 SAVE PROJECT
+  // 💾 SAVE
   async function saveProject(
     htmlData: string,
     ideaText: string
@@ -101,17 +118,69 @@ export default function Home() {
     ]);
   }
 
-  // 🚀 GENERATE
-  async function generate() {
+  // 🚀 GENERATE WEBSITE
+  async function generateWebsite() {
 
     if (!idea.trim()) return;
 
+    const userMessage = {
+      role: "user" as const,
+      content: idea,
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+    ]);
+
     setLoading(true);
+
+    setIdea("");
+
+    // 🤖 AI MESSAGES
+    setTimeout(() => {
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "🧠 Thinking about your idea...",
+        },
+      ]);
+
+    }, 400);
+
+    setTimeout(() => {
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "🎨 Designing modern UI...",
+        },
+      ]);
+
+    }, 1300);
+
+    setTimeout(() => {
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "⚡ Building your website...",
+        },
+      ]);
+
+    }, 2200);
 
     try {
 
       await new Promise((resolve) =>
-        setTimeout(resolve, 2000)
+        setTimeout(resolve, 3000)
       );
 
       const res = await fetch(
@@ -123,37 +192,52 @@ export default function Home() {
               "application/json",
           },
           body: JSON.stringify({
-            idea,
+            idea:
+              userMessage.content,
           }),
         }
       );
 
-      const data = await res.json();
+      const data =
+        await res.json();
 
-      const result =
-        data.html || "";
+      if (data.html) {
 
-      setHtml(result);
+        setHtml(data.html);
 
-      await saveProject(
-        result,
-        idea
-      );
+        await saveProject(
+          data.html,
+          userMessage.content
+        );
 
-      setIdea("");
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "✅ Website completed successfully.",
+          },
+        ]);
+      }
 
     } catch (err) {
-      console.error(err);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "❌ Failed to build website.",
+        },
+      ]);
     }
 
     setLoading(false);
   }
 
-  // ⌨️ ENTER KEY
+  // ⌨️ ENTER
   function handleKeyDown(
-    e: React.KeyboardEvent<
-      HTMLTextAreaElement
-    >
+    e: React.KeyboardEvent<HTMLTextAreaElement>
   ) {
 
     if (
@@ -161,11 +245,20 @@ export default function Home() {
       !e.shiftKey
     ) {
       e.preventDefault();
-      generate();
+      generateWebsite();
     }
   }
 
-  // 🔒 PASSWORD PAGE
+  // 🔽 AUTO SCROLL
+  useEffect(() => {
+
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+
+  }, [messages]);
+
+  // 🔒 PASSWORD SCREEN
   if (!access) {
 
     return (
@@ -175,7 +268,7 @@ export default function Home() {
         <div className="lock-box">
 
           <h1>
-            🔒 NOVA CLIP
+            NOVA CLIP
           </h1>
 
           <p>
@@ -196,62 +289,55 @@ export default function Home() {
           <button
             onClick={unlockSite}
           >
-            🚀 Unlock
+            Unlock
           </button>
 
         </div>
 
         <style jsx>{`
 
-          .lock-page {
-            min-height: 100vh;
-            background: #020617;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: Arial;
+          .lock-page{
+            min-height:100vh;
+            background:#0f172a;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            font-family:Arial;
           }
 
-          .lock-box {
-            width: 400px;
-            background: rgba(15,23,42,0.8);
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 40px;
-            border-radius: 30px;
-            text-align: center;
-            color: white;
-            backdrop-filter: blur(15px);
+          .lock-box{
+            width:400px;
+            background:rgba(255,255,255,0.08);
+            padding:40px;
+            border-radius:30px;
+            color:white;
+            text-align:center;
+            backdrop-filter:blur(20px);
           }
 
-          h1 {
-            font-size: 40px;
+          h1{
+            font-size:50px;
           }
 
-          p {
-            opacity: 0.7;
-            margin-bottom: 20px;
+          input{
+            width:100%;
+            padding:16px;
+            border:none;
+            border-radius:15px;
+            margin-top:20px;
+            background:#111827;
+            color:white;
+            outline:none;
           }
 
-          input {
-            width: 100%;
-            padding: 15px;
-            border-radius: 15px;
-            border: none;
-            outline: none;
-            background: #0f172a;
-            color: white;
-            font-size: 16px;
-          }
-
-          button {
-            width: 100%;
-            margin-top: 20px;
-            padding: 15px;
-            border: none;
-            border-radius: 15px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
+          button{
+            width:100%;
+            margin-top:20px;
+            padding:15px;
+            border:none;
+            border-radius:15px;
+            cursor:pointer;
+            font-weight:bold;
           }
 
         `}</style>
@@ -260,7 +346,6 @@ export default function Home() {
     );
   }
 
-  // 🚀 MAIN PAGE
   return (
 
     <div
@@ -283,7 +368,7 @@ export default function Home() {
           : "🌙"}
       </button>
 
-      {/* 🌌 BACKGROUND */}
+      {/* 🌌 BG */}
       <div className="bg">
 
         <div className="orb orb1"></div>
@@ -292,22 +377,52 @@ export default function Home() {
 
       </div>
 
-      {/* 🚀 HERO */}
-      <div className="hero">
+      {/* 💬 CHAT */}
+      <div
+        className={
+          messages.length === 0
+            ? "chat-container center"
+            : "chat-container top"
+        }
+      >
 
-        <h1>
+        {/* 🧠 TITLE */}
+        <h1 className="logo">
           NOVA CLIP
         </h1>
 
-        <p>
-          Build futuristic websites
-          with AI power
+        <p className="subtitle">
+          Build websites with AI
         </p>
 
-        {/* 💬 CHAT */}
-        <div className="chat-box">
+        {/* 💬 MESSAGES */}
+        <div className="messages">
+
+          {messages.map(
+            (msg, index) => (
+
+              <div
+                key={index}
+                className={
+                  msg.role === "user"
+                    ? "user-msg"
+                    : "ai-msg"
+                }
+              >
+                {msg.content}
+              </div>
+            )
+          )}
+
+          <div ref={bottomRef}></div>
+
+        </div>
+
+        {/* ✍️ INPUT */}
+        <div className="input-box">
 
           <textarea
+            placeholder="Describe your website idea..."
             value={idea}
             onChange={(e) =>
               setIdea(
@@ -317,273 +432,212 @@ export default function Home() {
             onKeyDown={
               handleKeyDown
             }
-            placeholder="Describe your dream website..."
           />
 
           <button
-            onClick={generate}
+            onClick={
+              generateWebsite
+            }
             disabled={loading}
           >
             {loading
-              ? "🧠 Thinking..."
-              : "🚀 Generate"}
+              ? "Thinking..."
+              : "Generate"}
           </button>
 
         </div>
 
-        {/* 🤖 THINKING */}
-        {loading && (
-
-          <div className="thinking">
-
-            <div className="thinking-box">
-              ⚡ AI analyzing...
-            </div>
-
-            <div className="thinking-box">
-              🎨 Building UI...
-            </div>
-
-            <div className="thinking-box">
-              🧠 Generating code...
-            </div>
-
-          </div>
-        )}
-
-        {/* 🖥️ PREVIEW */}
-        {html && (
-
-          <div className="preview">
-
-            <div className="preview-top">
-
-              <div className="dots">
-
-                <span></span>
-
-                <span></span>
-
-                <span></span>
-
-              </div>
-
-              <p>
-                Live Preview
-              </p>
-
-            </div>
-
-            <iframe
-              srcDoc={html}
-              title="preview"
-            />
-
-          </div>
-        )}
-
       </div>
 
-      {/* 📂 PROJECTS */}
-      <div className="projects">
+      {/* 🌐 WEBSITE */}
+      {html && (
 
-        <h2>
-          📂 Saved Projects
-        </h2>
+        <div className="website-view">
 
-        {projects.map((p) => (
+          <iframe
+            srcDoc={html}
+            title="website"
+          />
 
-          <div
-            key={p.id}
-            className="project-card"
-            onClick={() =>
-              setHtml(p.html)
-            }
-          >
-            {p.idea}
-          </div>
+        </div>
+      )}
 
-        ))}
-
-      </div>
-
-      {/* 🎨 STYLES */}
+      {/* 🎨 CSS */}
       <style jsx>{`
 
-        .page {
-          min-height: 100vh;
-          padding: 40px;
-          overflow-x: hidden;
-          position: relative;
-          transition: 0.3s;
-          font-family: Arial;
+        .page{
+          min-height:100vh;
+          overflow-x:hidden;
+          background:#020617;
+          color:white;
+          font-family:Arial;
+          position:relative;
         }
 
-        .dark {
-          background: #020617;
-          color: white;
+        .dark{
+          background:#020617;
+          color:white;
         }
 
-        .light {
-          background: #f8fafc;
-          color: black;
+        .light{
+          background:#f8fafc;
+          color:black;
         }
 
-        .theme-btn {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          width: 55px;
-          height: 55px;
-          border-radius: 50%;
-          border: none;
-          cursor: pointer;
-          font-size: 22px;
-          z-index: 999;
-          background: white;
+        .theme-btn{
+          position:fixed;
+          top:20px;
+          right:20px;
+          width:55px;
+          height:55px;
+          border-radius:50%;
+          border:none;
+          cursor:pointer;
+          font-size:22px;
+          z-index:999;
         }
 
-        .bg {
-          position: absolute;
-          inset: 0;
-          overflow: hidden;
-          z-index: 0;
+        .bg{
+          position:absolute;
+          inset:0;
+          overflow:hidden;
         }
 
-        .orb {
-          position: absolute;
-          width: 500px;
-          height: 500px;
-          border-radius: 50%;
-          filter: blur(140px);
+        .orb{
+          position:absolute;
+          width:500px;
+          height:500px;
+          border-radius:50%;
+          filter:blur(140px);
         }
 
-        .orb1 {
-          background: #2563eb;
-          top: -100px;
-          left: -100px;
-          opacity: 0.3;
+        .orb1{
+          background:#2563eb;
+          top:-100px;
+          left:-100px;
+          opacity:0.3;
         }
 
-        .orb2 {
-          background: #7c3aed;
-          bottom: -100px;
-          right: -100px;
-          opacity: 0.3;
+        .orb2{
+          background:#7c3aed;
+          bottom:-100px;
+          right:-100px;
+          opacity:0.3;
         }
 
-        .hero {
-          position: relative;
-          z-index: 2;
-          max-width: 900px;
-          margin: auto;
-          text-align: center;
+        .chat-container{
+          position:relative;
+          z-index:2;
+          max-width:900px;
+          margin:auto;
+          transition:0.5s;
+          padding:30px;
         }
 
-        h1 {
-          font-size: 70px;
-          margin-top: 60px;
+        .center{
+          display:flex;
+          flex-direction:column;
+          justify-content:center;
+          min-height:100vh;
         }
 
-        p {
-          opacity: 0.7;
+        .top{
+          padding-top:40px;
         }
 
-        .chat-box {
-          margin-top: 40px;
-          background: rgba(15,23,42,0.7);
-          border: 1px solid rgba(255,255,255,0.1);
-          padding: 20px;
-          border-radius: 30px;
-          backdrop-filter: blur(15px);
+        .logo{
+          font-size:70px;
+          text-align:center;
+          margin-bottom:10px;
         }
 
-        textarea {
-          width: 100%;
-          height: 160px;
-          border: none;
-          outline: none;
-          resize: none;
-          background: transparent;
-          color: inherit;
-          font-size: 18px;
+        .subtitle{
+          text-align:center;
+          opacity:0.7;
+          margin-bottom:40px;
         }
 
-        button {
-          margin-top: 20px;
-          padding: 15px 30px;
-          border: none;
-          border-radius: 15px;
-          cursor: pointer;
-          font-weight: bold;
-          font-size: 16px;
+        .messages{
+          display:flex;
+          flex-direction:column;
+          gap:15px;
+          margin-bottom:25px;
         }
 
-        .thinking {
-          margin-top: 25px;
-          display: flex;
-          justify-content: center;
-          gap: 10px;
-          flex-wrap: wrap;
+        .user-msg{
+          align-self:flex-end;
+          background:#2563eb;
+          padding:16px 20px;
+          border-radius:20px;
+          max-width:70%;
+          animation:fadeUp 0.3s ease;
         }
 
-        .thinking-box {
-          background: rgba(255,255,255,0.08);
-          padding: 12px 20px;
-          border-radius: 15px;
+        .ai-msg{
+          align-self:flex-start;
+          background:rgba(255,255,255,0.08);
+          backdrop-filter:blur(20px);
+          padding:16px 20px;
+          border-radius:20px;
+          max-width:70%;
+          animation:fadeUp 0.3s ease;
         }
 
-        .preview {
-          margin-top: 40px;
-          border-radius: 25px;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.1);
+        .input-box{
+          background:rgba(255,255,255,0.08);
+          border:1px solid rgba(255,255,255,0.1);
+          backdrop-filter:blur(20px);
+          border-radius:30px;
+          padding:20px;
         }
 
-        .preview-top {
-          background: #111827;
-          padding: 15px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
+        textarea{
+          width:100%;
+          border:none;
+          resize:none;
+          outline:none;
+          background:transparent;
+          color:inherit;
+          font-size:18px;
+          height:100px;
         }
 
-        .dots {
-          position: absolute;
-          left: 20px;
-          display: flex;
-          gap: 7px;
+        button{
+          margin-top:15px;
+          padding:14px 24px;
+          border:none;
+          border-radius:14px;
+          cursor:pointer;
+          font-weight:bold;
         }
 
-        .dots span {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          background: white;
+        .website-view{
+          position:relative;
+          z-index:2;
+          margin-top:40px;
+          width:100%;
+          height:100vh;
+          animation:fadeUp 0.5s ease;
         }
 
-        iframe {
-          width: 100%;
-          height: 700px;
-          border: none;
-          background: white;
+        iframe{
+          width:100%;
+          height:100%;
+          border:none;
+          background:white;
         }
 
-        .projects {
-          position: relative;
-          z-index: 2;
-          max-width: 900px;
-          margin: 50px auto;
-        }
+        @keyframes fadeUp{
 
-        .project-card {
-          margin-top: 15px;
-          padding: 18px;
-          border-radius: 18px;
-          cursor: pointer;
-          background: rgba(255,255,255,0.08);
-          transition: 0.3s;
+          from{
+            opacity:0;
+            transform:translateY(20px);
+          }
+
+          to{
+            opacity:1;
+            transform:translateY(0px);
+          }
         }
 
       `}</style>

@@ -1,104 +1,62 @@
+import OpenAI from "openai";
 import { NextResponse } from "next/server";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(req: Request) {
 
   try {
 
-    const body = await req.json();
+    const { idea } =
+      await req.json();
 
-    const idea = body.idea;
+    const completion =
+      await openai.chat.completions.create({
 
-    // 🧠 AI GENERATED HTML
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${idea}</title>
+        model: "gpt-4.1-mini",
 
-        <style>
+        messages: [
 
-          body{
-            margin:0;
-            font-family:Arial;
-            background:#0f172a;
-            color:white;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            overflow:hidden;
-          }
+          {
+            role: "system",
 
-          .card{
-            width:700px;
-            padding:50px;
-            border-radius:30px;
-            background:rgba(255,255,255,0.08);
-            backdrop-filter:blur(20px);
-            border:1px solid rgba(255,255,255,0.1);
-            animation:fade 1s ease;
-            text-align:center;
-          }
+            content: `
+You are NOVA CLIP AI.
 
-          h1{
-            font-size:55px;
-            margin-bottom:20px;
-          }
+You build full modern websites.
 
-          p{
-            opacity:0.7;
-            line-height:1.7;
-            font-size:20px;
-          }
+Return ONLY raw HTML.
 
-          button{
-            margin-top:30px;
-            padding:16px 30px;
-            border:none;
-            border-radius:15px;
-            background:white;
-            font-size:18px;
-            cursor:pointer;
-            font-weight:bold;
-          }
+The websites must:
+- be beautiful
+- futuristic
+- responsive
+- animated
+- modern UI
+- gradients
+- glassmorphism
+- professional
 
-          @keyframes fade{
-            from{
-              opacity:0;
-              transform:translateY(30px);
-            }
+Do NOT explain anything.
 
-            to{
-              opacity:1;
-              transform:translateY(0px);
-            }
-          }
+ONLY RETURN HTML.
+            `,
+          },
 
-        </style>
-      </head>
+          {
+            role: "user",
+            content: idea,
+          },
+        ],
 
-      <body>
+        temperature: 1,
+      });
 
-        <div class="card">
-
-          <h1>
-            ${idea}
-          </h1>
-
-          <p>
-            This website was generated
-            with NOVA CLIP AI.
-          </p>
-
-          <button>
-            Get Started
-          </button>
-
-        </div>
-
-      </body>
-      </html>
-    `;
+    const html =
+      completion.choices[0]
+        .message.content || "";
 
     return NextResponse.json({
       html,
@@ -106,9 +64,10 @@ export async function POST(req: Request) {
 
   } catch (error) {
 
-    return NextResponse.json({
-      error: "Generation Failed",
-    });
+    console.log(error);
 
+    return NextResponse.json({
+      error: "AI ERROR",
+    });
   }
 }
