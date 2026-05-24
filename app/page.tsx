@@ -1,277 +1,309 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  FaMicrophone,
-  FaRobot,
-  FaBolt,
-  FaBrain,
-  FaLock,
-  FaBug,
-  FaStop,
-} from "react-icons/fa";
-
-import SpeechRecognition, {
-  useSpeechRecognition,
-} from "react-speech-recognition";
-
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaSun, FaMoon } from "react-icons/fa";
 
-export default function GeneratorPage() {
-  // 🔒 ACCESS
-  const [access, setAccess] = useState<boolean>(false);
-  const [password, setPassword] = useState<string>("");
+export default function Home() {
+  const [idea, setIdea] = useState("");
+  const [html, setHtml] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const SITE_PASSWORD: string = "yousefyousefyousef505";
+  // 🌙 THEME
+  const [dark, setDark] = useState(true);
 
-  const unlockSite = (): void => {
-    if (password === SITE_PASSWORD) setAccess(true);
-    else alert("❌ Wrong Password");
-  };
+  // 💬 CHAT
+  const [messages, setMessages] = useState([]);
 
-  // 🚀 CORE STATE
-  const [prompt, setPrompt] = useState<string>("");
-  const [result, setResult] = useState<string>("");
-  const [displayed, setDisplayed] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [thinking, setThinking] = useState<boolean>(false);
-  const [history, setHistory] = useState<string[]>([]);
+  // 💾 PROJECTS
+  const [projects, setProjects] = useState([]);
 
-  const [projectType, setProjectType] = useState<string>("Website");
-  const [language, setLanguage] = useState<string>("English");
+  const userId = "user-1";
 
-  const [threeD, setThreeD] = useState<boolean>(false);
-
-  const [userStyle] = useState<{ vibe: string }>({
-    vibe: "futuristic",
-  });
-
-  // 🎤 VOICE
-  const { transcript, listening, resetTranscript } =
-    useSpeechRecognition();
-
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 🧠 VOICE → INPUT
+  // 📦 LOAD PROJECTS (SAFE)
   useEffect(() => {
-    if (transcript) setPrompt(transcript);
-  }, [transcript]);
-
-  // 🎤 TOGGLE VOICE
-  const toggleVoice = (): void => {
-    if (listening) {
-      SpeechRecognition.stopListening();
-      resetTranscript();
-    } else {
-      SpeechRecognition.startListening({
-        continuous: true,
-        language: "ar",
-      });
-    }
-  };
-
-  // ⌨️ ENTER KEY FIX (TYPE FIXED ✅)
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>
-  ): void => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      generate();
-    }
-  };
-
-  // ✍️ TYPE ANIMATION
-  const typeText = (text: string): void => {
-    let i = 0;
-    setDisplayed("");
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    intervalRef.current = setInterval(() => {
-      setDisplayed(text.slice(0, i));
-      i++;
-
-      if (i > text.length && intervalRef.current) {
-        clearInterval(intervalRef.current);
+    const saved = localStorage.getItem(`projects-${userId}`);
+    if (saved) {
+      try {
+        setProjects(JSON.parse(saved || "[]"));
+      } catch {
+        setProjects([]);
       }
-    }, 8);
-  };
+    }
+  }, []);
 
-  // 🚀 GENERATE
-  const generate = async (): Promise<void> => {
-    if (!prompt) return;
+  // 💾 SAVE PROJECT (SAFE + FIXED STATE)
+  function saveProject(htmlData, ideaText) {
+    const newProject = {
+      id: Date.now(),
+      idea: ideaText,
+      html: htmlData,
+    };
+
+    setProjects((prev) => {
+      const updated = [newProject, ...prev];
+
+      localStorage.setItem(
+        `projects-${userId}`,
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+  }
+
+  // ⏳ THINKING DELAY
+  function delay(ms) {
+    return new Promise((res) => setTimeout(res, ms));
+  }
+
+  // 🚀 GENERATE AI (IMPROVED PROMPT)
+  async function generate() {
+    if (!idea.trim() || loading) return;
 
     setLoading(true);
-    setThinking(true);
-    setResult("");
-    setDisplayed("");
+
+    // 💬 user chat (animated)
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        type: "user",
+        text: idea,
+      },
+    ]);
 
     try {
+      // 🧠 thinking delay BEFORE request (better UX)
+      await delay(2000);
+
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt,
-          projectType,
-          language,
-          userStyle,
+          idea: `
+You are a senior SaaS UI/UX designer and full-stack architect.
+
+TASK:
+- Build a complete production-ready website
+- Do NOT copy or repeat user text
+- Improve the idea creatively
+- Add: hero, features, pricing, footer
+- Make it modern, premium, responsive
+
+Concept:
+${idea}
+          `,
         }),
       });
 
       const data = await res.json();
-      const full: string = data.result || "No result";
+      const result = data.html || "";
 
-      setResult(full);
-      typeText(full);
+      setHtml(result);
 
-      setHistory((prev: string[]) => {
-        const updated = [prompt, ...prev];
-        return updated.slice(0, 20);
-      });
+      // 💬 AI response chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 2,
+          type: "ai",
+          text: "✨ Website generated successfully",
+        },
+      ]);
+
+      saveProject(result, idea);
+      setIdea("");
     } catch (err) {
-      setResult("❌ Error generating result");
+      console.error(err);
     }
 
-    setThinking(false);
     setLoading(false);
-  };
-
-  // 🐞 DEBUG
-  const debugAI = (): void => {
-    if (!result) return alert("No result to debug");
-    alert("🧠 Debug mode ready");
-  };
-
-  // 🔒 LOCK SCREEN
-  if (!access) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <motion.div className="p-10 rounded-2xl bg-zinc-900 text-center">
-          <FaLock size={50} />
-
-          <h1 className="text-2xl mt-4">Nova Clip Locked</h1>
-
-          <input
-            type="password"
-            className="mt-4 p-3 w-full rounded bg-black border"
-            placeholder="Password"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setPassword(e.target.value)
-            }
-          />
-
-          <button
-            onClick={unlockSite}
-            className="mt-4 w-full p-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded"
-          >
-            Enter
-          </button>
-        </motion.div>
-      </div>
-    );
   }
 
-  // 🚀 MAIN UI
+  // ⌨️ ENTER KEY
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      generate();
+    }
+  }
+
   return (
-    <div
-      className={`min-h-screen bg-black text-white p-6 ${
-        threeD ? "perspective-1000" : ""
-      }`}
-    >
-      {/* HEADER */}
-      <div className="flex justify-between mb-4">
-        <h1 className="text-3xl font-bold">⚡ Nova Clip</h1>
+    <div className={dark ? "dark page" : "light page"}>
 
-        <button
-          onClick={debugAI}
-          className="p-2 bg-red-600 rounded"
-        >
-          <FaBug /> Debug
+      {/* 🌙☀️ THEME BUTTON */}
+      <div className="themeBtn" onClick={() => setDark(!dark)}>
+        {dark ? <FaSun /> : <FaMoon />}
+      </div>
+
+      {/* HERO */}
+      <div className="hero">
+        <h1>Nova Clip AI Builder</h1>
+
+        <textarea
+          value={idea}
+          onChange={(e) => setIdea(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Describe your website idea..."
+        />
+
+        <button onClick={generate} disabled={loading}>
+          {loading ? "Thinking..." : "Enter"}
         </button>
       </div>
 
-      {/* INPUT */}
-      <textarea
-        className="w-full p-4 bg-zinc-900 rounded"
-        value={prompt}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-          setPrompt(e.target.value)
-        }
-        onKeyDown={handleKeyDown}
-        placeholder="Write your idea..."
-      />
-
-      {/* ACTIONS */}
-      <div className="flex gap-2 mt-4">
-        <button
-          onClick={toggleVoice}
-          className="p-3 bg-zinc-800 rounded flex items-center gap-2"
-        >
-          {listening ? <FaStop /> : <FaMicrophone />}
-          {listening ? "Stop" : "Voice"}
-        </button>
-
-        <button
-          onClick={generate}
-          className="flex-1 p-3 bg-blue-600 rounded"
-        >
-          {loading ? "..." : "Enter"}
-        </button>
-
-        <button
-          onClick={() => setPrompt("")}
-          className="p-3 bg-zinc-800 rounded"
-        >
-          Clear
-        </button>
-      </div>
-
-      {/* THINKING */}
-      {thinking && (
-        <div className="mt-4 space-y-1">
-          <p>
-            <FaBrain /> Thinking...
-          </p>
-          <p>
-            <FaBolt /> Building...
-          </p>
-          <p>
-            <FaRobot /> Optimizing...
-          </p>
-        </div>
-      )}
-
-      {/* RESULT */}
-      {result && (
+      {/* 💬 CHAT ANIMATION (FIXED KEYS) */}
+      <div className="chatContainer">
         <AnimatePresence>
-          <motion.pre
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-4 p-4 bg-zinc-900 rounded whitespace-pre-wrap"
-          >
-            {displayed}
-          </motion.pre>
+          {messages.map((m) => (
+            <motion.div
+              key={m.id}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className={
+                m.type === "user"
+                  ? "chat user"
+                  : "chat ai"
+              }
+            >
+              {m.text}
+            </motion.div>
+          ))}
         </AnimatePresence>
+      </div>
+
+      {/* 🖥️ PREVIEW */}
+      {html && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="preview"
+        >
+          <iframe srcDoc={html} />
+        </motion.div>
       )}
 
-      {/* HISTORY */}
-      <div className="mt-6">
-        <h2 className="text-xl mb-2">History</h2>
+      {/* 💾 PROJECTS */}
+      <div className="projects">
+        <h2>Saved Projects</h2>
 
-        {history.map((h: string, i: number) => (
+        {projects.map((p) => (
           <div
-            key={i}
-            className="p-2 bg-zinc-800 mt-2 rounded cursor-pointer"
-            onClick={() => setPrompt(h)}
+            key={p.id}
+            className="projectCard"
+            onClick={() => setHtml(p.html)}
           >
-            {h}
+            {p.idea}
           </div>
         ))}
       </div>
+
+      {/* STYLE */}
+      <style jsx>{`
+        .page {
+          min-height: 100vh;
+          padding: 40px;
+          transition: 0.3s;
+        }
+
+        .dark {
+          background: #0b0f19;
+          color: white;
+        }
+
+        .light {
+          background: #f5f7ff;
+          color: black;
+        }
+
+        /* 🌙☀️ BUTTON */
+        .themeBtn {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #222;
+          color: white;
+          padding: 12px;
+          border-radius: 50%;
+          cursor: pointer;
+        }
+
+        .hero {
+          text-align: center;
+          margin-top: 60px;
+        }
+
+        textarea {
+          width: 60%;
+          height: 120px;
+          margin-top: 20px;
+          padding: 15px;
+          border-radius: 10px;
+        }
+
+        button {
+          margin-top: 15px;
+          padding: 12px 20px;
+          border-radius: 10px;
+          cursor: pointer;
+        }
+
+        button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* 💬 CHAT */
+        .chatContainer {
+          margin-top: 40px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .chat {
+          width: 60%;
+          padding: 15px;
+          border-radius: 14px;
+        }
+
+        .user {
+          background: rgba(59,130,246,0.2);
+          align-self: flex-end;
+        }
+
+        .ai {
+          background: rgba(34,197,94,0.2);
+          align-self: flex-start;
+        }
+
+        /* 🖥️ PREVIEW */
+        .preview iframe {
+          width: 100%;
+          height: 600px;
+          border: none;
+          margin-top: 40px;
+        }
+
+        /* 💾 PROJECTS */
+        .projects {
+          margin-top: 60px;
+          text-align: center;
+        }
+
+        .projectCard {
+          width: 60%;
+          margin: 10px auto;
+          padding: 12px;
+          background: rgba(255,255,255,0.08);
+          border-radius: 12px;
+          cursor: pointer;
+        }
+      `}</style>
     </div>
   );
 }
