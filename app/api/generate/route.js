@@ -1,13 +1,59 @@
-import express from "express";
-import multer from "multer";
+import Groq from "groq-sdk";
 
-const app = express();
-const upload = multer({ dest: "uploads/" });
+export async function POST(req) {
+  try {
+    const { idea } = await req.json();
 
-// Route تجريبي
-app.post("/test", upload.single("file"), (req, res) => {
-  // مجرد تجربة: نرجع اسم الملف اللي المستخدم رفعه
-  res.json({ message: "تم استلام الملف ✅", file: req.file.originalname });
-});
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
 
-app.listen(3000, () => console.log("NovaClip running on port 3000"));
+    const completion =
+      await groq.chat.completions.create({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "system",
+            content: `
+You are NOVA AI Builder.
+
+Rules:
+- Generate full HTML pages.
+- Modern clean design.
+- Responsive layout.
+- Output ONLY raw HTML code.
+            `,
+          },
+          {
+            role: "user",
+            content: idea,
+          },
+        ],
+        temperature: 0.8,
+      });
+
+    let result =
+      completion.choices[0].message.content;
+
+    result = result
+      .replace(/```html/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    return Response.json({
+      result,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return Response.json(
+      {
+        result: "Error generating project",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
