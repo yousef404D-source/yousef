@@ -3,21 +3,26 @@
 import { useState, useEffect } from "react";
 
 export default function GeneratorPage() {
-  const [prompt, setPrompt] = useState("");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [thinking, setThinking] = useState(false);
-  const [history, setHistory] = useState([]);
+  const [prompt, setPrompt] = useState<string>("");
+  const [result, setResult] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [thinking, setThinking] = useState<boolean>(false);
+  const [history, setHistory] = useState<string[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("ai-history");
+
     if (saved) {
-      setHistory(JSON.parse(saved));
+      try {
+        setHistory(JSON.parse(saved));
+      } catch {
+        setHistory([]);
+      }
     }
   }, []);
 
   const generate = async () => {
-    if (!prompt) return;
+    if (!prompt.trim()) return;
 
     setLoading(true);
     setThinking(true);
@@ -34,11 +39,16 @@ export default function GeneratorPage() {
 
       const data = await res.json();
 
-      setResult(data.result);
+      setResult(data.result || "No result");
 
       const updated = [prompt, ...history];
+
       setHistory(updated);
-      localStorage.setItem("ai-history", JSON.stringify(updated));
+
+      localStorage.setItem(
+        "ai-history",
+        JSON.stringify(updated)
+      );
     } catch (err) {
       setResult("❌ حدث خطأ أثناء التوليد");
     }
@@ -66,8 +76,14 @@ export default function GeneratorPage() {
             onChange={(e) => setPrompt(e.target.value)}
           />
 
-          <button onClick={generate} style={styles.button}>
-            {loading ? "🧠 Thinking..." : "🚀 Generate Project"}
+          <button
+            onClick={generate}
+            style={styles.button}
+            disabled={loading}
+          >
+            {loading
+              ? "🧠 Thinking..."
+              : "🚀 Generate Project"}
           </button>
 
           {thinking && (
@@ -83,28 +99,36 @@ export default function GeneratorPage() {
             <div style={styles.result}>
               <h2>🔥 Generated Result</h2>
 
-              <pre style={styles.pre}>{result}</pre>
+              <pre style={styles.pre}>
+                {result}
+              </pre>
             </div>
           )}
         </div>
 
         <div style={styles.right}>
-          <h2 style={styles.historyTitle}>📜 History</h2>
+          <h2 style={styles.historyTitle}>
+            📜 History
+          </h2>
 
           <div style={styles.historyBox}>
             {history.length === 0 && (
-              <p style={{ opacity: 0.6 }}>No history yet</p>
+              <p style={{ opacity: 0.6 }}>
+                No history yet
+              </p>
             )}
 
-            {history.map((item, index) => (
-              <div
-                key={index}
-                style={styles.historyItem}
-                onClick={() => setPrompt(item)}
-              >
-                {item}
-              </div>
-            ))}
+            {history.map(
+              (item: string, index: number) => (
+                <div
+                  key={index}
+                  style={styles.historyItem}
+                  onClick={() => setPrompt(item)}
+                >
+                  {item}
+                </div>
+              )
+            )}
           </div>
 
           <div style={styles.stats}>
@@ -129,7 +153,7 @@ export default function GeneratorPage() {
   );
 }
 
-const styles = {
+const styles: any = {
   page: {
     minHeight: "100vh",
     background: "#020617",
@@ -192,7 +216,8 @@ const styles = {
     padding: "15px",
     borderRadius: "15px",
     border: "none",
-    background: "linear-gradient(90deg,#2563eb,#7c3aed)",
+    background:
+      "linear-gradient(90deg,#2563eb,#7c3aed)",
     color: "white",
     fontSize: "18px",
     cursor: "pointer",
