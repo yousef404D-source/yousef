@@ -6,6 +6,7 @@ import {
   FaRobot,
   FaBolt,
   FaBrain,
+  FaLock,
 } from "react-icons/fa";
 
 import SpeechRecognition, {
@@ -15,9 +16,34 @@ import SpeechRecognition, {
 import { motion } from "framer-motion";
 
 export default function GeneratorPage() {
-  const [prompt, setPrompt] = useState<string>("");
-  const [result, setResult] = useState<string>("");
-  const [displayedResult, setDisplayedResult] =
+
+  // 🔒 PASSWORD SYSTEM
+  const [access, setAccess] =
+    useState<boolean>(false);
+
+  const [password, setPassword] =
+    useState<string>("");
+
+  const SITE_PASSWORD =
+    "yousefyousefyousefyousef505";
+
+  const unlockSite = () => {
+    if (password === SITE_PASSWORD) {
+      setAccess(true);
+    } else {
+      alert("❌ Wrong Password");
+    }
+  };
+
+  // 🚀 MAIN STATES
+  const [prompt, setPrompt] =
+    useState<string>("");
+
+  const [result, setResult] =
+    useState<string>("");
+
+  const [displayedResult,
+    setDisplayedResult] =
     useState<string>("");
 
   const [loading, setLoading] =
@@ -26,20 +52,20 @@ export default function GeneratorPage() {
   const [thinking, setThinking] =
     useState<boolean>(false);
 
-  const [history, setHistory] = useState<string[]>(
-    []
-  );
+  const [history, setHistory] =
+    useState<string[]>([]);
 
-  const [projectType, setProjectType] =
+  const [projectType,
+    setProjectType] =
     useState<string>("Website");
 
-  const [language, setLanguage] =
+  const [language,
+    setLanguage] =
     useState<string>("English");
 
   const {
     transcript,
     listening,
-    resetTranscript,
   } = useSpeechRecognition();
 
   useEffect(() => {
@@ -126,7 +152,8 @@ export default function GeneratorPage() {
         }
       }, 5);
 
-      const updated = [prompt, ...history];
+      const updated =
+        [prompt, ...history];
 
       setHistory(updated);
 
@@ -134,6 +161,7 @@ export default function GeneratorPage() {
         "ai-history",
         JSON.stringify(updated)
       );
+
     } catch (err) {
       setResult(
         "❌ حدث خطأ أثناء التوليد"
@@ -144,6 +172,60 @@ export default function GeneratorPage() {
     setLoading(false);
   };
 
+  // 🔒 LOCK SCREEN
+  if (!access) {
+    return (
+      <div style={styles.lockPage}>
+        <motion.div
+          initial={{
+            opacity: 0,
+            scale: 0.9,
+          }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+          }}
+          style={styles.lockBox}
+        >
+          <FaLock size={50} />
+
+          <h1 style={{
+            marginTop: "20px",
+          }}>
+            Crystal AI Locked
+          </h1>
+
+          <p style={{
+            opacity: 0.7,
+            marginBottom: "20px",
+          }}>
+            Enter Password To Continue
+          </p>
+
+          <input
+            type="password"
+            placeholder="Enter Password..."
+            value={password}
+            onChange={(e) =>
+              setPassword(
+                e.target.value
+              )
+            }
+            style={styles.passwordInput}
+          />
+
+          <button
+            onClick={unlockSite}
+            style={styles.unlockButton}
+          >
+            🚀 Unlock
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // 🚀 MAIN PAGE
   return (
     <div style={styles.page}>
       <div style={styles.bg}></div>
@@ -198,7 +280,9 @@ export default function GeneratorPage() {
             placeholder="Build me a futuristic AI dashboard..."
             value={prompt}
             onChange={(e) =>
-              setPrompt(e.target.value)
+              setPrompt(
+                e.target.value
+              )
             }
           />
 
@@ -215,6 +299,7 @@ export default function GeneratorPage() {
               }}
             >
               <FaMicrophone />
+
               {listening
                 ? " Listening..."
                 : " Voice"}
@@ -244,18 +329,21 @@ export default function GeneratorPage() {
               style={styles.thinking}
             >
               <p>
-                <FaBrain /> Analyzing
-                project...
+                <FaBrain />
+                {" "}
+                Analyzing project...
               </p>
 
               <p>
-                <FaBolt /> Building
-                architecture...
+                <FaBolt />
+                {" "}
+                Building architecture...
               </p>
 
               <p>
-                <FaRobot /> Improving
-                UI/UX...
+                <FaRobot />
+                {" "}
+                Improving UI/UX...
               </p>
             </motion.div>
           )}
@@ -274,40 +362,6 @@ export default function GeneratorPage() {
                 {displayedResult}
               </pre>
             </motion.div>
-          )}
-
-          {result && (
-            <div style={styles.preview}>
-              <div style={styles.previewTop}>
-                <div style={styles.dot}></div>
-                <div style={styles.dot}></div>
-                <div style={styles.dot}></div>
-              </div>
-
-              <iframe
-                srcDoc={`
-                <html>
-                  <body style="
-                    background:#020617;
-                    color:white;
-                    display:flex;
-                    justify-content:center;
-                    align-items:center;
-                    height:100vh;
-                    font-family:Arial;
-                  ">
-                    <h1>🚀 AI Preview</h1>
-                  </body>
-                </html>
-              `}
-                style={{
-                  width: "100%",
-                  height: "400px",
-                  border: "none",
-                  borderRadius: "15px",
-                }}
-              />
-            </div>
           )}
         </div>
 
@@ -339,6 +393,50 @@ export default function GeneratorPage() {
 }
 
 const styles: any = {
+
+  lockPage: {
+    minHeight: "100vh",
+    background: "#020617",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    color: "white",
+    fontFamily: "Arial",
+  },
+
+  lockBox: {
+    background: "#0f172a",
+    padding: "40px",
+    borderRadius: "25px",
+    border: "1px solid #1e293b",
+    textAlign: "center",
+    width: "400px",
+  },
+
+  passwordInput: {
+    width: "100%",
+    padding: "15px",
+    borderRadius: "15px",
+    border: "1px solid #1e293b",
+    background: "#020617",
+    color: "white",
+    outline: "none",
+    marginTop: "20px",
+  },
+
+  unlockButton: {
+    width: "100%",
+    marginTop: "15px",
+    padding: "15px",
+    borderRadius: "15px",
+    border: "none",
+    background:
+      "linear-gradient(90deg,#2563eb,#7c3aed)",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+
   page: {
     minHeight: "100vh",
     background: "#020617",
@@ -471,27 +569,6 @@ const styles: any = {
   pre: {
     whiteSpace: "pre-wrap",
     lineHeight: "1.7",
-  },
-
-  preview: {
-    marginTop: "20px",
-    background: "#0f172a",
-    padding: "15px",
-    borderRadius: "20px",
-    border: "1px solid #1e293b",
-  },
-
-  previewTop: {
-    display: "flex",
-    gap: "8px",
-    marginBottom: "10px",
-  },
-
-  dot: {
-    width: "12px",
-    height: "12px",
-    borderRadius: "50%",
-    background: "#334155",
   },
 
   history: {
