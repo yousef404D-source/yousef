@@ -1,59 +1,50 @@
-import Groq from "groq-sdk";
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(req) {
   try {
-    const { idea } = await req.json();
+    const { prompt } = await req.json();
 
-    const groq = new Groq({
-      apiKey: process.env.GROQ_API_KEY,
+    const response = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content: `
+أنت AI قوي جدًا لبناء المشاريع.
+
+المهام:
+- تحليل فكرة المستخدم
+- تحويلها إلى مشروع كامل
+- إعطاء:
+  1) فكرة المشروع
+  2) الهيكل (folders)
+  3) الكود الأساسي
+  4) ميزات إضافية ذكية
+  5) تحسينات UX/UI
+  6) أفكار تطوير مستقبلية
+
+لا تكتب كلام فارغ.
+اكتب كود عملي قابل للاستخدام.
+`,
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
     });
-
-    const completion =
-      await groq.chat.completions.create({
-        model: "llama-3.1-8b-instant",
-        messages: [
-          {
-            role: "system",
-            content: `
-You are NOVA AI Builder.
-
-Rules:
-- Generate full HTML pages.
-- Modern clean design.
-- Responsive layout.
-- Output ONLY raw HTML code.
-            `,
-          },
-          {
-            role: "user",
-            content: idea,
-          },
-        ],
-        temperature: 0.8,
-      });
-
-    let result =
-      completion.choices[0].message.content;
-
-    result = result
-      .replace(/```html/g, "")
-      .replace(/```/g, "")
-      .trim();
 
     return Response.json({
-      result,
+      result: response.choices[0].message.content,
     });
-
   } catch (error) {
-    console.error(error);
-
     return Response.json(
-      {
-        result: "Error generating project",
-      },
-      {
-        status: 500,
-      }
+      { error: "Server Error", details: error.message },
+      { status: 500 }
     );
   }
 }

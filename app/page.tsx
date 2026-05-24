@@ -2,99 +2,105 @@
 
 import { useState } from "react";
 
-export default function Home() {
-  const [input, setInput] = useState("");
-  const [response, setResponse] = useState("");
+export default function Page() {
+  const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState("");
 
-  const sendMessage = async () => {
-    if (!input) return;
+  const send = async () => {
+    if (!prompt) return;
 
     setLoading(true);
-    setResponse("");
+    setResult("");
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/ai", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          idea: input,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
       });
 
       const data = await res.json();
-
-      setResponse(data.result);
+      setResult(data.result);
     } catch (err) {
-      setResponse("Error talking to bot.");
+      setResult("حدث خطأ...");
     }
 
     setLoading(false);
   };
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#0b0b0f",
-        color: "white",
-        display: "flex",
-        flexDirection: "column",
-        padding: "40px",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1 style={{ marginBottom: "20px" }}>
-        NOVA AI CHAT TEST
-      </h1>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>⚡ AI Project Builder</h1>
+        <p style={styles.sub}>
+          اكتب فكرتك وأنا أبني لك مشروع كامل (كود + هيكل + ميزات)
+        </p>
 
-      <textarea
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Ask the AI to build a website..."
-        style={{
-          height: "120px",
-          background: "#111",
-          color: "white",
-          border: "1px solid #333",
-          borderRadius: "12px",
-          padding: "16px",
-          fontSize: "16px",
-          marginBottom: "20px",
-        }}
-      />
+        <textarea
+          style={styles.textarea}
+          placeholder="مثال: ابني لي موقع متجر إلكتروني حديث مع لوحة تحكم"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+        />
 
-      <button
-        onClick={sendMessage}
-        style={{
-          width: "200px",
-          padding: "14px",
-          border: "none",
-          borderRadius: "12px",
-          background: "#2563eb",
-          color: "white",
-          cursor: "pointer",
-          fontSize: "16px",
-          marginBottom: "30px",
-        }}
-      >
-        {loading ? "Generating..." : "Send"}
-      </button>
+        <button style={styles.button} onClick={send}>
+          {loading ? "جاري التفكير..." : "🚀 توليد المشروع"}
+        </button>
 
-      <div
-        style={{
-          flex: 1,
-          background: "#111",
-          borderRadius: "12px",
-          padding: "20px",
-          overflow: "auto",
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {response || "AI response will appear here"}
+        {result && (
+          <div style={styles.output}>
+            <h3>🧠 النتيجة:</h3>
+            <pre style={{ whiteSpace: "pre-wrap" }}>{result}</pre>
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
+
+const styles = {
+  container: {
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background: "linear-gradient(120deg,#0f172a,#1e293b)",
+    color: "white",
+    fontFamily: "Arial",
+  },
+  card: {
+    width: "600px",
+    padding: "20px",
+    borderRadius: "15px",
+    background: "#111827",
+    boxShadow: "0 0 30px rgba(0,0,0,0.5)",
+  },
+  title: { fontSize: "24px", marginBottom: "10px" },
+  sub: { fontSize: "14px", opacity: 0.7 },
+  textarea: {
+    width: "100%",
+    height: "120px",
+    marginTop: "15px",
+    padding: "10px",
+    borderRadius: "10px",
+    border: "none",
+    outline: "none",
+  },
+  button: {
+    width: "100%",
+    marginTop: "10px",
+    padding: "10px",
+    borderRadius: "10px",
+    border: "none",
+    background: "#3b82f6",
+    color: "white",
+    cursor: "pointer",
+  },
+  output: {
+    marginTop: "20px",
+    padding: "10px",
+    background: "#0b1220",
+    borderRadius: "10px",
+  },
+};
