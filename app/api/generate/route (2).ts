@@ -1,44 +1,59 @@
-import { fal } from "@fal-ai/client";
-
-fal.config({
-  credentials: process.env.FAL_KEY,
-});
-
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
-    const { styles = [], size = "1024x1024", quality = "high" } = await req.json();
+    const {
+      prompt,
+      size = "1024x1024",
+      quality = "high",
+    } = await req.json();
 
-    // بناء الـ prompt بشكل ديناميكي
-    const prompt = `
-Modern UI website background design.
-${styles.map((s) => `Style: ${s}.`).join("\n")}
-High quality futuristic design, gradients, clean UI.
-    `;
-
-    console.log("🚀 Prompt Sent:", prompt);
-
-    const result = await fal.subscribe("fal-ai/flux/dev", {
-      input: {
-        prompt,
-        size,
-        quality,
-      },
-    });
-
-    if (!result?.data?.images?.length) {
-      throw new Error("No images returned from FAL API");
+    if (!prompt) {
+      return Response.json(
+        {
+          success: false,
+          error: "Prompt is required",
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
-    // إرجاع كل الصور بدل صورة واحدة
-    const images = result.data.images.map((img) => img.url);
+    const response = await fetch(
+      "https://fal.run/fal-ai/flux/dev",
+      {
+        method: "POST",
 
-    return Response.json({ images });
+        headers: {
+          Authorization: `Key ${process.env.FAL_KEY}`,
+          "Content-Type": "application/json",
+        },
 
-  } catch (err) {
-    console.error("❌ Error in FAL API:", err.message);
+        body: JSON.stringify({
+          prompt,
+          image_size: size,
+          num_inference_steps:
+            quality === "high" ? 40 : 20,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    return Response.json({
+      success: true,
+      image: data.images?.[0]?.url || null,
+    });
+  } catch (err: any) {
+    console.error(err);
+
     return Response.json(
-      { error: "FAILED", details: err.message },
-      { status: 500 }
+      {
+        success: false,
+        error: err.message,
+      },
+      {
+        status: 500,
+      }
     );
   }
 }
