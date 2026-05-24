@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     if (!prompt) {
       return Response.json(
         {
+          success: false,
           error: "Prompt is required",
         },
         {
@@ -25,38 +26,6 @@ export async function POST(req: Request) {
         }
       );
     }
-
-    const systemPrompt = `
-You are Crystal AI Builder.
-
-Your job:
-- Build premium production-ready projects
-- Generate modern UI/UX ideas
-- Create scalable architecture
-- Add advanced features automatically
-- Improve performance/security
-- Think like a senior software engineer
-
-Always generate:
-1. Project overview
-2. Folder structure
-3. Technologies
-4. Features
-5. UI ideas
-6. Advanced improvements
-7. Future upgrades
-
-Project Type:
-${projectType}
-
-Language:
-${language}
-
-Previous User History:
-${JSON.stringify(history)}
-
-Make everything premium and futuristic.
-`;
 
     const response =
       await client.chat.completions.create({
@@ -67,12 +36,39 @@ Make everything premium and futuristic.
         messages: [
           {
             role: "system",
-            content: systemPrompt,
+
+            content: `
+You are Crystal AI Builder.
+
+You build futuristic premium websites and apps.
+
+Always:
+- Improve UI/UX
+- Add modern animations
+- Add advanced features
+- Think like a senior engineer
+- Optimize performance
+- Suggest premium ideas
+- Create scalable architecture
+            `,
           },
 
           {
             role: "user",
-            content: prompt,
+
+            content: `
+Prompt:
+${prompt}
+
+Project Type:
+${projectType || "website"}
+
+Language:
+${language || "english"}
+
+History:
+${JSON.stringify(history || [])}
+            `,
           },
         ],
       });
@@ -91,13 +87,13 @@ Make everything premium and futuristic.
         language,
       },
     });
-  } catch (error: any) {
-    console.error(error);
+  } catch (err: any) {
+    console.error(err);
 
     return Response.json(
       {
         success: false,
-        error: error.message,
+        error: err.message,
       },
       {
         status: 500,
