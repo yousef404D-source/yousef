@@ -2,61 +2,26 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const forwarded = req.headers.get("x-forwarded-for");
-
-  const ip = forwarded
-    ? forwarded.split(",")[0]
-    : "Unknown";
-
-  const userAgent =
-    req.headers.get("user-agent") || "Unknown";
-
-  const referer =
-    req.headers.get("referer") || "Direct";
-
-  const host =
-    req.headers.get("host") || "Unknown";
-
-  const country =
-    req.headers.get("x-vercel-ip-country") || "Unknown";
-
-  const city =
-    req.headers.get("x-vercel-ip-city") || "Unknown";
-
-  const region =
-    req.headers.get("x-vercel-ip-country-region") ||
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0] ||
     "Unknown";
 
-  const timezone =
-    req.headers.get("x-vercel-ip-timezone") ||
-    "Unknown";
+  // IPs المحظورة
+  const bannedIPs = [
+    "45.84.107.174",
+  ];
 
-  const protocol =
-    req.headers.get("x-forwarded-proto") || "Unknown";
-
-  const language =
-    req.headers.get("accept-language") || "Unknown";
+  // منع الدخول
+  if (bannedIPs.includes(ip)) {
+    return new Response("Access Denied", {
+      status: 403,
+    });
+  }
 
   console.log(`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🌍 NEW VISITOR
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🧠 IP: ${ip}
-🌎 Country: ${country}
-🏙️ City: ${city}
-📍 Region: ${region}
-🕓 Timezone: ${timezone}
-🖥️ Device: ${userAgent}
-🌐 Host: ${host}
-🔗 Referer: ${referer}
-📡 Protocol: ${protocol}
-🗣️ Language: ${language}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 New Visitor
+IP: ${ip}
 `);
 
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: "/:path*",
-};
