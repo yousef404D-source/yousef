@@ -1,103 +1,114 @@
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
+
   try {
+
     const body = await req.json();
 
-    const {
-      prompt,
-      projectType,
-      language,
-      history,
-    } = body;
+    const idea = body.idea;
 
-    if (!prompt) {
-      return Response.json(
-        {
-          success: false,
-          error: "Prompt is required",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
+    // 🧠 AI GENERATED HTML
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${idea}</title>
 
-    const response =
-      await client.chat.completions.create({
-        model: "gpt-4.1-mini",
+        <style>
 
-        temperature: 1,
+          body{
+            margin:0;
+            font-family:Arial;
+            background:#0f172a;
+            color:white;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            overflow:hidden;
+          }
 
-        messages: [
-          {
-            role: "system",
+          .card{
+            width:700px;
+            padding:50px;
+            border-radius:30px;
+            background:rgba(255,255,255,0.08);
+            backdrop-filter:blur(20px);
+            border:1px solid rgba(255,255,255,0.1);
+            animation:fade 1s ease;
+            text-align:center;
+          }
 
-            content: `
-You are Crystal AI Builder.
+          h1{
+            font-size:55px;
+            margin-bottom:20px;
+          }
 
-You build futuristic premium websites and apps.
+          p{
+            opacity:0.7;
+            line-height:1.7;
+            font-size:20px;
+          }
 
-Always:
-- Improve UI/UX
-- Add modern animations
-- Add advanced features
-- Think like a senior engineer
-- Optimize performance
-- Suggest premium ideas
-- Create scalable architecture
-            `,
-          },
+          button{
+            margin-top:30px;
+            padding:16px 30px;
+            border:none;
+            border-radius:15px;
+            background:white;
+            font-size:18px;
+            cursor:pointer;
+            font-weight:bold;
+          }
 
-          {
-            role: "user",
+          @keyframes fade{
+            from{
+              opacity:0;
+              transform:translateY(30px);
+            }
 
-            content: `
-Prompt:
-${prompt}
+            to{
+              opacity:1;
+              transform:translateY(0px);
+            }
+          }
 
-Project Type:
-${projectType || "website"}
+        </style>
+      </head>
 
-Language:
-${language || "english"}
+      <body>
 
-History:
-${JSON.stringify(history || [])}
-            `,
-          },
-        ],
-      });
+        <div class="card">
 
-    const result =
-      response.choices[0].message.content;
+          <h1>
+            ${idea}
+          </h1>
 
-    return Response.json({
-      success: true,
+          <p>
+            This website was generated
+            with NOVA CLIP AI.
+          </p>
 
-      result,
+          <button>
+            Get Started
+          </button>
 
-      metadata: {
-        model: "gpt-4.1-mini",
-        projectType,
-        language,
-      },
+        </div>
+
+      </body>
+      </html>
+    `;
+
+    return NextResponse.json({
+      html,
     });
-  } catch (err: any) {
-    console.error(err);
 
-    return Response.json(
-      {
-        success: false,
-        error: err.message,
-      },
-      {
-        status: 500,
-      }
-    );
+  } catch (error) {
+
+    return NextResponse.json({
+      error: "Generation Failed",
+    });
+
   }
 }

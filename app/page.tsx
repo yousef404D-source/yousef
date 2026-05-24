@@ -12,6 +12,28 @@ type Project = {
 
 export default function Home() {
 
+  // 🔒 PASSWORD SYSTEM
+  const [access, setAccess] =
+    useState<boolean>(false);
+
+  const [password, setPassword] =
+    useState<string>("");
+
+  const SITE_PASSWORD =
+    "yousefyousefyousef505";
+
+  function unlockSite() {
+
+    if (
+      password === SITE_PASSWORD
+    ) {
+      setAccess(true);
+    } else {
+      alert("❌ Wrong Password");
+    }
+  }
+
+  // 🚀 STATES
   const [idea, setIdea] =
     useState<string>("");
 
@@ -31,14 +53,16 @@ export default function Home() {
 
   // 📦 LOAD PROJECTS
   useEffect(() => {
-    loadProjects();
-  }, []);
+    if (access) {
+      loadProjects();
+    }
+  }, [access]);
 
   async function loadProjects() {
 
     if (!supabase) return;
 
-    const { data, error } =
+    const { data } =
       await supabase
         .from("projects")
         .select("*")
@@ -47,7 +71,7 @@ export default function Home() {
           ascending: false,
         });
 
-    if (!error && data) {
+    if (data) {
       setProjects(data);
     }
   }
@@ -86,7 +110,6 @@ export default function Home() {
 
     try {
 
-      // 🧠 THINKING DELAY
       await new Promise((resolve) =>
         setTimeout(resolve, 2000)
       );
@@ -142,6 +165,102 @@ export default function Home() {
     }
   }
 
+  // 🔒 PASSWORD PAGE
+  if (!access) {
+
+    return (
+
+      <div className="lock-page">
+
+        <div className="lock-box">
+
+          <h1>
+            🔒 NOVA CLIP
+          </h1>
+
+          <p>
+            Enter Password
+          </p>
+
+          <input
+            type="password"
+            placeholder="Password..."
+            value={password}
+            onChange={(e) =>
+              setPassword(
+                e.target.value
+              )
+            }
+          />
+
+          <button
+            onClick={unlockSite}
+          >
+            🚀 Unlock
+          </button>
+
+        </div>
+
+        <style jsx>{`
+
+          .lock-page {
+            min-height: 100vh;
+            background: #020617;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial;
+          }
+
+          .lock-box {
+            width: 400px;
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 30px;
+            text-align: center;
+            color: white;
+            backdrop-filter: blur(15px);
+          }
+
+          h1 {
+            font-size: 40px;
+          }
+
+          p {
+            opacity: 0.7;
+            margin-bottom: 20px;
+          }
+
+          input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 15px;
+            border: none;
+            outline: none;
+            background: #0f172a;
+            color: white;
+            font-size: 16px;
+          }
+
+          button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 15px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+          }
+
+        `}</style>
+
+      </div>
+    );
+  }
+
+  // 🚀 MAIN PAGE
   return (
 
     <div
@@ -152,7 +271,7 @@ export default function Home() {
       }
     >
 
-      {/* 🌙 THEME BUTTON */}
+      {/* 🌙 THEME */}
       <button
         className="theme-btn"
         onClick={() =>
@@ -177,7 +296,7 @@ export default function Home() {
       <div className="hero">
 
         <h1>
-          ⚡ NOVA CLIP AI
+          NOVA CLIP
         </h1>
 
         <p>
@@ -271,12 +390,6 @@ export default function Home() {
         <h2>
           📂 Saved Projects
         </h2>
-
-        {projects.length === 0 && (
-          <p className="empty">
-            No projects yet
-          </p>
-        )}
 
         {projects.map((p) => (
 
@@ -383,7 +496,6 @@ export default function Home() {
           padding: 20px;
           border-radius: 30px;
           backdrop-filter: blur(15px);
-          animation: fadeUp 0.5s ease;
         }
 
         textarea {
@@ -426,7 +538,6 @@ export default function Home() {
           border-radius: 25px;
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.1);
-          animation: fadeUp 0.6s ease;
         }
 
         .preview-top {
@@ -473,29 +584,6 @@ export default function Home() {
           cursor: pointer;
           background: rgba(255,255,255,0.08);
           transition: 0.3s;
-        }
-
-        .project-card:hover {
-          transform: scale(1.02);
-        }
-
-        .empty {
-          opacity: 0.5;
-        }
-
-        @keyframes fadeUp {
-
-          from {
-            opacity: 0;
-            transform:
-              translateY(20px);
-          }
-
-          to {
-            opacity: 1;
-            transform:
-              translateY(0px);
-          }
         }
 
       `}</style>
