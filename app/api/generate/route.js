@@ -4,47 +4,104 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json();
+    const body = await req.json();
 
-    const response = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
+    const {
+      prompt,
+      projectType,
+      language,
+      history,
+    } = body;
+
+    if (!prompt) {
+      return Response.json(
         {
-          role: "system",
-          content: `
-أنت AI قوي جدًا لبناء المشاريع.
-
-المهام:
-- تحليل فكرة المستخدم
-- تحويلها إلى مشروع كامل
-- إعطاء:
-  1) فكرة المشروع
-  2) الهيكل (folders)
-  3) الكود الأساسي
-  4) ميزات إضافية ذكية
-  5) تحسينات UX/UI
-  6) أفكار تطوير مستقبلية
-
-لا تكتب كلام فارغ.
-اكتب كود عملي قابل للاستخدام.
-`,
+          error: "Prompt is required",
         },
         {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+          status: 400,
+        }
+      );
+    }
+
+    const systemPrompt = `
+You are Crystal AI Builder.
+
+Your job:
+- Build premium production-ready projects
+- Generate modern UI/UX ideas
+- Create scalable architecture
+- Add advanced features automatically
+- Improve performance/security
+- Think like a senior software engineer
+
+Always generate:
+1. Project overview
+2. Folder structure
+3. Technologies
+4. Features
+5. UI ideas
+6. Advanced improvements
+7. Future upgrades
+
+Project Type:
+${projectType}
+
+Language:
+${language}
+
+Previous User History:
+${JSON.stringify(history)}
+
+Make everything premium and futuristic.
+`;
+
+    const response =
+      await client.chat.completions.create({
+        model: "gpt-4.1-mini",
+
+        temperature: 1,
+
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+    const result =
+      response.choices[0].message.content;
 
     return Response.json({
-      result: response.choices[0].message.content,
+      success: true,
+
+      result,
+
+      metadata: {
+        model: "gpt-4.1-mini",
+        projectType,
+        language,
+      },
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error(error);
+
     return Response.json(
-      { error: "Server Error", details: error.message },
-      { status: 500 }
+      {
+        success: false,
+        error: error.message,
+      },
+      {
+        status: 500,
+      }
     );
   }
 }

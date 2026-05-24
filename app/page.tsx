@@ -1,45 +1,130 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import {
+  FaMicrophone,
+  FaRobot,
+  FaBolt,
+  FaBrain,
+} from "react-icons/fa";
+
+import SpeechRecognition, {
+  useSpeechRecognition,
+} from "react-speech-recognition";
+
+import { motion } from "framer-motion";
 
 export default function GeneratorPage() {
   const [prompt, setPrompt] = useState<string>("");
   const [result, setResult] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [thinking, setThinking] = useState<boolean>(false);
-  const [history, setHistory] = useState<string[]>([]);
+  const [displayedResult, setDisplayedResult] =
+    useState<string>("");
+
+  const [loading, setLoading] =
+    useState<boolean>(false);
+
+  const [thinking, setThinking] =
+    useState<boolean>(false);
+
+  const [history, setHistory] = useState<string[]>(
+    []
+  );
+
+  const [projectType, setProjectType] =
+    useState<string>("Website");
+
+  const [language, setLanguage] =
+    useState<string>("English");
+
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+  } = useSpeechRecognition();
 
   useEffect(() => {
-    const saved = localStorage.getItem("ai-history");
+    const saved =
+      localStorage.getItem("ai-history");
 
     if (saved) {
-      try {
-        setHistory(JSON.parse(saved));
-      } catch {
-        setHistory([]);
-      }
+      setHistory(JSON.parse(saved));
     }
   }, []);
 
-  const generate = async () => {
-    if (!prompt.trim()) return;
+  useEffect(() => {
+    if (transcript) {
+      setPrompt(transcript);
+    }
+  }, [transcript]);
 
-    setLoading(true);
-    setThinking(true);
-    setResult("");
+  const improvePrompt = async () => {
+    if (!prompt) return;
 
     try {
-      const res = await fetch("/api/generate", {
+      const res = await fetch("/api/improve", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
         body: JSON.stringify({ prompt }),
       });
 
       const data = await res.json();
 
-      setResult(data.result || "No result");
+      setPrompt(data.result);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const generate = async () => {
+    if (!prompt) return;
+
+    setLoading(true);
+    setThinking(true);
+
+    setResult("");
+    setDisplayedResult("");
+
+    try {
+      const res = await fetch(
+        "/api/generate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            prompt,
+            projectType,
+            language,
+            history,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      const fullText =
+        data.result || "No result";
+
+      setResult(fullText);
+
+      let i = 0;
+
+      const interval = setInterval(() => {
+        setDisplayedResult(
+          fullText.slice(0, i)
+        );
+
+        i++;
+
+        if (i > fullText.length) {
+          clearInterval(interval);
+        }
+      }, 5);
 
       const updated = [prompt, ...history];
 
@@ -50,7 +135,9 @@ export default function GeneratorPage() {
         JSON.stringify(updated)
       );
     } catch (err) {
-      setResult("❌ حدث خطأ أثناء التوليد");
+      setResult(
+        "❌ حدث خطأ أثناء التوليد"
+      );
     }
 
     setThinking(false);
@@ -59,96 +146,194 @@ export default function GeneratorPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.bgGlow}></div>
+      <div style={styles.bg}></div>
 
-      <div style={styles.container}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={styles.container}
+      >
         <div style={styles.left}>
-          <h1 style={styles.logo}>⚡ Crystal AI Builder</h1>
+          <h1 style={styles.logo}>
+            ⚡ Crystal AI Builder
+          </h1>
 
           <p style={styles.desc}>
-            أنشئ أي مشروع تريده باستخدام الذكاء الاصطناعي
+            Build Any Project With AI
           </p>
+
+          <div style={styles.row}>
+            <select
+              value={projectType}
+              onChange={(e) =>
+                setProjectType(
+                  e.target.value
+                )
+              }
+              style={styles.select}
+            >
+              <option>Website</option>
+              <option>Dashboard</option>
+              <option>Game</option>
+              <option>Mobile App</option>
+              <option>SaaS</option>
+            </select>
+
+            <select
+              value={language}
+              onChange={(e) =>
+                setLanguage(
+                  e.target.value
+                )
+              }
+              style={styles.select}
+            >
+              <option>English</option>
+              <option>Arabic</option>
+            </select>
+          </div>
 
           <textarea
             style={styles.textarea}
-            placeholder="ابني لي موقع ألعاب احترافي مع لوحة تحكم ودفع إلكتروني..."
+            placeholder="Build me a futuristic AI dashboard..."
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) =>
+              setPrompt(e.target.value)
+            }
           />
 
+          <div style={styles.actions}>
+            <button
+              style={styles.voiceButton}
+              onClick={() => {
+                SpeechRecognition.startListening(
+                  {
+                    continuous: true,
+                    language: "ar",
+                  }
+                );
+              }}
+            >
+              <FaMicrophone />
+              {listening
+                ? " Listening..."
+                : " Voice"}
+            </button>
+
+            <button
+              style={styles.improveButton}
+              onClick={improvePrompt}
+            >
+              ✨ Improve Prompt
+            </button>
+          </div>
+
           <button
+            style={styles.generateButton}
             onClick={generate}
-            style={styles.button}
-            disabled={loading}
           >
             {loading
               ? "🧠 Thinking..."
-              : "🚀 Generate Project"}
+              : "🚀 Generate"}
           </button>
 
           {thinking && (
-            <div style={styles.thinkingBox}>
-              <p>🧠 AI is analyzing your idea...</p>
-              <p>⚡ Generating architecture...</p>
-              <p>🎨 Improving UI/UX...</p>
-              <p>🔒 Adding smart features...</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={styles.thinking}
+            >
+              <p>
+                <FaBrain /> Analyzing
+                project...
+              </p>
+
+              <p>
+                <FaBolt /> Building
+                architecture...
+              </p>
+
+              <p>
+                <FaRobot /> Improving
+                UI/UX...
+              </p>
+            </motion.div>
           )}
 
           {result && (
-            <div style={styles.result}>
-              <h2>🔥 Generated Result</h2>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={styles.result}
+            >
+              <h2>
+                🔥 Generated Result
+              </h2>
 
               <pre style={styles.pre}>
-                {result}
+                {displayedResult}
               </pre>
+            </motion.div>
+          )}
+
+          {result && (
+            <div style={styles.preview}>
+              <div style={styles.previewTop}>
+                <div style={styles.dot}></div>
+                <div style={styles.dot}></div>
+                <div style={styles.dot}></div>
+              </div>
+
+              <iframe
+                srcDoc={`
+                <html>
+                  <body style="
+                    background:#020617;
+                    color:white;
+                    display:flex;
+                    justify-content:center;
+                    align-items:center;
+                    height:100vh;
+                    font-family:Arial;
+                  ">
+                    <h1>🚀 AI Preview</h1>
+                  </body>
+                </html>
+              `}
+                style={{
+                  width: "100%",
+                  height: "400px",
+                  border: "none",
+                  borderRadius: "15px",
+                }}
+              />
             </div>
           )}
         </div>
 
         <div style={styles.right}>
-          <h2 style={styles.historyTitle}>
-            📜 History
-          </h2>
+          <h2>📜 History</h2>
 
-          <div style={styles.historyBox}>
-            {history.length === 0 && (
-              <p style={{ opacity: 0.6 }}>
-                No history yet
-              </p>
-            )}
-
+          <div style={styles.history}>
             {history.map(
-              (item: string, index: number) => (
+              (
+                item: string,
+                index: number
+              ) => (
                 <div
                   key={index}
                   style={styles.historyItem}
-                  onClick={() => setPrompt(item)}
+                  onClick={() =>
+                    setPrompt(item)
+                  }
                 >
                   {item}
                 </div>
               )
             )}
           </div>
-
-          <div style={styles.stats}>
-            <div style={styles.statCard}>
-              <h3>⚡ AI Speed</h3>
-              <p>Ultra Fast</p>
-            </div>
-
-            <div style={styles.statCard}>
-              <h3>🧠 Thinking</h3>
-              <p>Enabled</p>
-            </div>
-
-            <div style={styles.statCard}>
-              <h3>🔥 Quality</h3>
-              <p>Premium</p>
-            </div>
-          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -163,13 +348,13 @@ const styles: any = {
     fontFamily: "Arial",
   },
 
-  bgGlow: {
+  bg: {
     position: "absolute",
-    width: "600px",
-    height: "600px",
+    width: "700px",
+    height: "700px",
     background: "#2563eb",
-    filter: "blur(200px)",
-    opacity: 0.2,
+    filter: "blur(250px)",
+    opacity: 0.15,
     top: "-200px",
     left: "-100px",
   },
@@ -185,17 +370,32 @@ const styles: any = {
   },
 
   right: {
-    width: "320px",
+    width: "300px",
   },
 
   logo: {
-    fontSize: "42px",
-    marginBottom: "10px",
+    fontSize: "45px",
+    fontWeight: "bold",
   },
 
   desc: {
     opacity: 0.7,
     marginBottom: "20px",
+  },
+
+  row: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "15px",
+  },
+
+  select: {
+    flex: 1,
+    padding: "12px",
+    borderRadius: "14px",
+    background: "#0f172a",
+    color: "white",
+    border: "1px solid #1e293b",
   },
 
   textarea: {
@@ -210,35 +410,62 @@ const styles: any = {
     outline: "none",
   },
 
-  button: {
+  actions: {
+    display: "flex",
+    gap: "10px",
     marginTop: "15px",
+  },
+
+  voiceButton: {
+    flex: 1,
+    padding: "12px",
+    borderRadius: "14px",
+    border: "none",
+    background: "#111827",
+    color: "white",
+    cursor: "pointer",
+  },
+
+  improveButton: {
+    flex: 1,
+    padding: "12px",
+    borderRadius: "14px",
+    border: "none",
+    background:
+      "linear-gradient(90deg,#7c3aed,#2563eb)",
+    color: "white",
+    cursor: "pointer",
+  },
+
+  generateButton: {
     width: "100%",
+    marginTop: "15px",
     padding: "15px",
     borderRadius: "15px",
     border: "none",
     background:
       "linear-gradient(90deg,#2563eb,#7c3aed)",
     color: "white",
+    fontWeight: "bold",
     fontSize: "18px",
     cursor: "pointer",
-    fontWeight: "bold",
   },
 
-  thinkingBox: {
+  thinking: {
     marginTop: "20px",
     background: "#0f172a",
-    border: "1px solid #1e293b",
     padding: "15px",
     borderRadius: "15px",
+    border: "1px solid #1e293b",
     lineHeight: "2",
   },
 
   result: {
     marginTop: "20px",
     background: "#0f172a",
-    border: "1px solid #1e293b",
-    borderRadius: "20px",
     padding: "20px",
+    borderRadius: "20px",
+    border: "1px solid #1e293b",
   },
 
   pre: {
@@ -246,16 +473,33 @@ const styles: any = {
     lineHeight: "1.7",
   },
 
-  historyTitle: {
-    marginBottom: "15px",
+  preview: {
+    marginTop: "20px",
+    background: "#0f172a",
+    padding: "15px",
+    borderRadius: "20px",
+    border: "1px solid #1e293b",
   },
 
-  historyBox: {
+  previewTop: {
+    display: "flex",
+    gap: "8px",
+    marginBottom: "10px",
+  },
+
+  dot: {
+    width: "12px",
+    height: "12px",
+    borderRadius: "50%",
+    background: "#334155",
+  },
+
+  history: {
     background: "#0f172a",
-    border: "1px solid #1e293b",
-    borderRadius: "20px",
     padding: "15px",
-    maxHeight: "400px",
+    borderRadius: "20px",
+    border: "1px solid #1e293b",
+    maxHeight: "600px",
     overflow: "auto",
   },
 
@@ -265,19 +509,5 @@ const styles: any = {
     background: "#111827",
     marginBottom: "10px",
     cursor: "pointer",
-  },
-
-  stats: {
-    marginTop: "20px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
-
-  statCard: {
-    background: "#0f172a",
-    border: "1px solid #1e293b",
-    borderRadius: "16px",
-    padding: "15px",
   },
 };
