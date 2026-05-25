@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+/* ---------------- TYPES ---------------- */
+
 type Message = {
   role: "user" | "assistant";
   content: string;
@@ -16,91 +18,73 @@ type Project = {
 };
 
 export default function Home() {
+  const ADMIN_EMAIL = "yousefbaker505@gmail.com";
 
-  // 🔒 PASSWORD
-  const [access, setAccess] =
-    useState(false);
+  /* ---------------- STATES ---------------- */
 
-  const [password, setPassword] =
-    useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
+  const [started, setStarted] = useState(false);
 
-  const SITE_PASSWORD =
-    "yousefyousefyousef505";
+  const [idea, setIdea] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // 🌙 THEME
-  const [darkMode, setDarkMode] =
-    useState(true);
+  const [html, setHtml] = useState("");
 
-  // 💬 CHAT
-  const [idea, setIdea] =
-    useState("");
-
-  const [messages, setMessages] =
-    useState<Message[]>([]);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  // 🌐 WEBSITE
-  const [html, setHtml] =
-    useState("");
-
-  // 📂 PROJECTS
-  const [projects, setProjects] =
-    useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
 
   const userId = "nova-user";
 
-  const bottomRef =
-    useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  // 🔒 LOGIN
-  function unlockSite() {
+  /* ---------------- ADMIN CHECK ---------------- */
 
-    if (
-      password === SITE_PASSWORD
-    ) {
-      setAccess(true);
-    } else {
-      alert("Wrong Password");
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+
+      if (user?.email === ADMIN_EMAIL) {
+        setIsAdmin(true);
+        loadLogs();
+      }
     }
+
+    checkAdmin();
+  }, []);
+
+  /* ---------------- LOAD LOGS ---------------- */
+
+  async function loadLogs() {
+    const { data } = await supabase
+      .from("logs")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data) setLogs(data);
   }
 
-  // 📂 LOAD PROJECTS
-  useEffect(() => {
-
-    if (access) {
-      loadProjects();
-    }
-
-  }, [access]);
+  /* ---------------- LOAD PROJECTS ---------------- */
 
   async function loadProjects() {
+    const { data } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("user_id", userId)
+      .order("id", { ascending: false });
 
-    if (!supabase) return;
-
-    const { data } =
-      await supabase
-        .from("projects")
-        .select("*")
-        .eq("user_id", userId)
-        .order("id", {
-          ascending: false,
-        });
-
-    if (data) {
-      setProjects(data);
-    }
+    if (data) setProjects(data);
   }
 
-  // 💾 SAVE
-  async function saveProject(
-    htmlData: string,
-    ideaText: string
-  ) {
+  useEffect(() => {
+    loadProjects();
+  }, []);
 
-    if (!supabase) return;
+  /* ---------------- SAVE PROJECT ---------------- */
 
+  async function saveProject(htmlData: string, ideaText: string) {
     const newProject = {
       id: Date.now(),
       idea: ideaText,
@@ -108,540 +92,217 @@ export default function Home() {
       user_id: userId,
     };
 
-    await supabase
-      .from("projects")
-      .insert([newProject]);
-
-    setProjects((prev) => [
-      newProject,
-      ...prev,
-    ]);
+    await supabase.from("projects").insert([newProject]);
+    setProjects((p) => [newProject, ...p]);
   }
 
-  // 🚀 GENERATE WEBSITE
-  async function generateWebsite() {
+  /* ---------------- AI GENERATION ---------------- */
 
+  async function generateWebsite() {
     if (!idea.trim()) return;
 
-    const userMessage = {
-      role: "user" as const,
-      content: idea,
-    };
+    if (!started) setStarted(true);
 
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-    ]);
-
+    setMessages((p) => [...p, { role: "user", content: idea }]);
+    setIdea("");
     setLoading(true);
 
-    setIdea("");
-
-    // 🤖 AI MESSAGES
-    setTimeout(() => {
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "🧠 Thinking about your idea...",
-        },
-      ]);
-
-    }, 400);
+    setMessages((p) => [
+      ...p,
+      { role: "assistant", content: "🧠 فهمت فكرتك..." },
+    ]);
 
     setTimeout(() => {
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "🎨 Designing modern UI...",
-        },
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", content: "🎨 أحلل التصميم..." },
       ]);
-
-    }, 1300);
+    }, 500);
 
     setTimeout(() => {
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "⚡ Building your website...",
-        },
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", content: "⚡ أبني الموقع..." },
       ]);
-
-    }, 2200);
+    }, 1000);
 
     try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea }),
+      });
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, 3000)
-      );
-
-      const res = await fetch(
-        "/api/generate",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            idea:
-              userMessage.content,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
+      const data = await res.json();
 
       if (data.html) {
-
         setHtml(data.html);
+        await saveProject(data.html, idea);
 
-        await saveProject(
-          data.html,
-          userMessage.content
-        );
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              "✅ Website completed successfully.",
-          },
+        setMessages((p) => [
+          ...p,
+          { role: "assistant", content: "✅ تم إنشاء الموقع!" },
         ]);
       }
-
     } catch (err) {
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "❌ Failed to build website.",
-        },
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", content: "❌ خطأ في التوليد" },
       ]);
     }
 
     setLoading(false);
   }
 
-  // ⌨️ ENTER
-  function handleKeyDown(
-    e: React.KeyboardEvent<HTMLTextAreaElement>
-  ) {
+  /* ---------------- CONSOLE COMMAND (ad) ---------------- */
 
-    if (
-      e.key === "Enter" &&
-      !e.shiftKey
-    ) {
-      e.preventDefault();
-      generateWebsite();
-    }
-  }
-
-  // 🔽 AUTO SCROLL
   useEffect(() => {
+    (window as any).ad = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
 
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
+      console.log("🔎 checking admin...");
 
+      if (!user) {
+        console.log("❌ not logged in");
+        return;
+      }
+
+      await new Promise((r) => setTimeout(r, 500));
+
+      if (user.email === ADMIN_EMAIL) {
+        console.log("🔥 ADMIN GRANTED");
+        setIsAdmin(true);
+        loadLogs();
+
+        console.log("🚀 ADMIN PANEL OPENED");
+      } else {
+        console.log("❌ ACCESS DENIED");
+      }
+    };
+
+    console.log("💡 type: ad (in console to open admin)");
+  }, []);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🔒 PASSWORD SCREEN
-  if (!access) {
+  /* ---------------- ADMIN PAGE ---------------- */
 
+  if (isAdmin) {
     return (
+      <div style={{ minHeight: "100vh", background: "#0a0f1f", color: "white", padding: 30 }}>
+        <h1>🔥 ADMIN DASHBOARD</h1>
 
-      <div className="lock-page">
-
-        <div className="lock-box">
-
-          <h1>
-            NOVA CLIP
-          </h1>
-
-          <p>
-            Enter Password
-          </p>
-
-          <input
-            type="password"
-            placeholder="Password..."
-            value={password}
-            onChange={(e) =>
-              setPassword(
-                e.target.value
-              )
-            }
-          />
-
-          <button
-            onClick={unlockSite}
-          >
-            Unlock
-          </button>
-
+        <div style={{ display: "flex", gap: 15, marginTop: 20 }}>
+          <div style={card}>📁 Projects: {projects.length}</div>
+          <div style={card}>📜 Logs: {logs.length}</div>
         </div>
 
-        <style jsx>{`
+        <h2 style={{ marginTop: 30 }}>📜 Logs</h2>
 
-          .lock-page{
-            min-height:100vh;
-            background:#0f172a;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            font-family:Arial;
-          }
-
-          .lock-box{
-            width:400px;
-            background:rgba(255,255,255,0.08);
-            padding:40px;
-            border-radius:30px;
-            color:white;
-            text-align:center;
-            backdrop-filter:blur(20px);
-          }
-
-          h1{
-            font-size:50px;
-          }
-
-          input{
-            width:100%;
-            padding:16px;
-            border:none;
-            border-radius:15px;
-            margin-top:20px;
-            background:#111827;
-            color:white;
-            outline:none;
-          }
-
-          button{
-            width:100%;
-            margin-top:20px;
-            padding:15px;
-            border:none;
-            border-radius:15px;
-            cursor:pointer;
-            font-weight:bold;
-          }
-
-        `}</style>
-
+        {logs.map((log) => (
+          <div key={log.id} style={logCard}>
+            <p>💬 {log.prompt}</p>
+            <p>📧 {log.email}</p>
+            <p>⏰ {log.created_at}</p>
+          </div>
+        ))}
       </div>
     );
   }
 
+  /* ---------------- MAIN UI ---------------- */
+
   return (
-
     <div
-      className={
-        darkMode
-          ? "page dark"
-          : "page light"
-      }
+      style={{
+        minHeight: "100vh",
+        background: darkMode ? "#020617" : "#fff",
+        color: darkMode ? "white" : "black",
+        display: "flex",
+        justifyContent: started ? "flex-start" : "center",
+        alignItems: started ? "flex-start" : "center",
+        paddingTop: started ? 40 : 0,
+        transition: "0.5s",
+      }}
     >
-
-      {/* 🌙 THEME */}
-      <button
-        className="theme-btn"
-        onClick={() =>
-          setDarkMode(!darkMode)
-        }
-      >
-        {darkMode
-          ? "☀️"
-          : "🌙"}
-      </button>
-
-      {/* 🌌 BG */}
-      <div className="bg">
-
-        <div className="orb orb1"></div>
-
-        <div className="orb orb2"></div>
-
-      </div>
-
-      {/* 💬 CHAT */}
-      <div
-        className={
-          messages.length === 0
-            ? "chat-container center"
-            : "chat-container top"
-        }
-      >
-
-        {/* 🧠 TITLE */}
-        <h1 className="logo">
-          NOVA CLIP
-        </h1>
-
-        <p className="subtitle">
-          Build websites with AI
-        </p>
-
-        {/* 💬 MESSAGES */}
-        <div className="messages">
-
-          {messages.map(
-            (msg, index) => (
-
-              <div
-                key={index}
-                className={
-                  msg.role === "user"
-                    ? "user-msg"
-                    : "ai-msg"
-                }
-              >
-                {msg.content}
-              </div>
-            )
-          )}
-
-          <div ref={bottomRef}></div>
-
-        </div>
-
-        {/* ✍️ INPUT */}
-        <div className="input-box">
-
-          <textarea
-            placeholder="Describe your website idea..."
-            value={idea}
-            onChange={(e) =>
-              setIdea(
-                e.target.value
-              )
-            }
-            onKeyDown={
-              handleKeyDown
-            }
-          />
-
-          <button
-            onClick={
-              generateWebsite
-            }
-            disabled={loading}
-          >
-            {loading
-              ? "Thinking..."
-              : "Generate"}
+      <div style={{ width: started ? "100%" : "60%", maxWidth: 900 }}>
+        
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <h1>🚀 AI BUILDER</h1>
+          <button onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? "☀️" : "🌙"}
           </button>
-
         </div>
 
-      </div>
+        {/* CHAT */}
+        <div style={{ marginTop: 20 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={bubble(m.role)}>
+              {m.role}: {m.content}
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
 
-      {/* 🌐 WEBSITE */}
-      {html && (
+        {/* INPUT */}
+        <textarea
+          value={idea}
+          onChange={(e) => setIdea(e.target.value)}
+          placeholder="اكتب فكرتك..."
+          style={input}
+        />
 
-        <div className="website-view">
+        <button onClick={generateWebsite} disabled={loading} style={btn}>
+          {loading ? "AI thinking..." : "Generate 🚀"}
+        </button>
 
+        {/* PREVIEW */}
+        {html && (
           <iframe
             srcDoc={html}
-            title="website"
+            style={{ width: "100%", height: "100vh", marginTop: 20 }}
           />
-
-        </div>
-      )}
-
-      {/* 🎨 CSS */}
-      <style jsx>{`
-
-        .page{
-          min-height:100vh;
-          overflow-x:hidden;
-          background:#020617;
-          color:white;
-          font-family:Arial;
-          position:relative;
-        }
-
-        .dark{
-          background:#020617;
-          color:white;
-        }
-
-        .light{
-          background:#f8fafc;
-          color:black;
-        }
-
-        .theme-btn{
-          position:fixed;
-          top:20px;
-          right:20px;
-          width:55px;
-          height:55px;
-          border-radius:50%;
-          border:none;
-          cursor:pointer;
-          font-size:22px;
-          z-index:999;
-        }
-
-        .bg{
-          position:absolute;
-          inset:0;
-          overflow:hidden;
-        }
-
-        .orb{
-          position:absolute;
-          width:500px;
-          height:500px;
-          border-radius:50%;
-          filter:blur(140px);
-        }
-
-        .orb1{
-          background:#2563eb;
-          top:-100px;
-          left:-100px;
-          opacity:0.3;
-        }
-
-        .orb2{
-          background:#7c3aed;
-          bottom:-100px;
-          right:-100px;
-          opacity:0.3;
-        }
-
-        .chat-container{
-          position:relative;
-          z-index:2;
-          max-width:900px;
-          margin:auto;
-          transition:0.5s;
-          padding:30px;
-        }
-
-        .center{
-          display:flex;
-          flex-direction:column;
-          justify-content:center;
-          min-height:100vh;
-        }
-
-        .top{
-          padding-top:40px;
-        }
-
-        .logo{
-          font-size:70px;
-          text-align:center;
-          margin-bottom:10px;
-        }
-
-        .subtitle{
-          text-align:center;
-          opacity:0.7;
-          margin-bottom:40px;
-        }
-
-        .messages{
-          display:flex;
-          flex-direction:column;
-          gap:15px;
-          margin-bottom:25px;
-        }
-
-        .user-msg{
-          align-self:flex-end;
-          background:#2563eb;
-          padding:16px 20px;
-          border-radius:20px;
-          max-width:70%;
-          animation:fadeUp 0.3s ease;
-        }
-
-        .ai-msg{
-          align-self:flex-start;
-          background:rgba(255,255,255,0.08);
-          backdrop-filter:blur(20px);
-          padding:16px 20px;
-          border-radius:20px;
-          max-width:70%;
-          animation:fadeUp 0.3s ease;
-        }
-
-        .input-box{
-          background:rgba(255,255,255,0.08);
-          border:1px solid rgba(255,255,255,0.1);
-          backdrop-filter:blur(20px);
-          border-radius:30px;
-          padding:20px;
-        }
-
-        textarea{
-          width:100%;
-          border:none;
-          resize:none;
-          outline:none;
-          background:transparent;
-          color:inherit;
-          font-size:18px;
-          height:100px;
-        }
-
-        button{
-          margin-top:15px;
-          padding:14px 24px;
-          border:none;
-          border-radius:14px;
-          cursor:pointer;
-          font-weight:bold;
-        }
-
-        .website-view{
-          position:relative;
-          z-index:2;
-          margin-top:40px;
-          width:100%;
-          height:100vh;
-          animation:fadeUp 0.5s ease;
-        }
-
-        iframe{
-          width:100%;
-          height:100%;
-          border:none;
-          background:white;
-        }
-
-        @keyframes fadeUp{
-
-          from{
-            opacity:0;
-            transform:translateY(20px);
-          }
-
-          to{
-            opacity:1;
-            transform:translateY(0px);
-          }
-        }
-
-      `}</style>
-
+        )}
+      </div>
     </div>
   );
 }
+
+/* ---------------- STYLES ---------------- */
+
+const card = {
+  padding: 15,
+  background: "rgba(255,255,255,0.05)",
+  borderRadius: 10,
+};
+
+const logCard = {
+  padding: 10,
+  marginTop: 10,
+  background: "rgba(255,255,255,0.05)",
+};
+
+const bubble = (role: string) => ({
+  padding: 10,
+  marginBottom: 8,
+  borderRadius: 10,
+  background: role === "user" ? "#3b82f6" : "rgba(255,255,255,0.08)",
+});
+
+const input = {
+  width: "100%",
+  height: 100,
+  marginTop: 20,
+  padding: 10,
+};
+
+const btn = {
+  width: "100%",
+  marginTop: 10,
+  padding: 12,
+  background: "#3b82f6",
+  color: "white",
+};
