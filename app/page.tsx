@@ -7,6 +7,10 @@ type Message = {
   content: string;
 };
 
+type NovaResponse = {
+  reply?: string;
+};
+
 export default function NovaAI() {
   const [authorized, setAuthorized] = useState(false);
   const [password, setPassword] = useState("");
@@ -31,7 +35,7 @@ export default function NovaAI() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ---------------- SEND MESSAGE (WITH LOGS) ---------------- */
+  /* ---------------- SEND MESSAGE (FIXED + LOGS) ---------------- */
 
   async function sendMessage() {
     if (!input.trim()) return;
@@ -58,18 +62,18 @@ export default function NovaAI() {
       });
 
       console.log("📡 Status:", res.status);
-      console.log("📡 OK?:", res.ok);
-      console.log("📡 Headers:", res.headers);
+      console.log("📡 OK:", res.ok);
 
       const raw = await res.text();
       console.log("📥 RAW RESPONSE:", raw);
 
-      let data;
+      let data: NovaResponse | null = null;
+
       try {
-        data = JSON.parse(raw);
+        data = JSON.parse(raw) as NovaResponse;
         console.log("✅ JSON PARSED:", data);
-      } catch (e) {
-        console.log("❌ NOT JSON RESPONSE");
+      } catch (err) {
+        console.log("❌ Response is NOT JSON");
       }
 
       setMessages((prev) => [
@@ -106,23 +110,27 @@ export default function NovaAI() {
 
   if (!authorized) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        background: "#050816",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        color: "white",
-        fontFamily: "Arial",
-      }}>
-        <div style={{
-          width: 520,
-          background: "rgba(255,255,255,.04)",
-          border: "1px solid rgba(255,255,255,.06)",
-          borderRadius: 35,
-          padding: 45,
-          backdropFilter: "blur(20px)",
-        }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#050816",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          color: "white",
+          fontFamily: "Arial",
+        }}
+      >
+        <div
+          style={{
+            width: 520,
+            background: "rgba(255,255,255,.04)",
+            border: "1px solid rgba(255,255,255,.06)",
+            borderRadius: 35,
+            padding: 45,
+            backdropFilter: "blur(20px)",
+          }}
+        >
           <h1 style={{ fontSize: 55 }}>Nova AI</h1>
 
           <input
@@ -161,13 +169,19 @@ export default function NovaAI() {
     );
   }
 
-  /* ---------------- MAIN UI ---------------- */
+  /* ---------------- MAIN CHAT ---------------- */
 
   return (
-    <div style={{ background: "#050816", minHeight: "100vh", color: "white" }}>
-      
-      <div style={{ marginLeft: 90, padding: 40 }}>
-
+    <div
+      style={{
+        background: "#050816",
+        minHeight: "100vh",
+        color: "white",
+        fontFamily: "Arial",
+        paddingLeft: 90,
+      }}
+    >
+      <div style={{ padding: 40 }}>
         {messages.map((m, i) => (
           <div key={i} style={{ marginBottom: 20 }}>
             <b>{m.role}:</b> {m.content}
@@ -180,7 +194,7 @@ export default function NovaAI() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Message..."
+          placeholder="Message Nova AI..."
           style={{
             width: "70%",
             padding: 15,
@@ -188,10 +202,16 @@ export default function NovaAI() {
           }}
         />
 
-        <button onClick={sendMessage} disabled={loading}>
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          style={{
+            marginLeft: 10,
+            padding: 15,
+          }}
+        >
           {loading ? "..." : "Send"}
         </button>
-
       </div>
     </div>
   );
