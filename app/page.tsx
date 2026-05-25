@@ -1,84 +1,65 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
-type UserData = {
-  email: string;
-  credits: number;
-  premium: boolean;
-};
-
 export default function NovaAI() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const [preview, setPreview] =
+  /* ---------------- PASSWORD ---------------- */
+
+  const [authorized, setAuthorized] =
+    useState(false);
+
+  const [password, setPassword] =
     useState("");
 
-  const [showPayment, setShowPayment] =
+  const realPassword =
+    "yousefyousefyousef505";
+
+  function unlock() {
+
+    if (
+      password === realPassword
+    ) {
+
+      setAuthorized(true);
+
+    } else {
+
+      alert("Wrong Password");
+    }
+  }
+
+  /* ---------------- CHAT ---------------- */
+
+  const [messages, setMessages] =
+    useState<Message[]>([]);
+
+  const [input, setInput] =
+    useState("");
+
+  const [loading, setLoading] =
     useState(false);
-
-  const [admin, setAdmin] =
-    useState(false);
-
-  const [user] = useState<UserData>({
-    email:
-      "yousefbaker505@gmail.com",
-
-    credits: 20,
-
-    premium: false,
-  });
 
   const bottomRef =
     useRef<HTMLDivElement>(null);
 
-  const hasMessages =
-    messages.length > 0;
-
-  /* ---------------- AUTO SCROLL ---------------- */
-
   useEffect(() => {
+
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
+
   }, [messages]);
 
-  /* ---------------- ADMIN SYSTEM ---------------- */
-
-  useEffect(() => {
-    (
-      window as any
-    ).AD = () => {
-
-      const adminEmail =
-        "yousefbaker505@gmail.com";
-
-      const currentEmail =
-        user.email
-          .trim()
-          .toLowerCase();
-
-      if (
-        currentEmail ===
-        adminEmail
-      ) {
-        setAdmin(true);
-      } else {
-        alert("ERROR");
-      }
-    };
-  }, [user.email]);
-
-  /* ---------------- AI SYSTEM ---------------- */
+  /* ---------------- SEND MESSAGE ---------------- */
 
   async function sendMessage() {
+
     if (!input.trim()) return;
 
     const text = input;
@@ -95,26 +76,11 @@ export default function NovaAI() {
 
     setLoading(true);
 
-    const lower =
-      text.toLowerCase();
-
-    const isProject =
-      lower.includes("build") ||
-      lower.includes("website") ||
-      lower.includes("dashboard") ||
-      lower.includes("app") ||
-      lower.includes("platform") ||
-      lower.includes("gaming") ||
-      lower.includes("portfolio") ||
-      lower.includes("landing");
-
-    const hugeProject =
-      text.length > 180;
-
     try {
-      const res = await fetch(
-        "/api/nova",
-        {
+
+      const res =
+        await fetch("/api/nova", {
+
           method: "POST",
 
           headers: {
@@ -125,127 +91,10 @@ export default function NovaAI() {
           body: JSON.stringify({
             message: text,
           }),
-        }
-      );
+        });
 
       const data =
         await res.json();
-
-      /* ---------------- SIMPLE CHAT ---------------- */
-
-      if (!isProject) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              data.reply ||
-              "I understand.",
-          },
-        ]);
-
-        setLoading(false);
-
-        return;
-      }
-
-      /* ---------------- PROJECT PREVIEW ---------------- */
-
-      setPreview(`
-        <div style="
-          padding:40px;
-          background:#0b1020;
-          color:white;
-          border-radius:30px;
-          font-family:Arial;
-        ">
-          <h1 style="
-            font-size:50px;
-            margin-bottom:20px;
-          ">
-            ${data.title ||
-              "Nova Project"}
-          </h1>
-
-          <p style="
-            opacity:.7;
-            line-height:1.8;
-          ">
-            ${
-              data.description ||
-              "AI Generated Website"
-            }
-          </p>
-
-          <div style="
-            margin-top:30px;
-            display:grid;
-            grid-template-columns:
-              repeat(auto-fit,minmax(220px,1fr));
-            gap:20px;
-          ">
-            <div style="
-              padding:30px;
-              background:
-                rgba(255,255,255,.05);
-              border-radius:24px;
-            ">
-              Hero Section
-            </div>
-
-            <div style="
-              padding:30px;
-              background:
-                rgba(255,255,255,.05);
-              border-radius:24px;
-            ">
-              Dashboard
-            </div>
-
-            <div style="
-              padding:30px;
-              background:
-                rgba(255,255,255,.05);
-              border-radius:24px;
-            ">
-              AI Features
-            </div>
-
-            <div style="
-              padding:30px;
-              background:
-                rgba(255,255,255,.05);
-              border-radius:24px;
-            ">
-              Premium UI
-            </div>
-          </div>
-        </div>
-      `);
-
-      /* ---------------- CREDIT SYSTEM ---------------- */
-
-      if (
-        hugeProject &&
-        user.credits <= 0
-      ) {
-        setShowPayment(true);
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              "This project requires more credits before completion.",
-          },
-        ]);
-
-        setLoading(false);
-
-        return;
-      }
-
-      /* ---------------- FINAL AI RESPONSE ---------------- */
 
       setMessages((prev) => [
         ...prev,
@@ -253,11 +102,12 @@ export default function NovaAI() {
           role: "assistant",
           content:
             data.reply ||
-            "Project generation started successfully.",
+            "Nova AI failed.",
         },
       ]);
 
-    } catch {
+    } catch (err) {
+
       setMessages((prev) => [
         ...prev,
         {
@@ -276,18 +126,153 @@ export default function NovaAI() {
   function handleKeyDown(
     e: React.KeyboardEvent<HTMLInputElement>
   ) {
+
     if (e.key === "Enter") {
+
       sendMessage();
     }
   }
 
-  /* ---------------- UI ---------------- */
+  /* ---------------- PASSWORD PAGE ---------------- */
+
+  if (!authorized) {
+
+    return (
+
+      <div
+        style={{
+          minHeight: "100vh",
+          background:
+            "#050816",
+
+          display: "flex",
+
+          justifyContent:
+            "center",
+
+          alignItems: "center",
+
+          color: "white",
+
+          fontFamily:
+            "Arial",
+        }}
+      >
+
+        <div
+          style={{
+            width: 520,
+
+            background:
+              "rgba(255,255,255,.04)",
+
+            border:
+              "1px solid rgba(255,255,255,.06)",
+
+            borderRadius: 35,
+
+            padding: 45,
+
+            backdropFilter:
+              "blur(20px)",
+          }}
+        >
+
+          <h1
+            style={{
+              fontSize: 55,
+
+              marginBottom: 10,
+            }}
+          >
+            Nova AI
+          </h1>
+
+          <p
+            style={{
+              opacity: .6,
+
+              marginBottom: 35,
+
+              lineHeight: 1.7,
+            }}
+          >
+            Secure access required
+          </p>
+
+          <input
+            type="password"
+
+            value={password}
+
+            onChange={(e) =>
+              setPassword(
+                e.target.value
+              )
+            }
+
+            placeholder="Enter Password"
+
+            style={{
+              width: "100%",
+
+              padding: 20,
+
+              borderRadius: 20,
+
+              border: "none",
+
+              outline: "none",
+
+              background:
+                "rgba(255,255,255,.05)",
+
+              color: "white",
+
+              fontSize: 18,
+            }}
+          />
+
+          <button
+            onClick={unlock}
+
+            style={{
+              width: "100%",
+
+              marginTop: 25,
+
+              padding: 18,
+
+              borderRadius: 20,
+
+              border: "none",
+
+              background:
+                "#2563eb",
+
+              color: "white",
+
+              fontSize: 18,
+
+              cursor: "pointer",
+            }}
+          >
+            Continue
+          </button>
+
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- MAIN WEBSITE ---------------- */
 
   return (
+
     <div
       style={{
         background:
-          "linear-gradient(to bottom,#050816,#0b1020)",
+          "#050816",
 
         minHeight: "100vh",
 
@@ -296,9 +281,10 @@ export default function NovaAI() {
         overflow: "hidden",
 
         fontFamily:
-          "Arial, sans-serif",
+          "Arial",
       }}
     >
+
       {/* ---------------- SIDEBAR ---------------- */}
 
       <div
@@ -316,26 +302,29 @@ export default function NovaAI() {
             "1px solid rgba(255,255,255,.05)",
 
           background:
-            "rgba(255,255,255,.02)",
+            "rgba(255,255,255,.03)",
 
           backdropFilter:
             "blur(20px)",
 
           display: "flex",
 
-          flexDirection: "column",
+          flexDirection:
+            "column",
 
           alignItems: "center",
 
           paddingTop: 30,
 
-          gap: 25,
+          gap: 20,
         }}
       >
+
         <div
           style={{
-            fontSize: 28,
-            fontWeight: 800,
+            fontSize: 30,
+
+            fontWeight: 900,
           }}
         >
           N
@@ -349,7 +338,7 @@ export default function NovaAI() {
             borderRadius: 16,
 
             background:
-              "rgba(255,255,255,.06)",
+              "rgba(255,255,255,.05)",
           }}
         />
 
@@ -361,21 +350,10 @@ export default function NovaAI() {
             borderRadius: 16,
 
             background:
-              "rgba(255,255,255,.04)",
+              "rgba(255,255,255,.05)",
           }}
         />
 
-        <div
-          style={{
-            width: 45,
-            height: 45,
-
-            borderRadius: 16,
-
-            background:
-              "rgba(255,255,255,.04)",
-          }}
-        />
       </div>
 
       {/* ---------------- MAIN ---------------- */}
@@ -388,12 +366,15 @@ export default function NovaAI() {
 
           display: "flex",
 
-          flexDirection: "column",
+          flexDirection:
+            "column",
         }}
       >
-        {/* ---------------- CENTER MODE ---------------- */}
 
-        {!hasMessages && (
+        {/* ---------------- EMPTY CHAT ---------------- */}
+
+        {messages.length === 0 && (
+
           <div
             style={{
               flex: 1,
@@ -408,6 +389,7 @@ export default function NovaAI() {
               padding: 40,
             }}
           >
+
             <div
               style={{
                 width: "100%",
@@ -415,13 +397,16 @@ export default function NovaAI() {
                 maxWidth: 1000,
               }}
             >
+
               <div
                 style={{
-                  textAlign: "center",
+                  textAlign:
+                    "center",
 
                   marginBottom: 45,
                 }}
               >
+
                 <h1
                   style={{
                     fontSize: 75,
@@ -429,9 +414,6 @@ export default function NovaAI() {
                     fontWeight: 900,
 
                     marginBottom: 15,
-
-                    letterSpacing:
-                      "-3px",
                   }}
                 >
                   Nova AI
@@ -439,13 +421,14 @@ export default function NovaAI() {
 
                 <p
                   style={{
-                    opacity: 0.55,
+                    opacity: .6,
 
-                    fontSize: 23,
+                    fontSize: 22,
                   }}
                 >
-                  Start building something incredible
+                  Start messaging Nova AI...
                 </p>
+
               </div>
 
               {/* ---------------- INPUT ---------------- */}
@@ -458,19 +441,18 @@ export default function NovaAI() {
                   border:
                     "1px solid rgba(255,255,255,.06)",
 
-                  borderRadius: 40,
+                  borderRadius: 35,
 
                   padding: 28,
 
                   backdropFilter:
-                    "blur(40px)",
-
-                  boxShadow:
-                    "0 0 120px rgba(59,130,246,.12)",
+                    "blur(30px)",
                 }}
               >
+
                 <input
                   value={input}
+
                   onChange={(e) =>
                     setInput(
                       e.target.value
@@ -504,20 +486,11 @@ export default function NovaAI() {
                     display: "flex",
 
                     justifyContent:
-                      "space-between",
+                      "flex-end",
 
-                    alignItems: "center",
-
-                    marginTop: 25,
+                    marginTop: 20,
                   }}
                 >
-                  <div
-                    style={{
-                      opacity: 0.45,
-                    }}
-                  >
-                    AI Website Operating System
-                  </div>
 
                   <button
                     onClick={
@@ -541,34 +514,37 @@ export default function NovaAI() {
 
                       borderRadius: 18,
 
-                      fontSize: 16,
-
                       cursor:
                         "pointer",
+
+                      fontSize: 16,
                     }}
                   >
                     {loading
                       ? "Thinking..."
                       : "Send"}
                   </button>
+
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ---------------- CHAT MODE ---------------- */}
+        {/* ---------------- CHAT ---------------- */}
 
-        {hasMessages && (
+        {messages.length > 0 && (
+
           <>
             <div
               style={{
                 flex: 1,
 
-                overflowY: "auto",
+                overflowY:
+                  "auto",
 
                 padding:
-                  "40px 80px 200px",
+                  "40px 80px 170px",
 
                 maxWidth: 1200,
 
@@ -577,8 +553,10 @@ export default function NovaAI() {
                 margin: "0 auto",
               }}
             >
+
               {messages.map(
                 (m, i) => (
+
                   <div
                     key={i}
 
@@ -586,16 +564,14 @@ export default function NovaAI() {
                       marginBottom: 40,
                     }}
                   >
+
                     <div
                       style={{
                         fontSize: 13,
 
-                        opacity: 0.4,
+                        opacity: .4,
 
                         marginBottom: 10,
-
-                        letterSpacing:
-                          "1px",
                       }}
                     >
                       {m.role ===
@@ -616,7 +592,7 @@ export default function NovaAI() {
                             ? "rgba(255,255,255,.05)"
                             : "transparent",
 
-                        borderRadius: 30,
+                        borderRadius: 28,
 
                         padding:
                           m.role ===
@@ -629,38 +605,19 @@ export default function NovaAI() {
                           "assistant"
                             ? "1px solid rgba(255,255,255,.05)"
                             : "none",
-
-                        backdropFilter:
-                          "blur(30px)",
                       }}
                     >
                       {m.content}
                     </div>
+
                   </div>
                 )
-              )}
-
-              {/* ---------------- PREVIEW ---------------- */}
-
-              {preview && (
-                <div
-                  style={{
-                    marginTop: 50,
-                  }}
-                >
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html:
-                        preview,
-                    }}
-                  />
-                </div>
               )}
 
               <div ref={bottomRef} />
             </div>
 
-            {/* ---------------- INPUT BOTTOM ---------------- */}
+            {/* ---------------- BOTTOM INPUT ---------------- */}
 
             <div
               style={{
@@ -675,7 +632,7 @@ export default function NovaAI() {
                 padding: 25,
 
                 background:
-                  "rgba(5,8,22,.85)",
+                  "rgba(5,8,22,.9)",
 
                 backdropFilter:
                   "blur(20px)",
@@ -684,6 +641,7 @@ export default function NovaAI() {
                   "1px solid rgba(255,255,255,.05)",
               }}
             >
+
               <div
                 style={{
                   maxWidth: 1200,
@@ -701,6 +659,7 @@ export default function NovaAI() {
                     "1px solid rgba(255,255,255,.05)",
                 }}
               >
+
                 <div
                   style={{
                     display: "flex",
@@ -711,6 +670,7 @@ export default function NovaAI() {
                       "center",
                   }}
                 >
+
                   <input
                     value={input}
 
@@ -772,182 +732,14 @@ export default function NovaAI() {
                       ? "..."
                       : "Send"}
                   </button>
+
                 </div>
               </div>
             </div>
           </>
         )}
+
       </div>
-
-      {/* ---------------- PAYMENT PAGE ---------------- */}
-
-      {showPayment && (
-        <div
-          style={{
-            position: "fixed",
-
-            inset: 0,
-
-            background:
-              "rgba(0,0,0,.88)",
-
-            display: "flex",
-
-            justifyContent:
-              "center",
-
-            alignItems: "center",
-
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              width: 600,
-
-              background:
-                "#0b1020",
-
-              borderRadius: 40,
-
-              padding: 50,
-
-              border:
-                "1px solid rgba(255,255,255,.06)",
-            }}
-          >
-            <h1
-              style={{
-                fontSize: 45,
-
-                marginBottom: 20,
-              }}
-            >
-              Continue Building
-            </h1>
-
-            <p
-              style={{
-                opacity: 0.65,
-
-                lineHeight: 1.8,
-
-                marginBottom: 35,
-              }}
-            >
-              Your current project
-              requires additional
-              credits and premium
-              generation access.
-            </p>
-
-            <button
-              style={{
-                width: "100%",
-
-                background:
-                  "#2563eb",
-
-                border: "none",
-
-                color: "white",
-
-                padding: 18,
-
-                borderRadius: 20,
-
-                fontSize: 18,
-
-                cursor: "pointer",
-              }}
-            >
-              Upgrade Subscription
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------- ADMIN PANEL ---------------- */}
-
-      {admin && (
-        <div
-          style={{
-            position: "fixed",
-
-            top: 20,
-
-            right: 20,
-
-            width: 420,
-
-            background:
-              "#0b1020",
-
-            border:
-              "1px solid rgba(255,255,255,.06)",
-
-            borderRadius: 30,
-
-            padding: 30,
-
-            zIndex: 9999,
-          }}
-        >
-          <h2
-            style={{
-              marginBottom: 25,
-            }}
-          >
-            Admin Panel
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gap: 15,
-            }}
-          >
-            <div
-              style={{
-                padding: 20,
-
-                borderRadius: 20,
-
-                background:
-                  "rgba(255,255,255,.05)",
-              }}
-            >
-              Accounts
-            </div>
-
-            <div
-              style={{
-                padding: 20,
-
-                borderRadius: 20,
-
-                background:
-                  "rgba(255,255,255,.05)",
-              }}
-            >
-              Logs
-            </div>
-
-            <div
-              style={{
-                padding: 20,
-
-                borderRadius: 20,
-
-                background:
-                  "rgba(255,255,255,.05)",
-              }}
-            >
-              Credits & Premium
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
