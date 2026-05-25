@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
-
-/* ---------------- TYPES ---------------- */
+import { motion, AnimatePresence } from "framer-motion";
 
 type Message = {
   role: "user" | "assistant";
@@ -12,297 +10,266 @@ type Message = {
 
 type Project = {
   id: number;
-  idea: string;
+  title: string;
   html: string;
-  user_id: string;
 };
 
 export default function Home() {
   const ADMIN_EMAIL = "yousefbaker505@gmail.com";
 
-  /* ---------------- STATES ---------------- */
-
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
-  const [started, setStarted] = useState(false);
-
-  const [idea, setIdea] = useState("");
+  const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [started, setStarted] = useState(false);
   const [html, setHtml] = useState("");
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-
-  const userId = "nova-user";
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  /* ---------------- ADMIN CHECK ---------------- */
-
+  /* ---------------- SCROLL ---------------- */
   useEffect(() => {
-    async function checkAdmin() {
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-      if (user?.email === ADMIN_EMAIL) {
+  /* ---------------- ADMIN (CONSOLE COMMAND) ---------------- */
+  useEffect(() => {
+    (window as any).ad = async () => {
+      const email = prompt("Enter admin email:");
+      if (email === ADMIN_EMAIL) {
         setIsAdmin(true);
-        loadLogs();
+        alert("✅ Admin Mode Activated");
+      } else {
+        alert("❌ Access Denied");
       }
-    }
-
-    checkAdmin();
-  }, []);
-
-  /* ---------------- LOAD LOGS ---------------- */
-
-  async function loadLogs() {
-    const { data } = await supabase
-      .from("logs")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (data) setLogs(data);
-  }
-
-  /* ---------------- LOAD PROJECTS ---------------- */
-
-  async function loadProjects() {
-    const { data } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("user_id", userId)
-      .order("id", { ascending: false });
-
-    if (data) setProjects(data);
-  }
-
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  /* ---------------- SAVE PROJECT ---------------- */
-
-  async function saveProject(htmlData: string, ideaText: string) {
-    const newProject = {
-      id: Date.now(),
-      idea: ideaText,
-      html: htmlData,
-      user_id: userId,
     };
+  }, []);
 
-    await supabase.from("projects").insert([newProject]);
-    setProjects((p) => [newProject, ...p]);
-  }
+  /* ---------------- SEND MESSAGE ---------------- */
+  async function send() {
+    if (!input.trim()) return;
 
-  /* ---------------- AI GENERATION ---------------- */
+    setStarted(true);
 
-  async function generateWebsite() {
-    if (!idea.trim()) return;
+    const userMsg: Message = { role: "user", content: input };
 
-    if (!started) setStarted(true);
-
-    setMessages((p) => [...p, { role: "user", content: idea }]);
-    setIdea("");
+    setMessages((p) => [...p, userMsg]);
+    setInput("");
     setLoading(true);
 
+    // fake thinking animation
     setMessages((p) => [
       ...p,
-      { role: "assistant", content: "🧠 فهمت فكرتك..." },
+      { role: "assistant", content: "🧠 Nova AI is thinking..." },
     ]);
 
-    setTimeout(() => {
-      setMessages((p) => [
-        ...p,
-        { role: "assistant", content: "🎨 أحلل التصميم..." },
-      ]);
-    }, 500);
-
-    setTimeout(() => {
-      setMessages((p) => [
-        ...p,
-        { role: "assistant", content: "⚡ أبني الموقع..." },
-      ]);
-    }, 1000);
-
     try {
-      const res = await fetch("/api/generate", {
+      const res = await fetch("/api/nova", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea }),
+        body: JSON.stringify({ message: input }),
       });
 
       const data = await res.json();
 
-      if (data.html) {
+      /* ---------------- CHAT ---------------- */
+      if (data.type === "chat") {
+        setMessages((p) => [
+          ...p,
+          { role: "assistant", content: data.reply },
+        ]);
+      }
+
+      /* ---------------- PROJECT ---------------- */
+      if (data.type === "project") {
+        setMessages((p) => [
+          ...p,
+          { role: "assistant", content: "🚀 Building project..." },
+        ]);
+
         setHtml(data.html);
-        await saveProject(data.html, idea);
+
+        const newProject = {
+          id: Date.now(),
+          title: data.spec.title,
+          html: data.html,
+        };
+
+        setProjects((p) => [newProject, ...p]);
 
         setMessages((p) => [
           ...p,
-          { role: "assistant", content: "✅ تم إنشاء الموقع!" },
+          { role: "assistant", content: "✅ Project Ready!" },
         ]);
       }
-    } catch (err) {
+    } catch (e) {
       setMessages((p) => [
         ...p,
-        { role: "assistant", content: "❌ خطأ في التوليد" },
+        { role: "assistant", content: "❌ Error in Nova AI" },
       ]);
     }
 
     setLoading(false);
   }
 
-  /* ---------------- CONSOLE COMMAND (ad) ---------------- */
-
-  useEffect(() => {
-    (window as any).ad = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
-
-      console.log("🔎 checking admin...");
-
-      if (!user) {
-        console.log("❌ not logged in");
-        return;
-      }
-
-      await new Promise((r) => setTimeout(r, 500));
-
-      if (user.email === ADMIN_EMAIL) {
-        console.log("🔥 ADMIN GRANTED");
-        setIsAdmin(true);
-        loadLogs();
-
-        console.log("🚀 ADMIN PANEL OPENED");
-      } else {
-        console.log("❌ ACCESS DENIED");
-      }
-    };
-
-    console.log("💡 type: ad (in console to open admin)");
-  }, []);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  /* ---------------- ADMIN PAGE ---------------- */
-
+  /* ---------------- ADMIN PANEL ---------------- */
   if (isAdmin) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0a0f1f", color: "white", padding: 30 }}>
-        <h1>🔥 ADMIN DASHBOARD</h1>
+      <div style={{ padding: 30, background: "#050816", color: "white" }}>
+        <h1>🔥 NOVA ADMIN PANEL</h1>
 
-        <div style={{ display: "flex", gap: 15, marginTop: 20 }}>
-          <div style={card}>📁 Projects: {projects.length}</div>
-          <div style={card}>📜 Logs: {logs.length}</div>
-        </div>
+        <p>🤖 AI Status: ACTIVE</p>
+        <p>🚀 Builder: RUNNING</p>
 
-        <h2 style={{ marginTop: 30 }}>📜 Logs</h2>
+        <h2 style={{ marginTop: 20 }}>📁 Projects</h2>
 
-        {logs.map((log) => (
-          <div key={log.id} style={logCard}>
-            <p>💬 {log.prompt}</p>
-            <p>📧 {log.email}</p>
-            <p>⏰ {log.created_at}</p>
+        {projects.length === 0 && <p>No projects yet</p>}
+
+        {projects.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              padding: 10,
+              marginTop: 10,
+              background: "rgba(255,255,255,0.1)",
+              borderRadius: 10,
+            }}
+          >
+            {p.title}
           </div>
         ))}
+
+        <button
+          onClick={() => setIsAdmin(false)}
+          style={{ marginTop: 20, padding: 10 }}
+        >
+          Exit Admin
+        </button>
       </div>
     );
   }
 
   /* ---------------- MAIN UI ---------------- */
-
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: darkMode ? "#020617" : "#fff",
-        color: darkMode ? "white" : "black",
+        background: "#020617",
+        color: "white",
         display: "flex",
-        justifyContent: started ? "flex-start" : "center",
-        alignItems: started ? "flex-start" : "center",
-        paddingTop: started ? 40 : 0,
         transition: "0.5s",
       }}
     >
-      <div style={{ width: started ? "100%" : "60%", maxWidth: 900 }}>
-        
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h1>🚀 AI BUILDER</h1>
-          <button onClick={() => setDarkMode(!darkMode)}>
-            {darkMode ? "☀️" : "🌙"}
-          </button>
-        </div>
+      {/* SIDEBAR */}
+      {started && (
+        <motion.div
+          initial={{ x: -100 }}
+          animate={{ x: 0 }}
+          style={{
+            width: 250,
+            borderRight: "1px solid #222",
+            padding: 10,
+          }}
+        >
+          <h3>📁 Projects</h3>
 
-        {/* CHAT */}
-        <div style={{ marginTop: 20 }}>
-          {messages.map((m, i) => (
-            <div key={i} style={bubble(m.role)}>
-              {m.role}: {m.content}
+          {projects.map((p) => (
+            <div key={p.id} style={{ marginTop: 10 }}>
+              ⚡ {p.title}
             </div>
           ))}
+        </motion.div>
+      )}
+
+      {/* CHAT AREA */}
+      <motion.div
+        animate={{
+          width: started ? "100%" : "60%",
+          margin: "auto",
+        }}
+        transition={{ duration: 0.5 }}
+        style={{ padding: 20 }}
+      >
+        {/* HEADER */}
+        <h1 style={{ textAlign: "center" }}>🤖 Nova AI</h1>
+
+        {/* CHAT BOX */}
+        <div style={{ marginTop: 20 }}>
+          <AnimatePresence>
+            {messages.map((m, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: m.role === "user" ? 50 : -50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                style={{
+                  padding: 12,
+                  margin: "8px 0",
+                  borderRadius: 12,
+                  background:
+                    m.role === "user"
+                      ? "#3b82f6"
+                      : "rgba(255,255,255,0.08)",
+                }}
+              >
+                {m.content}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
           <div ref={bottomRef} />
         </div>
 
         {/* INPUT */}
         <textarea
-          value={idea}
-          onChange={(e) => setIdea(e.target.value)}
-          placeholder="اكتب فكرتك..."
-          style={input}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="اكتب فكرتك أو سوي موقع..."
+          style={{
+            width: "100%",
+            height: 100,
+            marginTop: 20,
+            padding: 12,
+            borderRadius: 12,
+            outline: "none",
+          }}
         />
 
-        <button onClick={generateWebsite} disabled={loading} style={btn}>
-          {loading ? "AI thinking..." : "Generate 🚀"}
+        <button
+          onClick={send}
+          disabled={loading}
+          style={{
+            width: "100%",
+            marginTop: 10,
+            padding: 12,
+            background: "#3b82f6",
+            color: "white",
+            borderRadius: 12,
+            border: "none",
+          }}
+        >
+          {loading ? "Thinking..." : "Send 🚀"}
         </button>
 
-        {/* PREVIEW */}
+        {/* WEBSITE PREVIEW */}
         {html && (
-          <iframe
+          <motion.iframe
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             srcDoc={html}
-            style={{ width: "100%", height: "100vh", marginTop: 20 }}
+            style={{
+              width: "100%",
+              height: "100vh",
+              marginTop: 20,
+              borderRadius: 12,
+              border: "none",
+            }}
           />
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }
-
-/* ---------------- STYLES ---------------- */
-
-const card = {
-  padding: 15,
-  background: "rgba(255,255,255,0.05)",
-  borderRadius: 10,
-};
-
-const logCard = {
-  padding: 10,
-  marginTop: 10,
-  background: "rgba(255,255,255,0.05)",
-};
-
-const bubble = (role: string) => ({
-  padding: 10,
-  marginBottom: 8,
-  borderRadius: 10,
-  background: role === "user" ? "#3b82f6" : "rgba(255,255,255,0.08)",
-});
-
-const input = {
-  width: "100%",
-  height: 100,
-  marginTop: 20,
-  padding: 10,
-};
-
-const btn = {
-  width: "100%",
-  marginTop: 10,
-  padding: 12,
-  background: "#3b82f6",
-  color: "white",
-};
