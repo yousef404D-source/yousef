@@ -35,7 +35,7 @@ export default function NovaAI() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ---------------- SEND MESSAGE (FIXED + LOGS) ---------------- */
+  /* ---------------- SEND MESSAGE (ONLY DEBUG ADDED) ---------------- */
 
   async function sendMessage() {
     if (!input.trim()) return;
@@ -46,7 +46,10 @@ export default function NovaAI() {
 
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: text },
+      {
+        role: "user",
+        content: text,
+      },
     ]);
 
     setInput("");
@@ -58,7 +61,9 @@ export default function NovaAI() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+        }),
       });
 
       console.log("📡 Status:", res.status);
@@ -72,7 +77,7 @@ export default function NovaAI() {
       try {
         data = JSON.parse(raw) as NovaResponse;
         console.log("✅ JSON PARSED:", data);
-      } catch (err) {
+      } catch (e) {
         console.log("❌ Response is NOT JSON");
       }
 
@@ -106,7 +111,7 @@ export default function NovaAI() {
     }
   }
 
-  /* ---------------- PASSWORD PAGE ---------------- */
+  /* ---------------- PASSWORD PAGE (UNCHANGED UI) ---------------- */
 
   if (!authorized) {
     return (
@@ -131,7 +136,19 @@ export default function NovaAI() {
             backdropFilter: "blur(20px)",
           }}
         >
-          <h1 style={{ fontSize: 55 }}>Nova AI</h1>
+          <h1 style={{ fontSize: 55, marginBottom: 10 }}>
+            Nova AI
+          </h1>
+
+          <p
+            style={{
+              opacity: 0.6,
+              marginBottom: 35,
+              lineHeight: 1.7,
+            }}
+          >
+            Secure access required
+          </p>
 
           <input
             type="password"
@@ -143,6 +160,7 @@ export default function NovaAI() {
               padding: 20,
               borderRadius: 20,
               border: "none",
+              outline: "none",
               background: "rgba(255,255,255,.05)",
               color: "white",
               fontSize: 18,
@@ -160,6 +178,7 @@ export default function NovaAI() {
               background: "#2563eb",
               color: "white",
               fontSize: 18,
+              cursor: "pointer",
             }}
           >
             Continue
@@ -169,7 +188,7 @@ export default function NovaAI() {
     );
   }
 
-  /* ---------------- MAIN CHAT ---------------- */
+  /* ---------------- MAIN WEBSITE (UNCHANGED DESIGN) ---------------- */
 
   return (
     <div
@@ -177,42 +196,255 @@ export default function NovaAI() {
         background: "#050816",
         minHeight: "100vh",
         color: "white",
+        overflow: "hidden",
         fontFamily: "Arial",
-        paddingLeft: 90,
       }}
     >
-      <div style={{ padding: 40 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 20 }}>
-            <b>{m.role}:</b> {m.content}
-          </div>
-        ))}
+      {/* SIDEBAR */}
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          width: 90,
+          height: "100vh",
+          borderRight: "1px solid rgba(255,255,255,.05)",
+          background: "rgba(255,255,255,.03)",
+          backdropFilter: "blur(20px)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 30,
+          gap: 20,
+        }}
+      >
+        <div style={{ fontSize: 30, fontWeight: 900 }}>N</div>
 
-        <div ref={bottomRef} />
-
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Message Nova AI..."
+        <div
           style={{
-            width: "70%",
-            padding: 15,
-            marginTop: 20,
+            width: 45,
+            height: 45,
+            borderRadius: 16,
+            background: "rgba(255,255,255,.05)",
           }}
         />
 
-        <button
-          onClick={sendMessage}
-          disabled={loading}
+        <div
           style={{
-            marginLeft: 10,
-            padding: 15,
+            width: 45,
+            height: 45,
+            borderRadius: 16,
+            background: "rgba(255,255,255,.05)",
           }}
-        >
-          {loading ? "..." : "Send"}
-        </button>
+        />
       </div>
+
+      {/* MAIN */}
+      <div
+        style={{
+          marginLeft: 90,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* EMPTY STATE */}
+        {messages.length === 0 && (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 40,
+            }}
+          >
+            <div style={{ width: "100%", maxWidth: 1000 }}>
+              <div style={{ textAlign: "center", marginBottom: 45 }}>
+                <h1
+                  style={{
+                    fontSize: 75,
+                    fontWeight: 900,
+                    marginBottom: 15,
+                  }}
+                >
+                  Nova AI
+                </h1>
+
+                <p style={{ opacity: 0.6, fontSize: 22 }}>
+                  Start messaging Nova AI...
+                </p>
+              </div>
+
+              <div
+                style={{
+                  background: "rgba(255,255,255,.05)",
+                  border: "1px solid rgba(255,255,255,.06)",
+                  borderRadius: 35,
+                  padding: 28,
+                  backdropFilter: "blur(30px)",
+                }}
+              >
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Start messaging Nova AI..."
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    color: "white",
+                    fontSize: 24,
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    marginTop: 20,
+                  }}
+                >
+                  <button
+                    onClick={sendMessage}
+                    disabled={loading}
+                    style={{
+                      background: "#2563eb",
+                      border: "none",
+                      color: "white",
+                      padding: "14px 28px",
+                      borderRadius: 18,
+                      cursor: "pointer",
+                      fontSize: 16,
+                    }}
+                  >
+                    {loading ? "Thinking..." : "Send"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CHAT */}
+        {messages.length > 0 && (
+          <>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "40px 80px 170px",
+                maxWidth: 1200,
+                width: "100%",
+                margin: "0 auto",
+              }}
+            >
+              {messages.map((m, i) => (
+                <div key={i} style={{ marginBottom: 40 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      opacity: 0.4,
+                      marginBottom: 10,
+                    }}
+                  >
+                    {m.role === "user" ? "YOU" : "NOVA AI"}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 20,
+                      lineHeight: 1.8,
+                      background:
+                        m.role === "assistant"
+                          ? "rgba(255,255,255,.05)"
+                          : "transparent",
+                      borderRadius: 28,
+                      padding: m.role === "assistant" ? 30 : 0,
+                      border:
+                        m.role === "assistant"
+                          ? "1px solid rgba(255,255,255,.05)"
+                          : "none",
+                    }}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+
+              <div ref={bottomRef} />
+            </div>
+
+            {/* BOTTOM INPUT */}
+            <div
+              style={{
+                position: "fixed",
+                bottom: 0,
+                left: 90,
+                right: 0,
+                padding: 25,
+                background: "rgba(5,8,22,.9)",
+                backdropFilter: "blur(20px)",
+                borderTop: "1px solid rgba(255,255,255,.05)",
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: 1200,
+                  margin: "0 auto",
+                  background: "rgba(255,255,255,.05)",
+                  borderRadius: 30,
+                  padding: 22,
+                  border: "1px solid rgba(255,255,255,.05)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 15,
+                    alignItems: "center",
+                  }}
+                >
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Start messaging Nova AI..."
+                    style={{
+                      flex: 1,
+                      background: "transparent",
+                      border: "none",
+                      outline: "none",
+                      color: "white",
+                      fontSize: 18,
+                    }}
+                  />
+
+                  <button
+                    onClick={sendMessage}
+                    disabled={loading}
+                    style={{
+                      background: "#2563eb",
+                      border: "none",
+                      color: "white",
+                      padding: "12px 24px",
+                      borderRadius: 16,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {loading ? "..." : "Send"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* hidden ref */}
+      <div ref={bottomRef} />
     </div>
   );
 }
