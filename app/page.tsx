@@ -1,323 +1,522 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
-type Log = {
-  email: string;
-  message: string;
-  time: number;
-};
-
-export default function Page() {
-  /* ---------------- BRAND ---------------- */
-  const APP_NAME = "⚡ NOVA CLIP";
-
-  /* ---------------- AUTH ---------------- */
-  const SITE_PASSWORD = "yousefyousefyousef505";
-  const ADMIN_EMAIL = "yousefbaker505@gmail.com";
-
-  const [access, setAccess] = useState(false);
-  const [password, setPassword] = useState("");
-
-  /* ---------------- CHAT ---------------- */
-  const [input, setInput] = useState("");
+export default function NovaClip() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  /* ---------------- ADMIN ---------------- */
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  /* ---------------- LOGS ---------------- */
-  const [logs, setLogs] = useState<Log[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const hasMessages = messages.length > 0;
+
   /* ---------------- AUTO SCROLL ---------------- */
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
   }, [messages]);
 
-  /* ---------------- ADMIN COMMAND ---------------- */
-  useEffect(() => {
-    (window as any).ad = () => {
-      const email = prompt("Admin Email:");
+  /* ---------------- SEND ---------------- */
 
-      if (!email) return;
-
-      const clean = email.trim().toLowerCase();
-
-      if (clean === ADMIN_EMAIL) {
-        setIsAdmin(true);
-        alert("🔥 Admin Mode Activated");
-      } else {
-        console.error("ERROR: Unauthorized access");
-        alert("ERROR: Unauthorized access");
-      }
-    };
-  }, []);
-
-  /* ---------------- LOGIN ---------------- */
-  function unlock() {
-    if (password === SITE_PASSWORD) {
-      setAccess(true);
-    } else {
-      alert("❌ Wrong Password");
-    }
-  }
-
-  /* ---------------- SMART ACCOUNT COMPARISON ---------------- */
-  function compareAccounts() {
-    const a = prompt("First email:");
-    const b = prompt("Second email:");
-
-    if (!a || !b) return;
-
-    const score =
-      (a.split("@")[1] === b.split("@")[1] ? 50 : 0) +
-      (a.length === b.length ? 20 : 0) +
-      (a[0] === b[0] ? 20 : 0) +
-      (a.includes("admin") || b.includes("admin") ? 10 : 0);
-
-    alert(`🔍 Similarity Score: ${score}/100`);
-  }
-
-  /* ---------------- SEND AI MESSAGE ---------------- */
-  async function send() {
+  async function sendMessage() {
     if (!input.trim()) return;
-
-    setExpanded(true);
-    setLoading(true);
 
     const text = input;
 
-    setMessages((p) => [...p, { role: "user", content: text }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: text,
+      },
+    ]);
+
     setInput("");
 
-    setMessages((p) => [
-      ...p,
-      { role: "assistant", content: "🧠 Thinking..." },
-    ]);
+    setLoading(true);
 
     try {
       const res = await fetch("/api/nova", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          message: text,
+        }),
       });
 
       const data = await res.json();
 
-      setMessages((p) =>
-        p.filter((m) => m.content !== "🧠 Thinking...")
-      );
-
-      if (data?.type === "chat") {
-        setMessages((p) => [
-          ...p,
-          { role: "assistant", content: data.reply },
-        ]);
-      }
-
-      if (data?.type === "project") {
-        setMessages((p) => [
-          ...p,
-          {
-            role: "assistant",
-            content: "🚀 Website generated successfully!",
-          },
-        ]);
-      }
-
-      setLogs((p) => [
+      setMessages((prev) => [
+        ...prev,
         {
-          email: "user",
-          message: text,
-          time: Date.now(),
+          role: "assistant",
+          content:
+            data.reply ||
+            "Something went wrong",
         },
-        ...p,
       ]);
-    } catch (e) {
-      setMessages((p) => [
-        ...p.filter((m) => m.content !== "🧠 Thinking..."),
-        { role: "assistant", content: "❌ AI Error" },
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "AI Error",
+        },
       ]);
     }
 
     setLoading(false);
   }
 
-  /* ---------------- ADMIN PANEL ---------------- */
-  if (isAdmin) {
-    return (
-      <div style={{ padding: 30, background: "#000", color: "white" }}>
-        <h1>🔥 {APP_NAME} ADMIN</h1>
+  /* ---------------- ENTER ---------------- */
 
-        <button onClick={compareAccounts}>
-          🔍 Compare Accounts
-        </button>
-
-        <h3 style={{ marginTop: 20 }}>📊 Logs</h3>
-
-        {logs.map((l, i) => (
-          <div key={i} style={{ opacity: 0.7 }}>
-            {l.message}
-          </div>
-        ))}
-
-        <button onClick={() => setIsAdmin(false)}>
-          Exit Admin
-        </button>
-      </div>
-    );
+  function handleKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) {
+    if (e.key === "Enter") {
+      sendMessage();
+    }
   }
 
-  /* ---------------- LOGIN SCREEN ---------------- */
-  if (!access) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#000",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <div
-          style={{
-            width: 320,
-            padding: 20,
-            background: "#111",
-            borderRadius: 12,
-            color: "white",
-          }}
-        >
-          <h2>{APP_NAME}</h2>
+  /* ---------------- SUGGESTIONS ---------------- */
 
-          <input
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: 10,
-              marginTop: 10,
-            }}
-          />
+  const suggestions = [
+    "Build me a futuristic AI website",
+    "Create a restaurant website",
+    "Make a gaming dashboard",
+    "Build a SaaS landing page",
+    "Create a portfolio website",
+    "Build a crypto app UI",
+  ];
 
-          <button
-            onClick={unlock}
-            style={{
-              width: "100%",
-              marginTop: 10,
-              padding: 10,
-              background: "#3b82f6",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-            }}
-          >
-            Unlock
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ---------------- MAIN UI (COPILOT STYLE FIXED) ---------------- */
   return (
     <div
       style={{
+        background: "#0b1020",
         minHeight: "100vh",
-        background: "#000",
-        display: "flex",
-        justifyContent: "center",
-        padding: 20,
+        color: "white",
+        overflow: "hidden",
       }}
     >
-      <motion.div
-        animate={{ width: expanded ? "100%" : 520 }}
-        transition={{ duration: 0.4 }}
+      {/* ---------------- SIDEBAR ---------------- */}
+
+      <div
         style={{
-          background: "#0a0a0a",
-          border: "1px solid #222",
-          borderRadius: 18,
-          padding: 20,
-          color: "white",
-          maxWidth: 950,
+          position: "fixed",
+          left: 0,
+          top: 0,
+          width: 80,
+          height: "100vh",
+          borderRight:
+            "1px solid rgba(255,255,255,0.06)",
+
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 20,
+          gap: 20,
+
+          background:
+            "rgba(255,255,255,0.02)",
+
+          backdropFilter: "blur(20px)",
         }}
       >
-        <h2 style={{ textAlign: "center" }}>{APP_NAME}</h2>
+        <div style={{ fontSize: 24 }}>
+          ⚡
+        </div>
 
-        {/* CHAT */}
-        <div style={{ maxHeight: 420, overflowY: "auto" }}>
-          <AnimatePresence>
-            {messages.map((m, i) => (
+        <div style={{ opacity: 0.5 }}>
+          💬
+        </div>
+
+        <div style={{ opacity: 0.5 }}>
+          📁
+        </div>
+
+        <div style={{ opacity: 0.5 }}>
+          ⚙️
+        </div>
+      </div>
+
+      {/* ---------------- MAIN ---------------- */}
+
+      <div
+        style={{
+          marginLeft: 80,
+          minHeight: "100vh",
+
+          display: "flex",
+          flexDirection: "column",
+
+          transition: "0.4s",
+        }}
+      >
+        {/* ---------------- CENTER MODE ---------------- */}
+
+        {!hasMessages && (
+          <div
+            style={{
+              flex: 1,
+
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+
+              padding: 30,
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: 950,
+              }}
+            >
+              {/* TITLE */}
+
               <div
-                key={i}
+                style={{
+                  textAlign: "center",
+                  marginBottom: 40,
+                }}
+              >
+                <h1
+                  style={{
+                    fontSize: 60,
+                    fontWeight: 800,
+                    marginBottom: 15,
+                  }}
+                >
+                  NOVA CLIP
+                </h1>
+
+                <p
+                  style={{
+                    opacity: 0.6,
+                    fontSize: 22,
+                  }}
+                >
+                  What should we build today?
+                </p>
+              </div>
+
+              {/* INPUT */}
+
+              <div
+                style={{
+                  background:
+                    "rgba(255,255,255,0.08)",
+
+                  border:
+                    "1px solid rgba(255,255,255,0.08)",
+
+                  borderRadius: 35,
+
+                  padding: 25,
+
+                  backdropFilter:
+                    "blur(30px)",
+
+                  boxShadow:
+                    "0 0 50px rgba(59,130,246,0.15)",
+                }}
+              >
+                <input
+                  value={input}
+                  onChange={(e) =>
+                    setInput(e.target.value)
+                  }
+                  onKeyDown={handleKeyDown}
+                  placeholder="Message NOVA CLIP..."
+
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    color: "white",
+                    fontSize: 24,
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+
+                    alignItems: "center",
+
+                    marginTop: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      opacity: 0.5,
+                    }}
+                  >
+                    ⚡ Smart AI
+                  </div>
+
+                  <button
+                    onClick={sendMessage}
+                    disabled={loading}
+                    style={{
+                      background:
+                        "#2563eb",
+
+                      border: "none",
+
+                      color: "white",
+
+                      padding:
+                        "12px 24px",
+
+                      borderRadius: 15,
+
+                      cursor: "pointer",
+
+                      fontSize: 16,
+                    }}
+                  >
+                    {loading
+                      ? "Thinking..."
+                      : "Send"}
+                  </button>
+                </div>
+              </div>
+
+              {/* SUGGESTIONS */}
+
+              <div
                 style={{
                   display: "flex",
+                  flexWrap: "wrap",
+                  gap: 12,
+
                   justifyContent:
-                    m.role === "user" ? "flex-end" : "flex-start",
-                  marginBottom: 8,
+                    "center",
+
+                  marginTop: 25,
+                }}
+              >
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() =>
+                      setInput(s)
+                    }
+                    style={{
+                      background:
+                        "rgba(255,255,255,0.06)",
+
+                      border:
+                        "1px solid rgba(255,255,255,0.08)",
+
+                      color: "white",
+
+                      padding:
+                        "12px 18px",
+
+                      borderRadius: 999,
+
+                      cursor: "pointer",
+
+                      opacity: 0.8,
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- CHAT MODE ---------------- */}
+
+        {hasMessages && (
+          <>
+            {/* CHAT */}
+
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+
+                padding:
+                  "40px 80px 140px",
+
+                maxWidth: 1100,
+                width: "100%",
+                margin: "0 auto",
+              }}
+            >
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  style={{
+                    marginBottom: 35,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 14,
+                      opacity: 0.5,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {m.role === "user"
+                      ? "YOU"
+                      : "NOVA CLIP"}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 20,
+                      lineHeight: 1.7,
+
+                      background:
+                        m.role === "assistant"
+                          ? "rgba(255,255,255,0.05)"
+                          : "transparent",
+
+                      borderRadius: 24,
+
+                      padding:
+                        m.role === "assistant"
+                          ? 25
+                          : 0,
+
+                      border:
+                        m.role === "assistant"
+                          ? "1px solid rgba(255,255,255,0.06)"
+                          : "none",
+                    }}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+
+              <div ref={bottomRef} />
+            </div>
+
+            {/* INPUT BOTTOM */}
+
+            <div
+              style={{
+                position: "fixed",
+                bottom: 0,
+                left: 80,
+                right: 0,
+
+                padding: 20,
+
+                background:
+                  "rgba(11,16,32,0.85)",
+
+                backdropFilter:
+                  "blur(20px)",
+
+                borderTop:
+                  "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: 1100,
+                  margin: "0 auto",
+
+                  background:
+                    "rgba(255,255,255,0.06)",
+
+                  borderRadius: 25,
+
+                  padding: 20,
+
+                  border:
+                    "1px solid rgba(255,255,255,0.06)",
                 }}
               >
                 <div
                   style={{
-                    padding: 10,
-                    borderRadius: 12,
-                    background:
-                      m.role === "user" ? "#3b82f6" : "#111",
-                    maxWidth: "70%",
+                    display: "flex",
+                    gap: 15,
+                    alignItems: "center",
                   }}
                 >
-                  {m.content}
+                  <input
+                    value={input}
+                    onChange={(e) =>
+                      setInput(
+                        e.target.value
+                      )
+                    }
+                    onKeyDown={
+                      handleKeyDown
+                    }
+
+                    placeholder="Message NOVA CLIP..."
+
+                    style={{
+                      flex: 1,
+
+                      background:
+                        "transparent",
+
+                      border: "none",
+
+                      outline: "none",
+
+                      color: "white",
+
+                      fontSize: 18,
+                    }}
+                  />
+
+                  <button
+                    onClick={sendMessage}
+                    disabled={loading}
+                    style={{
+                      background:
+                        "#2563eb",
+
+                      border: "none",
+
+                      color: "white",
+
+                      padding:
+                        "12px 22px",
+
+                      borderRadius: 14,
+
+                      cursor: "pointer",
+                    }}
+                  >
+                    {loading
+                      ? "..."
+                      : "Send"}
+                  </button>
                 </div>
               </div>
-            ))}
-          </AnimatePresence>
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* INPUT */}
-        <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Message Nova Clip..."
-            style={{
-              flex: 1,
-              padding: 14,
-              borderRadius: 20,
-              background: "#111",
-              border: "1px solid #333",
-              color: "white",
-            }}
-          />
-
-          <button
-            onClick={send}
-            style={{
-              padding: "0 20px",
-              borderRadius: 20,
-              background: "#3b82f6",
-              color: "white",
-              border: "none",
-            }}
-          >
-            Send
-          </button>
-        </div>
-      </motion.div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
