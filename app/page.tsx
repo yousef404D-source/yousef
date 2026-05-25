@@ -9,13 +9,11 @@ type Message = {
 
 type NovaResponse = {
   reply?: string;
-  questions?: {
-    question: string;
-    options: string[];
-  }[];
 };
 
 export default function NovaAI() {
+  /* PASSWORD */
+
   const [authorized, setAuthorized] =
     useState(false);
 
@@ -33,8 +31,10 @@ export default function NovaAI() {
     }
   }
 
+  /* CHAT */
+
   const [messages, setMessages] =
-    useState<Message[]>([];
+    useState<Message[]>([]);
 
   const [input, setInput] =
     useState("");
@@ -50,6 +50,8 @@ export default function NovaAI() {
       behavior: "smooth",
     });
   }, [messages]);
+
+  /* SEND */
 
   async function sendMessage(
     customMessage?: string
@@ -75,6 +77,8 @@ export default function NovaAI() {
     setInput("");
 
     setLoading(true);
+
+    /* THINKING MESSAGE */
 
     setMessages((prev) => [
       ...prev,
@@ -125,12 +129,12 @@ export default function NovaAI() {
           ) as NovaResponse;
 
         console.log(
-          "✅ JSON:",
+          "✅ JSON PARSED:",
           data
         );
       } catch {
         console.log(
-          "❌ NOT JSON"
+          "❌ Response NOT JSON"
         );
       }
 
@@ -150,7 +154,10 @@ export default function NovaAI() {
         ];
       });
     } catch (err) {
-      console.error(err);
+      console.error(
+        "❌ ERROR:",
+        err
+      );
 
       setMessages((prev) => {
         const updated = [...prev];
@@ -178,6 +185,8 @@ export default function NovaAI() {
       sendMessage();
     }
   }
+
+  /* PASSWORD PAGE */
 
   if (!authorized) {
     return (
@@ -267,6 +276,8 @@ export default function NovaAI() {
     );
   }
 
+  /* MAIN */
+
   return (
     <div
       style={{
@@ -300,10 +311,12 @@ export default function NovaAI() {
           gap: 20,
         }}
       >
+        {/* ROBOT FACE */}
+
         <div
           style={{
-            width: 55,
-            height: 55,
+            width: 58,
+            height: 58,
             borderRadius: "50%",
             overflow: "hidden",
             border:
@@ -322,7 +335,7 @@ export default function NovaAI() {
         </div>
       </div>
 
-      {/* MAIN */}
+      {/* MAIN CONTENT */}
 
       <div
         style={{
@@ -358,10 +371,12 @@ export default function NovaAI() {
                   marginBottom: 45,
                 }}
               >
+                {/* BIG ROBOT */}
+
                 <div
                   style={{
-                    width: 120,
-                    height: 120,
+                    width: 130,
+                    height: 130,
                     borderRadius: "50%",
                     overflow: "hidden",
                     margin:
@@ -402,6 +417,8 @@ export default function NovaAI() {
                   Nova AI...
                 </p>
               </div>
+
+              {/* INPUT */}
 
               <div
                 style={{
@@ -496,12 +513,14 @@ export default function NovaAI() {
                       marginBottom: 40,
                     }}
                   >
+                    {/* NAME */}
+
                     <div
                       style={{
                         display: "flex",
                         alignItems:
                           "center",
-                        gap: 10,
+                        gap: 12,
                         marginBottom: 10,
                       }}
                     >
@@ -511,8 +530,8 @@ export default function NovaAI() {
                           src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png"
                           alt="robot"
                           style={{
-                            width: 38,
-                            height: 38,
+                            width: 42,
+                            height: 42,
                             borderRadius:
                               "50%",
                           }}
@@ -532,6 +551,8 @@ export default function NovaAI() {
                           : "NOVA AI"}
                       </div>
                     </div>
+
+                    {/* MESSAGE */}
 
                     <div
                       style={{
@@ -564,7 +585,7 @@ export default function NovaAI() {
               <div ref={bottomRef} />
             </div>
 
-            {/* INPUT */}
+            {/* BOTTOM INPUT */}
 
             <div
               style={{
