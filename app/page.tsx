@@ -8,31 +8,34 @@ type Message = {
   content: string;
 };
 
-type Project = {
-  id: number;
-  title: string;
-  html: string;
+type Log = {
+  email: string;
+  message: string;
+  time: number;
 };
 
 export default function Page() {
+  /* ---------------- SECURITY ---------------- */
   const ADMIN_EMAIL = "yousefbaker505@gmail.com";
-  const SITE_PASSWORD = "nova123"; // 🔐 الباسورد رجعناه
+  const SITE_PASSWORD = "yousefyousefyousef505";
 
   const [access, setAccess] = useState(false);
   const [password, setPassword] = useState("");
 
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  /* ---------------- CHAT ---------------- */
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
-  const [started, setStarted] = useState(false);
-  const [html, setHtml] = useState("");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  /* ---------------- LOGS / AI MEMORY ---------------- */
+  const [logs, setLogs] = useState<Log[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  /* ---------------- SCROLL ---------------- */
+  /* ---------------- AUTO SCROLL ---------------- */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -42,7 +45,7 @@ export default function Page() {
     (window as any).ad = () => {
       const email = prompt("Admin Email:");
 
-      if (email === ADMIN_EMAIL) {
+      if (email?.trim().toLowerCase() === ADMIN_EMAIL) {
         setIsAdmin(true);
         alert("🔥 Admin Mode Activated");
       } else {
@@ -51,7 +54,7 @@ export default function Page() {
     };
   }, []);
 
-  /* ---------------- LOGIN ---------------- */
+  /* ---------------- PASSWORD ---------------- */
   function unlock() {
     if (password === SITE_PASSWORD) {
       setAccess(true);
@@ -60,60 +63,120 @@ export default function Page() {
     }
   }
 
-  /* ---------------- SEND ---------------- */
+  /* ---------------- SMART ACCOUNT COMPARISON ---------------- */
+  function compareAccounts() {
+    const a = prompt("First email:");
+    const b = prompt("Second email:");
+
+    if (!a || !b) return;
+
+    const score =
+      (a.split("@")[1] === b.split("@")[1] ? 40 : 0) +
+      (a[0] === b[0] ? 20 : 0) +
+      (a.length === b.length ? 20 : 0) +
+      (a.includes("admin") || b.includes("admin") ? 20 : 0);
+
+    alert(
+      `🔍 Account Similarity Score: ${score}/100\n\n${
+        score > 60 ? "⚠️ High similarity detected" : "✅ Low similarity"
+      }`
+    );
+  }
+
+  /* ---------------- SEND MESSAGE (STABLE AI FLOW) ---------------- */
   async function send() {
     if (!input.trim()) return;
 
-    setStarted(true);
-
-    setMessages((p) => [...p, { role: "user", content: input }]);
-    setInput("");
+    setExpanded(true);
     setLoading(true);
 
+    const userText = input;
+
+    setMessages((p) => [...p, { role: "user", content: userText }]);
+    setInput("");
+
+    // fake thinking (no freeze bug)
     setMessages((p) => [
       ...p,
       { role: "assistant", content: "🧠 Thinking..." },
     ]);
 
-    const res = await fetch("/api/nova", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input }),
-    });
+    try {
+      const res = await fetch("/api/nova", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.type === "chat") {
-      setMessages((p) => [
-        ...p,
-        { role: "assistant", content: data.reply },
-      ]);
-    }
+      // remove thinking safely
+      setMessages((p) =>
+        p.filter((m) => m.content !== "🧠 Thinking...")
+      );
 
-    if (data.type === "project") {
-      setMessages((p) => [
-        ...p,
-        { role: "assistant", content: "🚀 Building project..." },
-      ]);
+      if (data?.type === "chat") {
+        setMessages((p) => [
+          ...p,
+          { role: "assistant", content: data.reply },
+        ]);
+      }
 
-      setHtml(data.html);
+      if (data?.type === "project") {
+        setMessages((p) => [
+          ...p,
+          {
+            role: "assistant",
+            content: "🚀 Project generated successfully!",
+          },
+        ]);
+      }
 
-      setProjects((p) => [
+      // logs system
+      setLogs((p) => [
         {
-          id: Date.now(),
-          title: data.spec.title,
-          html: data.html,
+          email: "user",
+          message: userText,
+          time: Date.now(),
         },
         ...p,
       ]);
-
+    } catch (e) {
       setMessages((p) => [
-        ...p,
-        { role: "assistant", content: "✅ Done!" },
+        ...p.filter((m) => m.content !== "🧠 Thinking..."),
+        { role: "assistant", content: "❌ AI Server Error" },
       ]);
     }
 
     setLoading(false);
+  }
+
+  /* ---------------- ADMIN PANEL ---------------- */
+  if (isAdmin) {
+    return (
+      <div style={{ padding: 30, background: "#000", color: "white" }}>
+        <h1>🔥 ADMIN DASHBOARD</h1>
+
+        <button onClick={compareAccounts}>
+          🔍 Compare Accounts
+        </button>
+
+        <h3 style={{ marginTop: 20 }}>📜 Logs</h3>
+
+        {logs.map((l, i) => (
+          <div key={i} style={{ marginTop: 10, opacity: 0.8 }}>
+            {l.message}
+          </div>
+        ))}
+
+        <button
+          onClick={() => setIsAdmin(false)}
+          style={{ marginTop: 20 }}
+        >
+          Exit Admin
+        </button>
+      </div>
+    );
   }
 
   /* ---------------- LOCK SCREEN ---------------- */
@@ -122,21 +185,18 @@ export default function Page() {
       <div
         style={{
           minHeight: "100vh",
+          background: "#000",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          background: "#0b1220",
         }}
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+        <div
           style={{
             width: 320,
-            padding: 25,
-            background: "rgba(255,255,255,0.08)",
-            borderRadius: 16,
-            textAlign: "center",
+            padding: 20,
+            background: "#111",
+            borderRadius: 12,
             color: "white",
           }}
         >
@@ -144,15 +204,14 @@ export default function Page() {
 
           <input
             type="password"
-            placeholder="Enter Password"
+            placeholder="Enter password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={{
               width: "100%",
               padding: 10,
-              marginTop: 15,
+              marginTop: 10,
               borderRadius: 8,
-              outline: "none",
             }}
           />
 
@@ -160,85 +219,66 @@ export default function Page() {
             onClick={unlock}
             style={{
               width: "100%",
-              marginTop: 15,
+              marginTop: 10,
               padding: 10,
               background: "#3b82f6",
-              color: "white",
               borderRadius: 8,
-              border: "none",
+              color: "white",
             }}
           >
             Unlock
           </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
 
-  /* ---------------- ADMIN ---------------- */
-  if (isAdmin) {
-    return (
-      <div style={{ padding: 30, background: "#050816", color: "white" }}>
-        <h1>🔥 ADMIN PANEL</h1>
-        <p>AI Active</p>
-        <p>Builder Running</p>
-
-        <button
-          onClick={() => setIsAdmin(false)}
-          style={{ marginTop: 20, padding: 10 }}
-        >
-          Exit Admin
-        </button>
-      </div>
-    );
-  }
-
-  /* ---------------- MAIN UI (FIXED DESIGN) ---------------- */
+  /* ---------------- MAIN UI (PREMIUM DARK CHAT) ---------------- */
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "#020617",
+        background: "#000",
         display: "flex",
         justifyContent: "center",
         padding: 20,
       }}
     >
       <motion.div
-        animate={{ width: started ? "100%" : 520 }} // 🔥 مش عريض
+        animate={{ width: expanded ? "100%" : 520 }}
         transition={{ duration: 0.4 }}
         style={{
-          background: "rgba(255,255,255,0.03)",
-          borderRadius: 20,
+          background: "#0a0a0a",
+          border: "1px solid #222",
+          borderRadius: 18,
           padding: 20,
           color: "white",
-          maxWidth: 900,
+          maxWidth: 950,
         }}
       >
-        <h2 style={{ textAlign: "center" }}>🤖 Nova AI</h2>
+        <h2 style={{ textAlign: "center" }}>⚡ NOVA AI</h2>
 
         {/* CHAT */}
-        <div style={{ marginTop: 15, maxHeight: 400, overflowY: "auto" }}>
+        <div style={{ maxHeight: 420, overflowY: "auto" }}>
           <AnimatePresence>
             {messages.map((m, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, x: m.role === "user" ? 30 : -30 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
                 style={{
                   padding: 10,
                   margin: "6px 0",
                   borderRadius: 12,
                   background:
-                    m.role === "user"
-                      ? "#3b82f6"
-                      : "rgba(255,255,255,0.08)",
+                    m.role === "user" ? "#3b82f6" : "#111",
                 }}
               >
                 {m.content}
               </motion.div>
             ))}
           </AnimatePresence>
+
           <div ref={bottomRef} />
         </div>
 
@@ -246,13 +286,16 @@ export default function Page() {
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="اكتب فكرتك..."
+          placeholder="Type your idea..."
           style={{
             width: "100%",
             height: 90,
             marginTop: 15,
             padding: 10,
             borderRadius: 10,
+            background: "#111",
+            color: "white",
+            border: "1px solid #333",
           }}
         />
 
@@ -269,22 +312,8 @@ export default function Page() {
             border: "none",
           }}
         >
-          {loading ? "Thinking..." : "Send 🚀"}
+          {loading ? "Thinking..." : "Send"}
         </button>
-
-        {/* PREVIEW */}
-        {html && (
-          <iframe
-            srcDoc={html}
-            style={{
-              width: "100%",
-              height: "80vh",
-              marginTop: 15,
-              borderRadius: 12,
-              border: "none",
-            }}
-          />
-        )}
       </motion.div>
     </div>
   );
