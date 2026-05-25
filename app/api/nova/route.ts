@@ -6,31 +6,123 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    const { message } = await req.json();
+    const body = await req.json();
 
-    console.log("📩 Incoming message:", message);
+    const { message, answers } = body;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "user", content: message },
-      ],
-    });
+    /* ---------------- STEP 1 ---------------- */
+    /* ASK QUESTIONS */
 
-    const reply = response.choices[0].message.content;
+    if (!answers) {
+      const response =
+        await openai.chat.completions.create({
+          model: "gpt-4o-mini",
 
-    console.log("🤖 Reply:", reply);
+          temperature: 0.3,
+
+          messages: [
+            {
+              role: "system",
+              content: `
+You are Nova AI.
+
+Create EXACTLY 5 SHORT questions.
+
+Each question MUST have:
+- question
+- 3 options
+
+Return ONLY JSON.
+
+FORMAT:
+
+{
+  "questions": [
+    {
+      "question": "Question here",
+      "options": [
+        "Option 1",
+        "Option 2",
+        "Option 3"
+      ]
+    }
+  ]
+}
+              `,
+            },
+
+            {
+              role: "user",
+              content: message,
+            },
+          ],
+        });
+
+      const raw =
+        response.choices[0].message.content;
+
+      return Response.json({
+        type: "questions",
+        data: JSON.parse(raw || "{}"),
+      });
+    }
+
+    /* ---------------- STEP 2 ---------------- */
+    /* GENERATE WEBSITE */
+
+    const finalPrompt = `
+Build a modern website.
+
+User request:
+${message}
+
+Selected answers:
+${JSON.stringify(answers)}
+
+Make it:
+- modern
+- clean
+- responsive
+- beautiful
+
+Return ONLY React + Tailwind code.
+`;
+
+    const response =
+      await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+
+        temperature: 0.7,
+
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a powerful AI website builder.",
+          },
+
+          {
+            role: "user",
+            content: finalPrompt,
+          },
+        ],
+      });
 
     return Response.json({
-      reply,
+      type: "website",
+      reply:
+        response.choices[0].message.content,
     });
-
   } catch (error) {
-    console.error("❌ API Error:", error);
+    console.error(error);
 
     return Response.json(
-      { reply: "Server error" },
-      { status: 500 }
+      {
+        error: "Server error",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }
