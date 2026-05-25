@@ -7,14 +7,40 @@ type Message = {
   content: string;
 };
 
-export default function NovaClip() {
+type UserData = {
+  email: string;
+  credits: number;
+  premium: boolean;
+};
+
+export default function NovaAI() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] =
+    useState("");
 
-  const hasMessages = messages.length > 0;
+  const [showPayment, setShowPayment] =
+    useState(false);
+
+  const [admin, setAdmin] =
+    useState(false);
+
+  const [user] = useState<UserData>({
+    email:
+      "yousefbaker505@gmail.com",
+
+    credits: 20,
+
+    premium: false,
+  });
+
+  const bottomRef =
+    useRef<HTMLDivElement>(null);
+
+  const hasMessages =
+    messages.length > 0;
 
   /* ---------------- AUTO SCROLL ---------------- */
 
@@ -24,7 +50,33 @@ export default function NovaClip() {
     });
   }, [messages]);
 
-  /* ---------------- SEND ---------------- */
+  /* ---------------- ADMIN SYSTEM ---------------- */
+
+  useEffect(() => {
+    (
+      window as any
+    ).AD = () => {
+
+      const adminEmail =
+        "yousefbaker505@gmail.com";
+
+      const currentEmail =
+        user.email
+          .trim()
+          .toLowerCase();
+
+      if (
+        currentEmail ===
+        adminEmail
+      ) {
+        setAdmin(true);
+      } else {
+        alert("ERROR");
+      }
+    };
+  }, [user.email]);
+
+  /* ---------------- AI SYSTEM ---------------- */
 
   async function sendMessage() {
     if (!input.trim()) return;
@@ -43,21 +95,157 @@ export default function NovaClip() {
 
     setLoading(true);
 
+    const lower =
+      text.toLowerCase();
+
+    const isProject =
+      lower.includes("build") ||
+      lower.includes("website") ||
+      lower.includes("dashboard") ||
+      lower.includes("app") ||
+      lower.includes("platform") ||
+      lower.includes("gaming") ||
+      lower.includes("portfolio") ||
+      lower.includes("landing");
+
+    const hugeProject =
+      text.length > 180;
+
     try {
-      const res = await fetch("/api/nova", {
-        method: "POST",
+      const res = await fetch(
+        "/api/nova",
+        {
+          method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-        body: JSON.stringify({
-          message: text,
-        }),
-      });
+          body: JSON.stringify({
+            message: text,
+          }),
+        }
+      );
 
-      const data = await res.json();
+      const data =
+        await res.json();
+
+      /* ---------------- SIMPLE CHAT ---------------- */
+
+      if (!isProject) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              data.reply ||
+              "I understand.",
+          },
+        ]);
+
+        setLoading(false);
+
+        return;
+      }
+
+      /* ---------------- PROJECT PREVIEW ---------------- */
+
+      setPreview(`
+        <div style="
+          padding:40px;
+          background:#0b1020;
+          color:white;
+          border-radius:30px;
+          font-family:Arial;
+        ">
+          <h1 style="
+            font-size:50px;
+            margin-bottom:20px;
+          ">
+            ${data.title ||
+              "Nova Project"}
+          </h1>
+
+          <p style="
+            opacity:.7;
+            line-height:1.8;
+          ">
+            ${
+              data.description ||
+              "AI Generated Website"
+            }
+          </p>
+
+          <div style="
+            margin-top:30px;
+            display:grid;
+            grid-template-columns:
+              repeat(auto-fit,minmax(220px,1fr));
+            gap:20px;
+          ">
+            <div style="
+              padding:30px;
+              background:
+                rgba(255,255,255,.05);
+              border-radius:24px;
+            ">
+              Hero Section
+            </div>
+
+            <div style="
+              padding:30px;
+              background:
+                rgba(255,255,255,.05);
+              border-radius:24px;
+            ">
+              Dashboard
+            </div>
+
+            <div style="
+              padding:30px;
+              background:
+                rgba(255,255,255,.05);
+              border-radius:24px;
+            ">
+              AI Features
+            </div>
+
+            <div style="
+              padding:30px;
+              background:
+                rgba(255,255,255,.05);
+              border-radius:24px;
+            ">
+              Premium UI
+            </div>
+          </div>
+        </div>
+      `);
+
+      /* ---------------- CREDIT SYSTEM ---------------- */
+
+      if (
+        hugeProject &&
+        user.credits <= 0
+      ) {
+        setShowPayment(true);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "This project requires more credits before completion.",
+          },
+        ]);
+
+        setLoading(false);
+
+        return;
+      }
+
+      /* ---------------- FINAL AI RESPONSE ---------------- */
 
       setMessages((prev) => [
         ...prev,
@@ -65,15 +253,17 @@ export default function NovaClip() {
           role: "assistant",
           content:
             data.reply ||
-            "Something went wrong",
+            "Project generation started successfully.",
         },
       ]);
+
     } catch {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "AI Error",
+          content:
+            "AI system error.",
         },
       ]);
     }
@@ -91,24 +281,22 @@ export default function NovaClip() {
     }
   }
 
-  /* ---------------- SUGGESTIONS ---------------- */
-
-  const suggestions = [
-    "Build me a futuristic AI website",
-    "Create a restaurant website",
-    "Make a gaming dashboard",
-    "Build a SaaS landing page",
-    "Create a portfolio website",
-    "Build a crypto app UI",
-  ];
+  /* ---------------- UI ---------------- */
 
   return (
     <div
       style={{
-        background: "#0b1020",
+        background:
+          "linear-gradient(to bottom,#050816,#0b1020)",
+
         minHeight: "100vh",
+
         color: "white",
+
         overflow: "hidden",
+
+        fontFamily:
+          "Arial, sans-serif",
       }}
     >
       {/* ---------------- SIDEBAR ---------------- */}
@@ -116,53 +304,91 @@ export default function NovaClip() {
       <div
         style={{
           position: "fixed",
+
           left: 0,
           top: 0,
-          width: 80,
-          height: "100vh",
-          borderRight:
-            "1px solid rgba(255,255,255,0.06)",
 
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          paddingTop: 20,
-          gap: 20,
+          width: 90,
+
+          height: "100vh",
+
+          borderRight:
+            "1px solid rgba(255,255,255,.05)",
 
           background:
-            "rgba(255,255,255,0.02)",
+            "rgba(255,255,255,.02)",
 
-          backdropFilter: "blur(20px)",
+          backdropFilter:
+            "blur(20px)",
+
+          display: "flex",
+
+          flexDirection: "column",
+
+          alignItems: "center",
+
+          paddingTop: 30,
+
+          gap: 25,
         }}
       >
-        <div style={{ fontSize: 24 }}>
-          ⚡
+        <div
+          style={{
+            fontSize: 28,
+            fontWeight: 800,
+          }}
+        >
+          N
         </div>
 
-        <div style={{ opacity: 0.5 }}>
-          💬
-        </div>
+        <div
+          style={{
+            width: 45,
+            height: 45,
 
-        <div style={{ opacity: 0.5 }}>
-          📁
-        </div>
+            borderRadius: 16,
 
-        <div style={{ opacity: 0.5 }}>
-          ⚙️
-        </div>
+            background:
+              "rgba(255,255,255,.06)",
+          }}
+        />
+
+        <div
+          style={{
+            width: 45,
+            height: 45,
+
+            borderRadius: 16,
+
+            background:
+              "rgba(255,255,255,.04)",
+          }}
+        />
+
+        <div
+          style={{
+            width: 45,
+            height: 45,
+
+            borderRadius: 16,
+
+            background:
+              "rgba(255,255,255,.04)",
+          }}
+        />
       </div>
 
       {/* ---------------- MAIN ---------------- */}
 
       <div
         style={{
-          marginLeft: 80,
+          marginLeft: 90,
+
           minHeight: "100vh",
 
           display: "flex",
-          flexDirection: "column",
 
-          transition: "0.4s",
+          flexDirection: "column",
         }}
       >
         {/* ---------------- CENTER MODE ---------------- */}
@@ -173,81 +399,102 @@ export default function NovaClip() {
               flex: 1,
 
               display: "flex",
-              justifyContent: "center",
+
+              justifyContent:
+                "center",
+
               alignItems: "center",
 
-              padding: 30,
+              padding: 40,
             }}
           >
             <div
               style={{
                 width: "100%",
-                maxWidth: 950,
+
+                maxWidth: 1000,
               }}
             >
-              {/* TITLE */}
-
               <div
                 style={{
                   textAlign: "center",
-                  marginBottom: 40,
+
+                  marginBottom: 45,
                 }}
               >
                 <h1
                   style={{
-                    fontSize: 60,
-                    fontWeight: 800,
+                    fontSize: 75,
+
+                    fontWeight: 900,
+
                     marginBottom: 15,
+
+                    letterSpacing:
+                      "-3px",
                   }}
                 >
-                  NOVA CLIP
+                  Nova AI
                 </h1>
 
                 <p
                   style={{
-                    opacity: 0.6,
-                    fontSize: 22,
+                    opacity: 0.55,
+
+                    fontSize: 23,
                   }}
                 >
-                  What should we build today?
+                  Start building something incredible
                 </p>
               </div>
 
-              {/* INPUT */}
+              {/* ---------------- INPUT ---------------- */}
 
               <div
                 style={{
                   background:
-                    "rgba(255,255,255,0.08)",
+                    "rgba(255,255,255,.05)",
 
                   border:
-                    "1px solid rgba(255,255,255,0.08)",
+                    "1px solid rgba(255,255,255,.06)",
 
-                  borderRadius: 35,
+                  borderRadius: 40,
 
-                  padding: 25,
+                  padding: 28,
 
                   backdropFilter:
-                    "blur(30px)",
+                    "blur(40px)",
 
                   boxShadow:
-                    "0 0 50px rgba(59,130,246,0.15)",
+                    "0 0 120px rgba(59,130,246,.12)",
                 }}
               >
                 <input
                   value={input}
                   onChange={(e) =>
-                    setInput(e.target.value)
+                    setInput(
+                      e.target.value
+                    )
                   }
-                  onKeyDown={handleKeyDown}
-                  placeholder="Message NOVA CLIP..."
+
+                  onKeyDown={
+                    handleKeyDown
+                  }
+
+                  placeholder="Start messaging Nova AI..."
 
                   style={{
                     width: "100%",
-                    background: "transparent",
+
+                    background:
+                      "transparent",
+
                     border: "none",
+
                     outline: "none",
+
                     color: "white",
+
                     fontSize: 24,
                   }}
                 />
@@ -255,25 +502,32 @@ export default function NovaClip() {
                 <div
                   style={{
                     display: "flex",
+
                     justifyContent:
                       "space-between",
 
                     alignItems: "center",
 
-                    marginTop: 20,
+                    marginTop: 25,
                   }}
                 >
                   <div
                     style={{
-                      opacity: 0.5,
+                      opacity: 0.45,
                     }}
                   >
-                    ⚡ Smart AI
+                    AI Website Operating System
                   </div>
 
                   <button
-                    onClick={sendMessage}
-                    disabled={loading}
+                    onClick={
+                      sendMessage
+                    }
+
+                    disabled={
+                      loading
+                    }
+
                     style={{
                       background:
                         "#2563eb",
@@ -283,13 +537,14 @@ export default function NovaClip() {
                       color: "white",
 
                       padding:
-                        "12px 24px",
+                        "14px 28px",
 
-                      borderRadius: 15,
-
-                      cursor: "pointer",
+                      borderRadius: 18,
 
                       fontSize: 16,
+
+                      cursor:
+                        "pointer",
                     }}
                   >
                     {loading
@@ -297,50 +552,6 @@ export default function NovaClip() {
                       : "Send"}
                   </button>
                 </div>
-              </div>
-
-              {/* SUGGESTIONS */}
-
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 12,
-
-                  justifyContent:
-                    "center",
-
-                  marginTop: 25,
-                }}
-              >
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() =>
-                      setInput(s)
-                    }
-                    style={{
-                      background:
-                        "rgba(255,255,255,0.06)",
-
-                      border:
-                        "1px solid rgba(255,255,255,0.08)",
-
-                      color: "white",
-
-                      padding:
-                        "12px 18px",
-
-                      borderRadius: 999,
-
-                      cursor: "pointer",
-
-                      opacity: 0.8,
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
               </div>
             </div>
           </div>
@@ -350,127 +561,170 @@ export default function NovaClip() {
 
         {hasMessages && (
           <>
-            {/* CHAT */}
-
             <div
               style={{
                 flex: 1,
+
                 overflowY: "auto",
 
                 padding:
-                  "40px 80px 140px",
+                  "40px 80px 200px",
 
-                maxWidth: 1100,
+                maxWidth: 1200,
+
                 width: "100%",
+
                 margin: "0 auto",
               }}
             >
-              {messages.map((m, i) => (
+              {messages.map(
+                (m, i) => (
+                  <div
+                    key={i}
+
+                    style={{
+                      marginBottom: 40,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 13,
+
+                        opacity: 0.4,
+
+                        marginBottom: 10,
+
+                        letterSpacing:
+                          "1px",
+                      }}
+                    >
+                      {m.role ===
+                      "user"
+                        ? "YOU"
+                        : "NOVA AI"}
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 20,
+
+                        lineHeight: 1.8,
+
+                        background:
+                          m.role ===
+                          "assistant"
+                            ? "rgba(255,255,255,.05)"
+                            : "transparent",
+
+                        borderRadius: 30,
+
+                        padding:
+                          m.role ===
+                          "assistant"
+                            ? 30
+                            : 0,
+
+                        border:
+                          m.role ===
+                          "assistant"
+                            ? "1px solid rgba(255,255,255,.05)"
+                            : "none",
+
+                        backdropFilter:
+                          "blur(30px)",
+                      }}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                )
+              )}
+
+              {/* ---------------- PREVIEW ---------------- */}
+
+              {preview && (
                 <div
-                  key={i}
                   style={{
-                    marginBottom: 35,
+                    marginTop: 50,
                   }}
                 >
                   <div
-                    style={{
-                      fontSize: 14,
-                      opacity: 0.5,
-                      marginBottom: 8,
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        preview,
                     }}
-                  >
-                    {m.role === "user"
-                      ? "YOU"
-                      : "NOVA CLIP"}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 20,
-                      lineHeight: 1.7,
-
-                      background:
-                        m.role === "assistant"
-                          ? "rgba(255,255,255,0.05)"
-                          : "transparent",
-
-                      borderRadius: 24,
-
-                      padding:
-                        m.role === "assistant"
-                          ? 25
-                          : 0,
-
-                      border:
-                        m.role === "assistant"
-                          ? "1px solid rgba(255,255,255,0.06)"
-                          : "none",
-                    }}
-                  >
-                    {m.content}
-                  </div>
+                  />
                 </div>
-              ))}
+              )}
 
               <div ref={bottomRef} />
             </div>
 
-            {/* INPUT BOTTOM */}
+            {/* ---------------- INPUT BOTTOM ---------------- */}
 
             <div
               style={{
                 position: "fixed",
+
                 bottom: 0,
-                left: 80,
+
+                left: 90,
+
                 right: 0,
 
-                padding: 20,
+                padding: 25,
 
                 background:
-                  "rgba(11,16,32,0.85)",
+                  "rgba(5,8,22,.85)",
 
                 backdropFilter:
                   "blur(20px)",
 
                 borderTop:
-                  "1px solid rgba(255,255,255,0.06)",
+                  "1px solid rgba(255,255,255,.05)",
               }}
             >
               <div
                 style={{
-                  maxWidth: 1100,
+                  maxWidth: 1200,
+
                   margin: "0 auto",
 
                   background:
-                    "rgba(255,255,255,0.06)",
+                    "rgba(255,255,255,.05)",
 
-                  borderRadius: 25,
+                  borderRadius: 30,
 
-                  padding: 20,
+                  padding: 22,
 
                   border:
-                    "1px solid rgba(255,255,255,0.06)",
+                    "1px solid rgba(255,255,255,.05)",
                 }}
               >
                 <div
                   style={{
                     display: "flex",
+
                     gap: 15,
-                    alignItems: "center",
+
+                    alignItems:
+                      "center",
                   }}
                 >
                   <input
                     value={input}
+
                     onChange={(e) =>
                       setInput(
                         e.target.value
                       )
                     }
+
                     onKeyDown={
                       handleKeyDown
                     }
 
-                    placeholder="Message NOVA CLIP..."
+                    placeholder="Start messaging Nova AI..."
 
                     style={{
                       flex: 1,
@@ -489,8 +743,14 @@ export default function NovaClip() {
                   />
 
                   <button
-                    onClick={sendMessage}
-                    disabled={loading}
+                    onClick={
+                      sendMessage
+                    }
+
+                    disabled={
+                      loading
+                    }
+
                     style={{
                       background:
                         "#2563eb",
@@ -500,11 +760,12 @@ export default function NovaClip() {
                       color: "white",
 
                       padding:
-                        "12px 22px",
+                        "12px 24px",
 
-                      borderRadius: 14,
+                      borderRadius: 16,
 
-                      cursor: "pointer",
+                      cursor:
+                        "pointer",
                     }}
                   >
                     {loading
@@ -517,6 +778,176 @@ export default function NovaClip() {
           </>
         )}
       </div>
+
+      {/* ---------------- PAYMENT PAGE ---------------- */}
+
+      {showPayment && (
+        <div
+          style={{
+            position: "fixed",
+
+            inset: 0,
+
+            background:
+              "rgba(0,0,0,.88)",
+
+            display: "flex",
+
+            justifyContent:
+              "center",
+
+            alignItems: "center",
+
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              width: 600,
+
+              background:
+                "#0b1020",
+
+              borderRadius: 40,
+
+              padding: 50,
+
+              border:
+                "1px solid rgba(255,255,255,.06)",
+            }}
+          >
+            <h1
+              style={{
+                fontSize: 45,
+
+                marginBottom: 20,
+              }}
+            >
+              Continue Building
+            </h1>
+
+            <p
+              style={{
+                opacity: 0.65,
+
+                lineHeight: 1.8,
+
+                marginBottom: 35,
+              }}
+            >
+              Your current project
+              requires additional
+              credits and premium
+              generation access.
+            </p>
+
+            <button
+              style={{
+                width: "100%",
+
+                background:
+                  "#2563eb",
+
+                border: "none",
+
+                color: "white",
+
+                padding: 18,
+
+                borderRadius: 20,
+
+                fontSize: 18,
+
+                cursor: "pointer",
+              }}
+            >
+              Upgrade Subscription
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- ADMIN PANEL ---------------- */}
+
+      {admin && (
+        <div
+          style={{
+            position: "fixed",
+
+            top: 20,
+
+            right: 20,
+
+            width: 420,
+
+            background:
+              "#0b1020",
+
+            border:
+              "1px solid rgba(255,255,255,.06)",
+
+            borderRadius: 30,
+
+            padding: 30,
+
+            zIndex: 9999,
+          }}
+        >
+          <h2
+            style={{
+              marginBottom: 25,
+            }}
+          >
+            Admin Panel
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 15,
+            }}
+          >
+            <div
+              style={{
+                padding: 20,
+
+                borderRadius: 20,
+
+                background:
+                  "rgba(255,255,255,.05)",
+              }}
+            >
+              Accounts
+            </div>
+
+            <div
+              style={{
+                padding: 20,
+
+                borderRadius: 20,
+
+                background:
+                  "rgba(255,255,255,.05)",
+              }}
+            >
+              Logs
+            </div>
+
+            <div
+              style={{
+                padding: 20,
+
+                borderRadius: 20,
+
+                background:
+                  "rgba(255,255,255,.05)",
+              }}
+            >
+              Credits & Premium
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

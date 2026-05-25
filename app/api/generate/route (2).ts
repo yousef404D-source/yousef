@@ -1,59 +1,31 @@
+import { fal } from "@fal-ai/client";
+import { NextResponse } from "next/server";
+
+fal.config({
+  credentials: process.env.FAL_KEY,
+});
+
 export async function POST(req: Request) {
   try {
-    const {
-      prompt,
-      size = "1024x1024",
-      quality = "high",
-    } = await req.json();
+    const { prompt } = await req.json();
 
-    if (!prompt) {
-      return Response.json(
-        {
-          success: false,
-          error: "Prompt is required",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const response = await fetch(
-      "https://fal.run/fal-ai/flux/dev",
+    const result = await fal.subscribe(
+      "fal-ai/flux-pro",
       {
-        method: "POST",
-
-        headers: {
-          Authorization: `Key ${process.env.FAL_KEY}`,
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
+        input: {
           prompt,
-          image_size: size,
-          num_inference_steps:
-            quality === "high" ? 40 : 20,
-        }),
+        },
       }
     );
 
-    const data = await response.json();
-
-    return Response.json({
-      success: true,
-      image: data.images?.[0]?.url || null,
+    return NextResponse.json({
+      image:
+        result.data.images[0].url,
     });
-  } catch (err: any) {
-    console.error(err);
 
-    return Response.json(
-      {
-        success: false,
-        error: err.message,
-      },
-      {
-        status: 500,
-      }
-    );
+  } catch (e) {
+    return NextResponse.json({
+      error: "fal error",
+    });
   }
 }
