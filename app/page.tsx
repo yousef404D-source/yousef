@@ -14,8 +14,12 @@ type Project = {
   html: string;
 };
 
-export default function Home() {
+export default function Page() {
   const ADMIN_EMAIL = "yousefbaker505@gmail.com";
+  const SITE_PASSWORD = "nova123"; // 🔐 الباسورد رجعناه
+
+  const [access, setAccess] = useState(false);
+  const [password, setPassword] = useState("");
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -23,7 +27,6 @@ export default function Home() {
 
   const [started, setStarted] = useState(false);
   const [html, setHtml] = useState("");
-
   const [projects, setProjects] = useState<Project[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -34,112 +37,151 @@ export default function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ---------------- ADMIN (CONSOLE COMMAND) ---------------- */
+  /* ---------------- ADMIN CONSOLE ---------------- */
   useEffect(() => {
-    (window as any).ad = async () => {
-      const email = prompt("Enter admin email:");
+    (window as any).ad = () => {
+      const email = prompt("Admin Email:");
+
       if (email === ADMIN_EMAIL) {
         setIsAdmin(true);
-        alert("✅ Admin Mode Activated");
+        alert("🔥 Admin Mode Activated");
       } else {
         alert("❌ Access Denied");
       }
     };
   }, []);
 
-  /* ---------------- SEND MESSAGE ---------------- */
+  /* ---------------- LOGIN ---------------- */
+  function unlock() {
+    if (password === SITE_PASSWORD) {
+      setAccess(true);
+    } else {
+      alert("❌ Wrong Password");
+    }
+  }
+
+  /* ---------------- SEND ---------------- */
   async function send() {
     if (!input.trim()) return;
 
     setStarted(true);
 
-    const userMsg: Message = { role: "user", content: input };
-
-    setMessages((p) => [...p, userMsg]);
+    setMessages((p) => [...p, { role: "user", content: input }]);
     setInput("");
     setLoading(true);
 
-    // fake thinking animation
     setMessages((p) => [
       ...p,
-      { role: "assistant", content: "🧠 Nova AI is thinking..." },
+      { role: "assistant", content: "🧠 Thinking..." },
     ]);
 
-    try {
-      const res = await fetch("/api/nova", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
-      });
+    const res = await fetch("/api/nova", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: input }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      /* ---------------- CHAT ---------------- */
-      if (data.type === "chat") {
-        setMessages((p) => [
-          ...p,
-          { role: "assistant", content: data.reply },
-        ]);
-      }
+    if (data.type === "chat") {
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", content: data.reply },
+      ]);
+    }
 
-      /* ---------------- PROJECT ---------------- */
-      if (data.type === "project") {
-        setMessages((p) => [
-          ...p,
-          { role: "assistant", content: "🚀 Building project..." },
-        ]);
+    if (data.type === "project") {
+      setMessages((p) => [
+        ...p,
+        { role: "assistant", content: "🚀 Building project..." },
+      ]);
 
-        setHtml(data.html);
+      setHtml(data.html);
 
-        const newProject = {
+      setProjects((p) => [
+        {
           id: Date.now(),
           title: data.spec.title,
           html: data.html,
-        };
+        },
+        ...p,
+      ]);
 
-        setProjects((p) => [newProject, ...p]);
-
-        setMessages((p) => [
-          ...p,
-          { role: "assistant", content: "✅ Project Ready!" },
-        ]);
-      }
-    } catch (e) {
       setMessages((p) => [
         ...p,
-        { role: "assistant", content: "❌ Error in Nova AI" },
+        { role: "assistant", content: "✅ Done!" },
       ]);
     }
 
     setLoading(false);
   }
 
-  /* ---------------- ADMIN PANEL ---------------- */
+  /* ---------------- LOCK SCREEN ---------------- */
+  if (!access) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          background: "#0b1220",
+        }}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          style={{
+            width: 320,
+            padding: 25,
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: 16,
+            textAlign: "center",
+            color: "white",
+          }}
+        >
+          <h2>🔐 Nova AI</h2>
+
+          <input
+            type="password"
+            placeholder="Enter Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{
+              width: "100%",
+              padding: 10,
+              marginTop: 15,
+              borderRadius: 8,
+              outline: "none",
+            }}
+          />
+
+          <button
+            onClick={unlock}
+            style={{
+              width: "100%",
+              marginTop: 15,
+              padding: 10,
+              background: "#3b82f6",
+              color: "white",
+              borderRadius: 8,
+              border: "none",
+            }}
+          >
+            Unlock
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  /* ---------------- ADMIN ---------------- */
   if (isAdmin) {
     return (
       <div style={{ padding: 30, background: "#050816", color: "white" }}>
-        <h1>🔥 NOVA ADMIN PANEL</h1>
-
-        <p>🤖 AI Status: ACTIVE</p>
-        <p>🚀 Builder: RUNNING</p>
-
-        <h2 style={{ marginTop: 20 }}>📁 Projects</h2>
-
-        {projects.length === 0 && <p>No projects yet</p>}
-
-        {projects.map((p) => (
-          <div
-            key={p.id}
-            style={{
-              padding: 10,
-              marginTop: 10,
-              background: "rgba(255,255,255,0.1)",
-              borderRadius: 10,
-            }}
-          >
-            {p.title}
-          </div>
-        ))}
+        <h1>🔥 ADMIN PANEL</h1>
+        <p>AI Active</p>
+        <p>Builder Running</p>
 
         <button
           onClick={() => setIsAdmin(false)}
@@ -151,63 +193,41 @@ export default function Home() {
     );
   }
 
-  /* ---------------- MAIN UI ---------------- */
+  /* ---------------- MAIN UI (FIXED DESIGN) ---------------- */
   return (
     <div
       style={{
         minHeight: "100vh",
         background: "#020617",
-        color: "white",
         display: "flex",
-        transition: "0.5s",
+        justifyContent: "center",
+        padding: 20,
       }}
     >
-      {/* SIDEBAR */}
-      {started && (
-        <motion.div
-          initial={{ x: -100 }}
-          animate={{ x: 0 }}
-          style={{
-            width: 250,
-            borderRight: "1px solid #222",
-            padding: 10,
-          }}
-        >
-          <h3>📁 Projects</h3>
-
-          {projects.map((p) => (
-            <div key={p.id} style={{ marginTop: 10 }}>
-              ⚡ {p.title}
-            </div>
-          ))}
-        </motion.div>
-      )}
-
-      {/* CHAT AREA */}
       <motion.div
-        animate={{
-          width: started ? "100%" : "60%",
-          margin: "auto",
+        animate={{ width: started ? "100%" : 520 }} // 🔥 مش عريض
+        transition={{ duration: 0.4 }}
+        style={{
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: 20,
+          padding: 20,
+          color: "white",
+          maxWidth: 900,
         }}
-        transition={{ duration: 0.5 }}
-        style={{ padding: 20 }}
       >
-        {/* HEADER */}
-        <h1 style={{ textAlign: "center" }}>🤖 Nova AI</h1>
+        <h2 style={{ textAlign: "center" }}>🤖 Nova AI</h2>
 
-        {/* CHAT BOX */}
-        <div style={{ marginTop: 20 }}>
+        {/* CHAT */}
+        <div style={{ marginTop: 15, maxHeight: 400, overflowY: "auto" }}>
           <AnimatePresence>
             {messages.map((m, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, x: m.role === "user" ? 50 : -50 }}
+                initial={{ opacity: 0, x: m.role === "user" ? 30 : -30 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
                 style={{
-                  padding: 12,
-                  margin: "8px 0",
+                  padding: 10,
+                  margin: "6px 0",
                   borderRadius: 12,
                   background:
                     m.role === "user"
@@ -219,7 +239,6 @@ export default function Home() {
               </motion.div>
             ))}
           </AnimatePresence>
-
           <div ref={bottomRef} />
         </div>
 
@@ -227,14 +246,13 @@ export default function Home() {
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="اكتب فكرتك أو سوي موقع..."
+          placeholder="اكتب فكرتك..."
           style={{
             width: "100%",
-            height: 100,
-            marginTop: 20,
-            padding: 12,
-            borderRadius: 12,
-            outline: "none",
+            height: 90,
+            marginTop: 15,
+            padding: 10,
+            borderRadius: 10,
           }}
         />
 
@@ -246,24 +264,22 @@ export default function Home() {
             marginTop: 10,
             padding: 12,
             background: "#3b82f6",
+            borderRadius: 10,
             color: "white",
-            borderRadius: 12,
             border: "none",
           }}
         >
           {loading ? "Thinking..." : "Send 🚀"}
         </button>
 
-        {/* WEBSITE PREVIEW */}
+        {/* PREVIEW */}
         {html && (
-          <motion.iframe
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          <iframe
             srcDoc={html}
             style={{
               width: "100%",
-              height: "100vh",
-              marginTop: 20,
+              height: "80vh",
+              marginTop: 15,
               borderRadius: 12,
               border: "none",
             }}
