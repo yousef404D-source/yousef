@@ -1,30 +1,46 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+
+/* ---------------- MEMORY LOG STORE ---------------- */
+/* ملاحظة: هذا داخل السيرفر (يشتغل طالما السيرفر شغال) */
+
+let logs: any[] = [];
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const ip =
-      req.headers.get("x-forwarded-for") || "unknown";
+    const logEntry = {
+      id: Date.now(),
+      email: body.email || "unknown",
+      username: body.username || "guest",
+      prompt: body.prompt || "",
+      ip: body.ip || "unknown",
+      device: body.device || "unknown",
+      created_at: new Date().toISOString(),
+    };
 
-    const userAgent =
-      req.headers.get("user-agent") || "unknown";
+    logs.push(logEntry);
 
-    await supabase.from("logs").insert([
+    return NextResponse.json({
+      success: true,
+      message: "Log saved",
+    });
+  } catch (error: any) {
+    return NextResponse.json(
       {
-        email: body.email,
-        username: body.username,
-        prompt: body.prompt,
-        ip,
-        browser: userAgent,
-        device: userAgent,
+        success: false,
+        error: "Failed to save log",
       },
-    ]);
-
-    return NextResponse.json({ success: true });
-
-  } catch (err) {
-    return NextResponse.json({ error: true });
+      { status: 500 }
+    );
   }
+}
+
+/* ---------------- GET LOGS (ADMIN USE) ---------------- */
+
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    logs: logs.reverse(),
+  });
 }
