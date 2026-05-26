@@ -1,21 +1,26 @@
 {
-  "name": "ai-project",
+  "name": "nova-ai",
   "version": "1.0.0",
   "private": true,
+
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
+
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "openai": "latest"
+    "next": "15.3.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "openai": "^4.104.0",
+    "axios": "^1.10.0"
   },
+
   "devDependencies": {
-    "eslint": "latest",
-    "eslint-config-next": "latest"
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "typescript": "^5.8.3"
   }
 }

@@ -2,8 +2,6 @@ import OpenAI from "openai";
 
 import axios from "axios";
 
-import { v4 as uuid } from "uuid";
-
 const openai = new OpenAI({
   apiKey:
     process.env.OPENAI_API_KEY!,
@@ -56,7 +54,6 @@ IMPORTANT RULES:
 - No imports
 - No export default
 - No code block
-- No \`\`\`
 - No html/body/head tags
 
 VERY IMPORTANT:
@@ -139,7 +136,9 @@ NEVER break JSX syntax.
 
     const projectName =
       "nova-ai-" +
-      uuid().slice(0, 8);
+      crypto
+        .randomUUID()
+        .slice(0, 8);
 
     console.log(
       "📁 PROJECT:",
@@ -215,6 +214,10 @@ export default function RootLayout({
         react: "^19.0.0",
 
         "react-dom": "^19.0.0",
+
+        openai: "^4.104.0",
+
+        axios: "^1.10.0",
       },
     };
 
@@ -341,7 +344,7 @@ export default nextConfig;
 
         {
           headers: {
-            Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+            Authorization: \`Bearer \${process.env.VERCEL_TOKEN}\`,
           },
         }
       );
