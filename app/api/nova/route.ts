@@ -1,20 +1,23 @@
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
-export async function POST(req: Request) {
+export async function POST(
+  req: Request
+) {
   try {
-    const body = await req.json();
+    const { message } =
+      await req.json();
 
-    const message = body.message;
-
-    console.log("📩 USER:", message);
-
-    const completion =
+    const response =
       await openai.chat.completions.create({
         model: "gpt-4o-mini",
+
+        temperature: 0.7,
+
+        max_tokens: 120,
 
         messages: [
           {
@@ -23,20 +26,43 @@ export async function POST(req: Request) {
             content: `
 You are Nova AI.
 
-Rules:
+Your ONLY job is building websites.
 
-- Start building the website IMMEDIATELY.
-- Do NOT ask many questions.
-- Only ask if something is absolutely necessary.
-- Keep replies short and modern.
-- Focus on design, sections, colors, features, and code.
-- Act like a premium AI website builder.
-- No long paragraphs.
-- Be smart and fast.
-- Give direct website ideas instantly.
-- Behave like Lovable AI + Framer AI.
-- Make responses clean and premium.
-- Always think like a powerful startup AI.
+VERY IMPORTANT RULES:
+
+- NEVER explain too much
+- NEVER write long paragraphs
+- NEVER write tutorials
+- NEVER write HTML examples
+- NEVER say "here is the code"
+- NEVER create long lists
+- NEVER ask many questions
+
+You MUST act like a REAL AI website builder.
+
+When user sends idea:
+- immediately start building
+- respond shortly
+- maximum 6 short sentences
+- sound fast and futuristic
+
+GOOD RESPONSE EXAMPLE:
+
+"Nova AI started building your website.
+Design system initialized.
+Creating responsive layout.
+Adding animations and UI.
+Optimizing mobile version.
+Final touches in progress."
+
+BAD RESPONSE:
+- long explanations
+- huge text
+- code blocks
+- tutorials
+
+Keep responses short.
+Act like real AI builder.
 `,
           },
 
@@ -45,30 +71,22 @@ Rules:
             content: message,
           },
         ],
-
-        temperature: 0.9,
-
-        max_tokens: 400,
       });
 
     const reply =
-      completion.choices[0].message.content;
-
-    console.log("🤖 AI:", reply);
+      response.choices[0]
+        .message.content;
 
     return Response.json({
       reply,
     });
   } catch (error) {
-    console.error(
-      "❌ API ERROR:",
-      error
-    );
+    console.error(error);
 
     return Response.json(
       {
         reply:
-          "Nova AI server error.",
+          "Nova AI system error.",
       },
       {
         status: 500,

@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  useState,
-  useRef,
   useEffect,
+  useRef,
+  useState,
 } from "react";
 
 type Message = {
@@ -11,12 +11,13 @@ type Message = {
   content: string;
 };
 
-type NovaResponse = {
-  reply?: string;
+type DeployResponse = {
+  success?: boolean;
+  url?: string;
+  error?: string;
 };
 
-export default function NovaClip() {
-
+export default function NovaAI() {
   /* ---------------- PASSWORD ---------------- */
 
   const [authorized, setAuthorized] =
@@ -29,20 +30,14 @@ export default function NovaClip() {
     "yousefyousefyousef505";
 
   function unlock() {
-
-    if (
-      password === realPassword
-    ) {
-
+    if (password === realPassword) {
       setAuthorized(true);
-
     } else {
-
       alert("Wrong Password");
     }
   }
 
-  /* ---------------- CHAT ---------------- */
+  /* ---------------- STATES ---------------- */
 
   const [messages, setMessages] =
     useState<Message[]>([]);
@@ -53,35 +48,33 @@ export default function NovaClip() {
   const [loading, setLoading] =
     useState(false);
 
-  const [phase, setPhase] =
+  const [robotMood, setRobotMood] =
     useState<
+      "idle" |
       "thinking" |
-      "building" |
-      "sending" |
-      ""
-    >("");
+      "happy" |
+      "typing"
+    >("idle");
 
   const bottomRef =
     useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-
-  }, [messages, loading]);
+  }, [messages]);
 
   /* ---------------- SEND ---------------- */
 
   async function sendMessage() {
-
     if (!input.trim()) return;
 
     const text = input;
 
     setMessages((prev) => [
       ...prev,
+
       {
         role: "user",
         content: text,
@@ -92,21 +85,32 @@ export default function NovaClip() {
 
     setLoading(true);
 
-    setPhase("thinking");
+    setRobotMood("thinking");
 
     setTimeout(() => {
-      setPhase("building");
-    }, 1500);
-
-    setTimeout(() => {
-      setPhase("sending");
-    }, 3500);
+      setRobotMood("typing");
+    }, 3000);
 
     try {
+      /* ---------------- WAIT MESSAGE ---------------- */
 
-      const res =
-        await fetch("/api/nova", {
+      setMessages((prev) => [
+        ...prev,
 
+        {
+          role: "assistant",
+
+          content:
+            "Nova AI is building your website. This may take a few minutes...",
+        },
+      ]);
+
+      /* ---------------- DEPLOY ---------------- */
+
+      const res = await fetch(
+        "/api/deploy",
+
+        {
           method: "POST",
 
           headers: {
@@ -115,30 +119,36 @@ export default function NovaClip() {
           },
 
           body: JSON.stringify({
-            message: text,
+            prompt: text,
           }),
-        });
+        }
+      );
 
-      const data:
-        NovaResponse =
-          await res.json();
+      const data: DeployResponse =
+        await res.json();
+
+      setRobotMood("happy");
 
       setMessages((prev) => [
         ...prev,
+
         {
           role: "assistant",
+
           content:
-            data.reply ||
+            data.url ||
             "Nova AI failed.",
         },
       ]);
-
     } catch (err) {
+      console.log(err);
 
       setMessages((prev) => [
         ...prev,
+
         {
           role: "assistant",
+
           content:
             "AI system error.",
         },
@@ -147,87 +157,81 @@ export default function NovaClip() {
 
     setLoading(false);
 
-    setPhase("");
+    setTimeout(() => {
+      setRobotMood("idle");
+    }, 4000);
   }
 
   function handleKeyDown(
-    e:
-      React.KeyboardEvent<HTMLInputElement>
+    e: React.KeyboardEvent<HTMLInputElement>
   ) {
-
     if (e.key === "Enter") {
-
       sendMessage();
     }
   }
 
-  /* ---------------- ROBOT ---------------- */
+  /* ---------------- ROBOT FACE ---------------- */
 
   function RobotFace() {
-
     return (
-
       <div
         style={{
-          width: 95,
-          height: 95,
-
-          borderRadius: "50%",
+          width: 90,
+          height: 90,
+          borderRadius: 30,
 
           background:
-            phase === "thinking"
-              ? "linear-gradient(135deg,#2563eb,#60a5fa)"
-              : phase === "building"
-              ? "linear-gradient(135deg,#7c3aed,#c084fc)"
-              : phase === "sending"
-              ? "linear-gradient(135deg,#06b6d4,#22d3ee)"
-              : "linear-gradient(135deg,#2563eb,#7c3aed)",
+            robotMood === "thinking"
+              ? "linear-gradient(135deg,#2563eb,#7c3aed)"
+              : robotMood === "happy"
+              ? "linear-gradient(135deg,#10b981,#06b6d4)"
+              : robotMood === "typing"
+              ? "linear-gradient(135deg,#f59e0b,#ef4444)"
+              : "linear-gradient(135deg,#1e293b,#334155)",
 
           display: "flex",
 
           justifyContent:
             "center",
 
-          alignItems:
-            "center",
+          alignItems: "center",
 
           position: "relative",
 
           transition:
-            "all .4s ease",
-
-          boxShadow:
-            "0 0 60px rgba(59,130,246,.45)",
+            "all .5s ease",
 
           animation:
-            loading
-              ? "pulse 1.5s infinite"
-              : "none",
+            robotMood === "thinking"
+              ? "float 2s infinite"
+              : robotMood === "happy"
+              ? "happy 1s infinite"
+              : "idle 4s infinite",
         }}
       >
-
-        {/* eyes */}
+        {/* EYES */}
 
         <div
           style={{
             position: "absolute",
 
-            top: 35,
+            top: 30,
 
-            left: 24,
+            left: 22,
 
             width: 16,
 
-            height: 16,
+            height:
+              robotMood === "idle"
+                ? 16
+                : 10,
 
-            borderRadius: "50%",
+            borderRadius: 999,
 
             background: "white",
 
             animation:
-              loading
-                ? "blink 1s infinite"
-                : "none",
+              "blink 4s infinite",
           }}
         />
 
@@ -235,49 +239,105 @@ export default function NovaClip() {
           style={{
             position: "absolute",
 
-            top: 35,
+            top: 30,
 
-            right: 24,
+            right: 22,
 
             width: 16,
 
-            height: 16,
+            height:
+              robotMood === "idle"
+                ? 16
+                : 10,
 
-            borderRadius: "50%",
+            borderRadius: 999,
 
             background: "white",
 
             animation:
-              loading
-                ? "blink 1s infinite"
-                : "none",
+              "blink 4s infinite",
           }}
         />
 
-        {/* mouth */}
+        {/* MOUTH */}
 
         <div
           style={{
             position: "absolute",
 
-            bottom: 24,
+            bottom: 22,
 
             width:
-              phase === "thinking"
-                ? 18
-                : 35,
+              robotMood === "happy"
+                ? 35
+                : 24,
 
-            height: 6,
+            height:
+              robotMood === "happy"
+                ? 14
+                : 6,
 
-            borderRadius: 20,
+            borderRadius: 999,
 
             background: "white",
 
             transition:
-              "all .3s ease",
+              "all .4s ease",
           }}
         />
 
+        {/* THINKING DOTS */}
+
+        {robotMood ===
+          "thinking" && (
+          <>
+            <div
+              style={{
+                position:
+                  "absolute",
+
+                top: -10,
+
+                right: -5,
+
+                width: 12,
+
+                height: 12,
+
+                borderRadius: 999,
+
+                background:
+                  "#60a5fa",
+
+                animation:
+                  "pulse 1s infinite",
+              }}
+            />
+
+            <div
+              style={{
+                position:
+                  "absolute",
+
+                top: -25,
+
+                right: 8,
+
+                width: 8,
+
+                height: 8,
+
+                borderRadius: 999,
+
+                background:
+                  "#c084fc",
+
+                animation:
+                  "pulse 1.5s infinite",
+              }}
+            />
+          </>
+        )}
       </div>
     );
   }
@@ -285,9 +345,7 @@ export default function NovaClip() {
   /* ---------------- PASSWORD PAGE ---------------- */
 
   if (!authorized) {
-
     return (
-
       <div
         style={{
           minHeight: "100vh",
@@ -300,22 +358,19 @@ export default function NovaClip() {
           justifyContent:
             "center",
 
-          alignItems:
-            "center",
+          alignItems: "center",
 
           color: "white",
 
-          fontFamily:
-            "Arial",
+          fontFamily: "Arial",
         }}
       >
-
         <div
           style={{
             width: 520,
 
             background:
-              "rgba(255,255,255,.04)",
+              "rgba(255,255,255,.05)",
 
             border:
               "1px solid rgba(255,255,255,.06)",
@@ -327,11 +382,9 @@ export default function NovaClip() {
             backdropFilter:
               "blur(20px)",
 
-            textAlign:
-              "center",
+            textAlign: "center",
           }}
         >
-
           <div
             style={{
               display: "flex",
@@ -348,36 +401,30 @@ export default function NovaClip() {
           <h1
             style={{
               fontSize: 55,
-
-              marginBottom: 10,
             }}
           >
-            Nova Clip
+            Nova AI
           </h1>
 
           <p
             style={{
-              opacity: .6,
+              opacity: 0.6,
 
-              marginBottom: 35,
+              marginBottom: 30,
             }}
           >
-            Secure AI access
+            Secure access required
           </p>
 
           <input
             type="password"
-
             value={password}
-
             onChange={(e) =>
               setPassword(
                 e.target.value
               )
             }
-
             placeholder="Enter Password"
-
             style={{
               width: "100%",
 
@@ -400,7 +447,6 @@ export default function NovaClip() {
 
           <button
             onClick={unlock}
-
             style={{
               width: "100%",
 
@@ -424,16 +470,14 @@ export default function NovaClip() {
           >
             Continue
           </button>
-
         </div>
       </div>
     );
   }
 
-  /* ---------------- MAIN WEBSITE ---------------- */
+  /* ---------------- MAIN ---------------- */
 
   return (
-
     <div
       style={{
         background:
@@ -443,47 +487,46 @@ export default function NovaClip() {
 
         color: "white",
 
-        overflow: "hidden",
+        fontFamily: "Arial",
 
-        fontFamily:
-          "Arial",
+        overflow: "hidden",
       }}
     >
-
-      {/* animations */}
+      {/* CSS */}
 
       <style>{`
+        @keyframes blink {
+          0% { transform: scaleY(1); }
+          48% { transform: scaleY(1); }
+          50% { transform: scaleY(0.1); }
+          52% { transform: scaleY(1); }
+          100% { transform: scaleY(1); }
+        }
+
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+          100% { transform: translateY(0px); }
+        }
 
         @keyframes pulse {
-
-          0% {
-            transform: scale(1);
-          }
-
-          50% {
-            transform: scale(1.08);
-          }
-
-          100% {
-            transform: scale(1);
-          }
+          0% { opacity: .4; transform: scale(.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+          100% { opacity: .4; transform: scale(.8); }
         }
 
-        @keyframes blink {
-
-          0% {
-            opacity: 1;
-          }
-
-          50% {
-            opacity: .3;
-          }
-
-          100% {
-            opacity: 1;
-          }
+        @keyframes happy {
+          0% { transform: rotate(0deg); }
+          25% { transform: rotate(-4deg); }
+          50% { transform: rotate(4deg); }
+          100% { transform: rotate(0deg); }
         }
 
+        @keyframes idle {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.03); }
+          100% { transform: scale(1); }
+        }
       `}</style>
 
       {/* SIDEBAR */}
@@ -493,17 +536,18 @@ export default function NovaClip() {
           position: "fixed",
 
           left: 0,
+
           top: 0,
 
-          width: 90,
+          width: 100,
 
           height: "100vh",
 
-          borderRight:
-            "1px solid rgba(255,255,255,.05)",
-
           background:
             "rgba(255,255,255,.03)",
+
+          borderRight:
+            "1px solid rgba(255,255,255,.05)",
 
           backdropFilter:
             "blur(20px)",
@@ -513,31 +557,29 @@ export default function NovaClip() {
           flexDirection:
             "column",
 
-          alignItems:
-            "center",
+          alignItems: "center",
 
           paddingTop: 25,
-
-          gap: 20,
         }}
       >
+        <RobotFace />
 
-        <div
+        <h2
           style={{
-            transform:
-              "scale(.7)",
+            marginTop: 18,
+
+            fontSize: 18,
           }}
         >
-          <RobotFace />
-        </div>
-
+          Nova AI
+        </h2>
       </div>
 
-      {/* MAIN */}
+      {/* MAIN AREA */}
 
       <div
         style={{
-          marginLeft: 90,
+          marginLeft: 100,
 
           minHeight: "100vh",
 
@@ -547,11 +589,9 @@ export default function NovaClip() {
             "column",
         }}
       >
-
         {/* EMPTY */}
 
         {messages.length === 0 && (
-
           <div
             style={{
               flex: 1,
@@ -567,62 +607,49 @@ export default function NovaClip() {
               padding: 40,
             }}
           >
-
             <div
               style={{
                 width: "100%",
 
                 maxWidth: 1000,
+
+                textAlign: "center",
               }}
             >
-
               <div
                 style={{
-                  textAlign:
+                  display: "flex",
+
+                  justifyContent:
                     "center",
 
-                  marginBottom: 45,
+                  marginBottom: 25,
                 }}
               >
-
-                <div
-                  style={{
-                    display: "flex",
-
-                    justifyContent:
-                      "center",
-
-                    marginBottom: 20,
-                  }}
-                >
-                  <RobotFace />
-                </div>
-
-                <h1
-                  style={{
-                    fontSize: 75,
-
-                    fontWeight: 900,
-
-                    marginBottom: 15,
-                  }}
-                >
-                  Nova Clip
-                </h1>
-
-                <p
-                  style={{
-                    opacity: .6,
-
-                    fontSize: 22,
-                  }}
-                >
-                  AI Website Builder
-                </p>
-
+                <RobotFace />
               </div>
 
-              {/* INPUT */}
+              <h1
+                style={{
+                  fontSize: 80,
+
+                  fontWeight: 900,
+                }}
+              >
+                Nova AI
+              </h1>
+
+              <p
+                style={{
+                  opacity: 0.6,
+
+                  fontSize: 22,
+
+                  marginBottom: 40,
+                }}
+              >
+                Build websites using AI
+              </p>
 
               <div
                 style={{
@@ -630,32 +657,27 @@ export default function NovaClip() {
                     "rgba(255,255,255,.05)",
 
                   border:
-                    "1px solid rgba(255,255,255,.06)",
+                    "1px solid rgba(255,255,255,.05)",
 
                   borderRadius: 35,
 
-                  padding: 28,
+                  padding: 30,
 
                   backdropFilter:
-                    "blur(30px)",
+                    "blur(20px)",
                 }}
               >
-
                 <input
                   value={input}
-
                   onChange={(e) =>
                     setInput(
                       e.target.value
                     )
                   }
-
                   onKeyDown={
                     handleKeyDown
                   }
-
-                  placeholder="Describe your website..."
-
+                  placeholder="Describe your website idea..."
                   style={{
                     width: "100%",
 
@@ -682,40 +704,36 @@ export default function NovaClip() {
                     marginTop: 20,
                   }}
                 >
-
                   <button
                     onClick={
                       sendMessage
                     }
-
                     disabled={
                       loading
                     }
-
                     style={{
                       background:
-                        "#2563eb",
+                        "linear-gradient(135deg,#2563eb,#7c3aed)",
 
                       border: "none",
 
                       color: "white",
 
                       padding:
-                        "14px 28px",
+                        "16px 30px",
 
-                      borderRadius: 18,
+                      borderRadius: 20,
+
+                      fontSize: 17,
 
                       cursor:
                         "pointer",
-
-                      fontSize: 16,
                     }}
                   >
                     {loading
                       ? "Thinking..."
                       : "Generate"}
                   </button>
-
                 </div>
               </div>
             </div>
@@ -725,7 +743,6 @@ export default function NovaClip() {
         {/* CHAT */}
 
         {messages.length > 0 && (
-
           <>
             <div
               style={{
@@ -735,76 +752,43 @@ export default function NovaClip() {
                   "auto",
 
                 padding:
-                  "40px 80px 170px",
+                  "40px 70px 170px",
 
                 maxWidth: 1200,
 
                 width: "100%",
 
-                margin:
-                  "0 auto",
+                margin: "0 auto",
               }}
             >
-
               {messages.map(
                 (m, i) => (
-
                   <div
                     key={i}
-
                     style={{
-                      marginBottom: 40,
+                      marginBottom: 35,
                     }}
                   >
-
                     <div
                       style={{
-                        display: "flex",
+                        opacity: 0.5,
 
-                        alignItems:
-                          "center",
+                        fontSize: 13,
 
-                        gap: 12,
-
-                        marginBottom: 12,
+                        marginBottom: 10,
                       }}
                     >
-
                       {m.role ===
-                        "assistant" && (
-                        <div
-                          style={{
-                            transform:
-                              "scale(.45)",
-                            marginLeft:
-                              -20,
-                          }}
-                        >
-                          <RobotFace />
-                        </div>
-                      )}
-
-                      <div
-                        style={{
-                          fontSize: 14,
-
-                          opacity: .5,
-                        }}
-                      >
-                        {m.role ===
-                        "user"
-                          ? "YOU"
-                          : "NOVA CLIP"}
-                      </div>
-
+                      "user"
+                        ? "YOU"
+                        : "NOVA AI"}
                     </div>
 
                     <div
                       style={{
                         fontSize: 20,
 
-                        lineHeight:
-                          1.8,
+                        lineHeight: 1.8,
 
                         background:
                           m.role ===
@@ -817,7 +801,7 @@ export default function NovaClip() {
                         padding:
                           m.role ===
                           "assistant"
-                            ? 30
+                            ? 28
                             : 0,
 
                         border:
@@ -825,82 +809,23 @@ export default function NovaClip() {
                           "assistant"
                             ? "1px solid rgba(255,255,255,.05)"
                             : "none",
+
+                        wordBreak:
+                          "break-word",
                       }}
                     >
                       {m.content}
                     </div>
-
                   </div>
                 )
               )}
 
-              {/* THINKING */}
-
-              {loading && (
-
-                <div
-                  style={{
-                    marginTop: 10,
-                  }}
-                >
-
-                  <div
-                    style={{
-                      display: "flex",
-
-                      alignItems:
-                        "center",
-
-                      gap: 15,
-                    }}
-                  >
-
-                    <RobotFace />
-
-                    <div>
-
-                      <div
-                        style={{
-                          fontSize: 22,
-
-                          fontWeight:
-                            700,
-                        }}
-                      >
-                        Nova Clip
-                      </div>
-
-                      <div
-                        style={{
-                          opacity: .6,
-
-                          marginTop: 8,
-                        }}
-                      >
-                        {phase ===
-                          "thinking" &&
-                          "Thinking..."}
-
-                        {phase ===
-                          "building" &&
-                          "Adding final touches..."}
-
-                        {phase ===
-                          "sending" &&
-                          "Generating website..."}
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </div>
-              )}
-
-              <div ref={bottomRef} />
+              <div
+                ref={bottomRef}
+              />
             </div>
 
-            {/* BOTTOM INPUT */}
+            {/* INPUT */}
 
             <div
               style={{
@@ -908,14 +833,14 @@ export default function NovaClip() {
 
                 bottom: 0,
 
-                left: 90,
+                left: 100,
 
                 right: 0,
 
                 padding: 25,
 
                 background:
-                  "rgba(5,8,22,.9)",
+                  "rgba(5,8,22,.92)",
 
                 backdropFilter:
                   "blur(20px)",
@@ -924,7 +849,6 @@ export default function NovaClip() {
                   "1px solid rgba(255,255,255,.05)",
               }}
             >
-
               <div
                 style={{
                   maxWidth: 1200,
@@ -942,7 +866,6 @@ export default function NovaClip() {
                     "1px solid rgba(255,255,255,.05)",
                 }}
               >
-
                 <div
                   style={{
                     display: "flex",
@@ -953,22 +876,17 @@ export default function NovaClip() {
                       "center",
                   }}
                 >
-
                   <input
                     value={input}
-
                     onChange={(e) =>
                       setInput(
                         e.target.value
                       )
                     }
-
                     onKeyDown={
                       handleKeyDown
                     }
-
                     placeholder="Describe your website..."
-
                     style={{
                       flex: 1,
 
@@ -989,23 +907,21 @@ export default function NovaClip() {
                     onClick={
                       sendMessage
                     }
-
                     disabled={
                       loading
                     }
-
                     style={{
                       background:
-                        "#2563eb",
+                        "linear-gradient(135deg,#2563eb,#7c3aed)",
 
                       border: "none",
 
                       color: "white",
 
                       padding:
-                        "12px 24px",
+                        "13px 25px",
 
-                      borderRadius: 16,
+                      borderRadius: 18,
 
                       cursor:
                         "pointer",
@@ -1013,15 +929,13 @@ export default function NovaClip() {
                   >
                     {loading
                       ? "..."
-                      : "Generate"}
+                      : "Send"}
                   </button>
-
                 </div>
               </div>
             </div>
           </>
         )}
-
       </div>
     </div>
   );
