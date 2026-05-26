@@ -2,15 +2,10 @@ import OpenAI from "openai";
 
 import axios from "axios";
 
-const fs = require("fs-extra");
-
-import path from "path";
-
 import { v4 as uuid } from "uuid";
 
 const openai = new OpenAI({
-  apiKey:
-    process.env.OPENAI_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export async function POST(
@@ -20,126 +15,148 @@ export async function POST(
     const { prompt } =
       await req.json();
 
-    /* ---------------- PROJECT NAME ---------------- */
-
-    const clean =
-      prompt
-        .toLowerCase()
-        .replace(/[^a-z0-9 ]/g, "")
-        .replace(/\s+/g, "-")
-        .slice(0, 20);
-
-    const projectName =
-      `nova-ai-${clean}-${Date.now()}`;
-
-    /* ---------------- AI WEBSITE GENERATION ---------------- */
+    /* ---------------- AI GENERATES WEBSITE ---------------- */
 
     const completion =
-      await openai.chat.completions.create(
-        {
-          model: "gpt-4o-mini",
+      await openai.chat.completions.create({
+        model: "gpt-4o-mini",
 
-          messages: [
-            {
-              role: "system",
+        messages: [
+          {
+            role: "system",
 
-              content: `
+            content: `
 You are Nova AI.
 
-Generate ONLY ONE modern HTML website.
+Generate ONLY ONE FULL HTML WEBSITE.
 
-IMPORTANT:
-
-- Return ONLY raw HTML.
-- No markdown.
-- No explanations.
-- No code blocks.
-
-The website must:
-- Look futuristic
-- Be beautiful
-- Be responsive
-- Have animations
-- Use modern UI
-- Use gradients
-- Have sections
-- Look like a real startup website
+RULES:
+- return ONLY HTML
+- no explanations
+- no markdown
+- no code blocks
+- modern design
+- beautiful UI
+- responsive
+- animations
+- futuristic
+- dark mode
+- colorful gradients
 `,
-            },
+          },
 
-            {
-              role: "user",
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
 
-              content: prompt,
-            },
-          ],
-        }
-      );
+        temperature: 0.8,
+      });
 
     const html =
       completion.choices[0]
         .message.content || "";
 
-    /* ---------------- CREATE PROJECT FOLDER ---------------- */
+    /* ---------------- CREATE FILES ---------------- */
 
-    const id = uuid();
+    const projectName =
+      "nova-ai-" +
+      uuid().slice(0, 8);
 
-    const projectPath =
-      path.join(
-        process.cwd(),
-        "generated",
-        id
-      );
+    /* ---------------- PACKAGE JSON ---------------- */
 
-    await fs.ensureDir(
-      projectPath
-    );
+    const packageJson = {
+      name: projectName,
 
-    /* ---------------- WRITE HTML ---------------- */
+      version: "1.0.0",
 
-    await fs.writeFile(
-      path.join(
-        projectPath,
-        "index.html"
-      ),
-      html
-    );
+      private: true,
 
-    /* ---------------- PACKAGE.JSON ---------------- */
+      scripts: {
+        dev: "next dev",
 
-    await fs.writeFile(
-      path.join(
-        projectPath,
-        "package.json"
-      ),
+        build: "next build",
 
-      JSON.stringify({
-        name: projectName,
+        start: "next start",
+      },
 
-        version: "1.0.0",
-      })
-    );
+      dependencies: {
+        next: "15.3.2",
+
+        react: "^19.0.0",
+
+        "react-dom": "^19.0.0",
+      },
+    };
+
+    /* ---------------- FILES ---------------- */
+
+    const files = [
+      {
+        file: "app/page.tsx",
+
+        data: `
+export default function Page() {
+  return (
+    <div
+      dangerouslySetInnerHTML={{
+        __html: \`${html
+          .replace(/`/g, "\\`")
+          .replace(/\$/g, "\\$")}\`
+      }}
+    />
+  );
+}
+`,
+      },
+
+      {
+        file: "app/layout.tsx",
+
+        data: `
+export const metadata = {
+  title: "Nova AI",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+`,
+      },
+
+      {
+        file: "package.json",
+
+        data: JSON.stringify(
+          packageJson,
+          null,
+          2
+        ),
+      },
+    ];
 
     /* ---------------- DEPLOY TO VERCEL ---------------- */
 
-    const deploy =
+    const response =
       await axios.post(
         "https://api.vercel.com/v13/deployments",
 
         {
           name: projectName,
 
-          files: [
-            {
-              file:
-                "index.html",
-
-              data: html,
-            },
-          ],
+          files,
 
           projectSettings: {
-            framework: null,
+            framework: "nextjs",
           },
         },
 
@@ -152,22 +169,17 @@ The website must:
 
     const url =
       "https://" +
-      deploy.data.url;
-
-    console.log(
-      "✅ WEBSITE DEPLOYED:",
-      url
-    );
+      response.data.url;
 
     return Response.json({
       success: true,
-
       url,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.log(
-      "❌ DEPLOY ERROR:",
-      error
+      "DEPLOY ERROR:",
+      error?.response?.data ||
+        error.message
     );
 
     return Response.json(
@@ -175,7 +187,8 @@ The website must:
         success: false,
 
         error:
-          "Deployment failed",
+          error?.response?.data ||
+          error.message,
       },
 
       {

@@ -72,6 +72,11 @@ export default function NovaAI() {
 
     const text = input;
 
+    console.log(
+      "📤 USER MESSAGE:",
+      text
+    );
+
     setMessages((prev) => [
       ...prev,
 
@@ -89,9 +94,13 @@ export default function NovaAI() {
 
     setTimeout(() => {
       setRobotMood("typing");
-    }, 3000);
+    }, 2500);
 
     try {
+      console.log(
+        "🚀 STARTING DEPLOY..."
+      );
+
       /* ---------------- WAIT MESSAGE ---------------- */
 
       setMessages((prev) => [
@@ -124,8 +133,31 @@ export default function NovaAI() {
         }
       );
 
+      console.log(
+        "📡 STATUS:",
+        res.status
+      );
+
+      console.log(
+        "📡 OK:",
+        res.ok
+      );
+
+      const raw =
+        await res.text();
+
+      console.log(
+        "📥 RAW:",
+        raw
+      );
+
       const data: DeployResponse =
-        await res.json();
+        JSON.parse(raw);
+
+      console.log(
+        "✅ FINAL DATA:",
+        data
+      );
 
       setRobotMood("happy");
 
@@ -137,11 +169,15 @@ export default function NovaAI() {
 
           content:
             data.url ||
+            data.error ||
             "Nova AI failed.",
         },
       ]);
     } catch (err) {
-      console.log(err);
+      console.log(
+        "❌ CLIENT ERROR:",
+        err
+      );
 
       setMessages((prev) => [
         ...prev,
@@ -170,15 +206,15 @@ export default function NovaAI() {
     }
   }
 
-  /* ---------------- ROBOT FACE ---------------- */
+  /* ---------------- ROBOT ---------------- */
 
   function RobotFace() {
     return (
       <div
         style={{
-          width: 90,
-          height: 90,
-          borderRadius: 30,
+          width: 95,
+          height: 95,
+          borderRadius: 35,
 
           background:
             robotMood === "thinking"
@@ -187,19 +223,12 @@ export default function NovaAI() {
               ? "linear-gradient(135deg,#10b981,#06b6d4)"
               : robotMood === "typing"
               ? "linear-gradient(135deg,#f59e0b,#ef4444)"
-              : "linear-gradient(135deg,#1e293b,#334155)",
-
-          display: "flex",
-
-          justifyContent:
-            "center",
-
-          alignItems: "center",
+              : "linear-gradient(135deg,#0f172a,#1e293b)",
 
           position: "relative",
 
           transition:
-            "all .5s ease",
+            "all .4s ease",
 
           animation:
             robotMood === "thinking"
@@ -207,6 +236,9 @@ export default function NovaAI() {
               : robotMood === "happy"
               ? "happy 1s infinite"
               : "idle 4s infinite",
+
+          boxShadow:
+            "0 0 40px rgba(59,130,246,.3)",
         }}
       >
         {/* EYES */}
@@ -215,16 +247,16 @@ export default function NovaAI() {
           style={{
             position: "absolute",
 
-            top: 30,
+            top: 32,
 
-            left: 22,
+            left: 24,
 
-            width: 16,
+            width: 15,
 
             height:
-              robotMood === "idle"
-                ? 16
-                : 10,
+              robotMood === "typing"
+                ? 5
+                : 15,
 
             borderRadius: 999,
 
@@ -239,16 +271,16 @@ export default function NovaAI() {
           style={{
             position: "absolute",
 
-            top: 30,
+            top: 32,
 
-            right: 22,
+            right: 24,
 
-            width: 16,
+            width: 15,
 
             height:
-              robotMood === "idle"
-                ? 16
-                : 10,
+              robotMood === "typing"
+                ? 5
+                : 15,
 
             borderRadius: 999,
 
@@ -265,24 +297,29 @@ export default function NovaAI() {
           style={{
             position: "absolute",
 
-            bottom: 22,
+            bottom: 24,
+
+            left: "50%",
+
+            transform:
+              "translateX(-50%)",
 
             width:
               robotMood === "happy"
-                ? 35
+                ? 36
                 : 24,
 
             height:
               robotMood === "happy"
-                ? 14
-                : 6,
+                ? 12
+                : 5,
 
             borderRadius: 999,
 
             background: "white",
 
             transition:
-              "all .4s ease",
+              "all .3s ease",
           }}
         />
 
@@ -321,7 +358,7 @@ export default function NovaAI() {
 
                 top: -25,
 
-                right: 8,
+                right: 10,
 
                 width: 8,
 
@@ -400,7 +437,9 @@ export default function NovaAI() {
 
           <h1
             style={{
-              fontSize: 55,
+              fontSize: 60,
+
+              marginBottom: 10,
             }}
           >
             Nova AI
@@ -459,7 +498,7 @@ export default function NovaAI() {
               border: "none",
 
               background:
-                "#2563eb",
+                "linear-gradient(135deg,#2563eb,#7c3aed)",
 
               color: "white",
 
@@ -539,7 +578,7 @@ export default function NovaAI() {
 
           top: 0,
 
-          width: 100,
+          width: 110,
 
           height: "100vh",
 
@@ -559,7 +598,7 @@ export default function NovaAI() {
 
           alignItems: "center",
 
-          paddingTop: 25,
+          paddingTop: 30,
         }}
       >
         <RobotFace />
@@ -575,11 +614,11 @@ export default function NovaAI() {
         </h2>
       </div>
 
-      {/* MAIN AREA */}
+      {/* MAIN */}
 
       <div
         style={{
-          marginLeft: 100,
+          marginLeft: 110,
 
           minHeight: "100vh",
 
@@ -631,7 +670,7 @@ export default function NovaAI() {
 
               <h1
                 style={{
-                  fontSize: 80,
+                  fontSize: 85,
 
                   fontWeight: 900,
                 }}
@@ -648,7 +687,7 @@ export default function NovaAI() {
                   marginBottom: 40,
                 }}
               >
-                Build websites using AI
+                AI Website Builder
               </p>
 
               <div
@@ -833,7 +872,7 @@ export default function NovaAI() {
 
                 bottom: 0,
 
-                left: 100,
+                left: 110,
 
                 right: 0,
 
