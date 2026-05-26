@@ -1,12 +1,10 @@
-import {
-  ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-  Show,
-} from "@clerk/nextjs";
-
 import "./globals.css";
+
+export const metadata = {
+  title: "Nova AI",
+  description:
+    "AI Website Builder",
+};
 
 export default function RootLayout({
   children,
@@ -15,39 +13,38 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <ClerkProvider>
-          <header
+      <body
+        style={{
+          margin: 0,
+          padding: 0,
+          background: "#050816",
+          color: "white",
+          fontFamily:
+            "Arial, sans-serif",
+        }}
+      >
+        <header
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            padding: "20px",
+            background: "#020617",
+            borderBottom:
+              "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          <h2
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "20px",
-              background: "#020617",
-              color: "white",
+              margin: 0,
             }}
           >
-            <h2>⚡ Crystal AI</h2>
+            ⚡ Nova AI
+          </h2>
+        </header>
 
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-              }}
-            >
-              <Show when="signed-out">
-                <SignInButton />
-                <SignUpButton />
-              </Show>
-
-              <Show when="signed-in">
-                <UserButton />
-              </Show>
-            </div>
-          </header>
-
-          {children}
-        </ClerkProvider>
+        {children}
       </body>
     </html>
   );
