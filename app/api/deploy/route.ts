@@ -305,6 +305,17 @@ const nextConfig = {};
 export default nextConfig;
 `,
       },
+
+      {
+        file: "next-env.d.ts",
+
+        data: `
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+// NOTE: This file should not be edited
+`,
+      },
     ];
 
     console.log(
@@ -330,7 +341,7 @@ export default nextConfig;
 
         {
           headers: {
-            Authorization: \`Bearer \${process.env.VERCEL_TOKEN}\`,
+            Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
           },
         }
       );
