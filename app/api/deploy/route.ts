@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 import axios from "axios";
 
-import fs from "fs-extra";
+const fs = require("fs-extra");
 
 import path from "path";
 
@@ -32,7 +32,7 @@ export async function POST(
     const projectName =
       `nova-ai-${clean}-${Date.now()}`;
 
-    /* ---------------- AI GENERATION ---------------- */
+    /* ---------------- AI WEBSITE GENERATION ---------------- */
 
     const completion =
       await openai.chat.completions.create(
@@ -46,17 +46,24 @@ export async function POST(
               content: `
 You are Nova AI.
 
-Generate ONLY ONE complete modern HTML website.
+Generate ONLY ONE modern HTML website.
 
-DO NOT explain anything.
+IMPORTANT:
 
-DO NOT write markdown.
+- Return ONLY raw HTML.
+- No markdown.
+- No explanations.
+- No code blocks.
 
-DO NOT write code blocks.
-
-Return ONLY raw HTML.
-
-Make the design futuristic and beautiful.
+The website must:
+- Look futuristic
+- Be beautiful
+- Be responsive
+- Have animations
+- Use modern UI
+- Use gradients
+- Have sections
+- Look like a real startup website
 `,
             },
 
@@ -73,7 +80,7 @@ Make the design futuristic and beautiful.
       completion.choices[0]
         .message.content || "";
 
-    /* ---------------- CREATE FOLDER ---------------- */
+    /* ---------------- CREATE PROJECT FOLDER ---------------- */
 
     const id = uuid();
 
@@ -88,7 +95,7 @@ Make the design futuristic and beautiful.
       projectPath
     );
 
-    /* ---------------- WRITE FILES ---------------- */
+    /* ---------------- WRITE HTML ---------------- */
 
     await fs.writeFile(
       path.join(
@@ -98,26 +105,22 @@ Make the design futuristic and beautiful.
       html
     );
 
+    /* ---------------- PACKAGE.JSON ---------------- */
+
     await fs.writeFile(
       path.join(
         projectPath,
         "package.json"
       ),
+
       JSON.stringify({
         name: projectName,
+
         version: "1.0.0",
       })
     );
 
     /* ---------------- DEPLOY TO VERCEL ---------------- */
-
-    const files = [
-      {
-        file: "index.html",
-
-        data: html,
-      },
-    ];
 
     const deploy =
       await axios.post(
@@ -126,7 +129,14 @@ Make the design futuristic and beautiful.
         {
           name: projectName,
 
-          files,
+          files: [
+            {
+              file:
+                "index.html",
+
+              data: html,
+            },
+          ],
 
           projectSettings: {
             framework: null,
@@ -145,12 +155,13 @@ Make the design futuristic and beautiful.
       deploy.data.url;
 
     console.log(
-      "✅ DEPLOYED:",
+      "✅ WEBSITE DEPLOYED:",
       url
     );
 
     return Response.json({
       success: true,
+
       url,
     });
   } catch (error) {
@@ -162,9 +173,11 @@ Make the design futuristic and beautiful.
     return Response.json(
       {
         success: false,
+
         error:
           "Deployment failed",
       },
+
       {
         status: 500,
       }
