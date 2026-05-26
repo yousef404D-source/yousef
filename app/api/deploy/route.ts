@@ -18,6 +18,19 @@ export async function POST(
     const { prompt } =
       await req.json();
 
+    if (!prompt) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            "Prompt is required",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
     console.log(
       "📤 USER PROMPT:",
       prompt
@@ -31,7 +44,7 @@ export async function POST(
 
         temperature: 1,
 
-        max_tokens: 4000,
+        max_tokens: 2500,
 
         messages: [
           {
@@ -130,8 +143,6 @@ NEVER break JSX syntax.
       "🧠 AI JSX GENERATED"
     );
 
-    console.log(jsx);
-
     /* ---------------- PROJECT NAME ---------------- */
 
     const projectName =
@@ -183,7 +194,9 @@ export default function RootLayout({
         style={{
           margin:0,
           padding:0,
-          background:"#050816"
+          background:"#050816",
+          color:"white",
+          fontFamily:"Arial"
         }}
       >
         {children}
@@ -214,10 +227,6 @@ export default function RootLayout({
         react: "^19.0.0",
 
         "react-dom": "^19.0.0",
-
-        openai: "^4.104.0",
-
-        axios: "^1.10.0",
       },
     };
 
@@ -315,8 +324,6 @@ export default nextConfig;
         data: `
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
-
-// NOTE: This file should not be edited
 `,
       },
     ];
@@ -344,7 +351,7 @@ export default nextConfig;
 
         {
           headers: {
-            Authorization: \`Bearer \${process.env.VERCEL_TOKEN}\`,
+            Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
           },
         }
       );
