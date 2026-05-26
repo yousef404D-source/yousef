@@ -50,10 +50,10 @@ export default function NovaAI() {
 
   const [robotMood, setRobotMood] =
     useState<
-      "idle" |
-      "thinking" |
-      "happy" |
-      "typing"
+      | "idle"
+      | "thinking"
+      | "happy"
+      | "typing"
     >("idle");
 
   const bottomRef =
@@ -65,7 +65,7 @@ export default function NovaAI() {
     });
   }, [messages]);
 
-  /* ---------------- SEND ---------------- */
+  /* ---------------- SEND MESSAGE ---------------- */
 
   async function sendMessage() {
     if (!input.trim()) return;
@@ -92,16 +92,31 @@ export default function NovaAI() {
 
     setRobotMood("thinking");
 
-    setTimeout(() => {
-      setRobotMood("typing");
-    }, 2500);
+    /* ---------------- THINKING ---------------- */
+
+    setMessages((prev) => [
+      ...prev,
+
+      {
+        role: "assistant",
+
+        content:
+          "Nova AI is thinking...",
+      },
+    ]);
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, 2500)
+    );
+
+    setRobotMood("typing");
 
     try {
       console.log(
         "🚀 STARTING DEPLOY..."
       );
 
-      /* ---------------- WAIT MESSAGE ---------------- */
+      /* ---------------- BUILDING ---------------- */
 
       setMessages((prev) => [
         ...prev,
@@ -110,11 +125,60 @@ export default function NovaAI() {
           role: "assistant",
 
           content:
-            "Nova AI is building your website. This may take a few minutes...",
+            "Analyzing request...",
         },
       ]);
 
-      /* ---------------- DEPLOY ---------------- */
+      await new Promise((resolve) =>
+        setTimeout(resolve, 2200)
+      );
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          role: "assistant",
+
+          content:
+            "Generating advanced UI...",
+        },
+      ]);
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 2500)
+      );
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          role: "assistant",
+
+          content:
+            "Building animations...",
+        },
+      ]);
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 2500)
+      );
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          role: "assistant",
+
+          content:
+            "Optimizing website...",
+        },
+      ]);
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 2500)
+      );
+
+      /* ---------------- API ---------------- */
 
       const res = await fetch(
         "/api/deploy",
@@ -138,11 +202,6 @@ export default function NovaAI() {
         res.status
       );
 
-      console.log(
-        "📡 OK:",
-        res.ok
-      );
-
       const raw =
         await res.text();
 
@@ -159,7 +218,7 @@ export default function NovaAI() {
         data
       );
 
-      setRobotMood("happy");
+      /* ---------------- MORE BUILD ---------------- */
 
       setMessages((prev) => [
         ...prev,
@@ -168,9 +227,45 @@ export default function NovaAI() {
           role: "assistant",
 
           content:
-            data.url ||
-            data.error ||
-            "Nova AI failed.",
+            "Finalizing project...",
+        },
+      ]);
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 3500)
+      );
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          role: "assistant",
+
+          content:
+            "Deploying website...",
+        },
+      ]);
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 4000)
+      );
+
+      /* ---------------- SUCCESS ---------------- */
+
+      setRobotMood("happy");
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          role: "assistant",
+
+          content: data.success
+            ? `✅ Website completed successfully
+
+${data.url}`
+            : data.error ||
+              "Nova AI failed.",
         },
       ]);
     } catch (err) {
@@ -208,13 +303,17 @@ export default function NovaAI() {
 
   /* ---------------- ROBOT ---------------- */
 
-  function RobotFace() {
+  function RobotFace({
+    size = 65,
+  }: {
+    size?: number;
+  }) {
     return (
       <div
         style={{
-          width: 95,
-          height: 95,
-          borderRadius: 35,
+          width: size,
+          height: size,
+          borderRadius: 28,
 
           background:
             robotMood === "thinking"
@@ -238,7 +337,7 @@ export default function NovaAI() {
               : "idle 4s infinite",
 
           boxShadow:
-            "0 0 40px rgba(59,130,246,.3)",
+            "0 0 40px rgba(59,130,246,.35)",
         }}
       >
         {/* EYES */}
@@ -247,16 +346,16 @@ export default function NovaAI() {
           style={{
             position: "absolute",
 
-            top: 32,
+            top: size * 0.32,
 
-            left: 24,
+            left: size * 0.22,
 
-            width: 15,
+            width: size * 0.12,
 
             height:
               robotMood === "typing"
-                ? 5
-                : 15,
+                ? 4
+                : size * 0.12,
 
             borderRadius: 999,
 
@@ -271,16 +370,16 @@ export default function NovaAI() {
           style={{
             position: "absolute",
 
-            top: 32,
+            top: size * 0.32,
 
-            right: 24,
+            right: size * 0.22,
 
-            width: 15,
+            width: size * 0.12,
 
             height:
               robotMood === "typing"
-                ? 5
-                : 15,
+                ? 4
+                : size * 0.12,
 
             borderRadius: 999,
 
@@ -297,7 +396,7 @@ export default function NovaAI() {
           style={{
             position: "absolute",
 
-            bottom: 24,
+            bottom: size * 0.2,
 
             left: "50%",
 
@@ -306,13 +405,13 @@ export default function NovaAI() {
 
             width:
               robotMood === "happy"
-                ? 36
-                : 24,
+                ? size * 0.32
+                : size * 0.2,
 
             height:
               robotMood === "happy"
-                ? 12
-                : 5,
+                ? 10
+                : 4,
 
             borderRadius: 999,
 
@@ -333,13 +432,13 @@ export default function NovaAI() {
                 position:
                   "absolute",
 
-                top: -10,
+                top: -8,
 
-                right: -5,
+                right: -4,
 
-                width: 12,
+                width: 10,
 
-                height: 12,
+                height: 10,
 
                 borderRadius: 999,
 
@@ -356,13 +455,13 @@ export default function NovaAI() {
                 position:
                   "absolute",
 
-                top: -25,
+                top: -20,
 
-                right: 10,
+                right: 8,
 
-                width: 8,
+                width: 7,
 
-                height: 8,
+                height: 7,
 
                 borderRadius: 999,
 
@@ -432,7 +531,7 @@ export default function NovaAI() {
               marginBottom: 25,
             }}
           >
-            <RobotFace />
+            <RobotFace size={90} />
           </div>
 
           <h1
@@ -531,8 +630,6 @@ export default function NovaAI() {
         overflow: "hidden",
       }}
     >
-      {/* CSS */}
-
       <style>{`
         @keyframes blink {
           0% { transform: scaleY(1); }
@@ -568,67 +665,60 @@ export default function NovaAI() {
         }
       `}</style>
 
-      {/* SIDEBAR */}
+      {/* MAIN AREA */}
 
       <div
         style={{
-          position: "fixed",
-
-          left: 0,
-
-          top: 0,
-
-          width: 110,
-
-          height: "100vh",
-
-          background:
-            "rgba(255,255,255,.03)",
-
-          borderRight:
-            "1px solid rgba(255,255,255,.05)",
-
-          backdropFilter:
-            "blur(20px)",
-
-          display: "flex",
-
-          flexDirection:
-            "column",
-
-          alignItems: "center",
-
-          paddingTop: 30,
-        }}
-      >
-        <RobotFace />
-
-        <h2
-          style={{
-            marginTop: 18,
-
-            fontSize: 18,
-          }}
-        >
-          Nova AI
-        </h2>
-      </div>
-
-      {/* MAIN */}
-
-      <div
-        style={{
-          marginLeft: 110,
-
           minHeight: "100vh",
 
           display: "flex",
 
           flexDirection:
             "column",
+
+          padding:
+            "40px 40px 170px",
         }}
       >
-        {/* EMPTY */}
+        {/* HEADER */}
+
+        <div
+          style={{
+            display: "flex",
+
+            alignItems: "center",
+
+            gap: 16,
+
+            marginBottom: 40,
+          }}
+        >
+          <RobotFace />
+
+          <div>
+            <h1
+              style={{
+                fontSize: 34,
+
+                margin: 0,
+              }}
+            >
+              Nova AI
+            </h1>
+
+            <p
+              style={{
+                opacity: 0.6,
+
+                marginTop: 5,
+              }}
+            >
+              AI Website Builder
+            </p>
+          </div>
+        </div>
+
+        {/* HERO */}
 
         {messages.length === 0 && (
           <div
@@ -642,15 +732,13 @@ export default function NovaAI() {
 
               alignItems:
                 "center",
-
-              padding: 40,
             }}
           >
             <div
               style={{
                 width: "100%",
 
-                maxWidth: 1000,
+                maxWidth: 1100,
 
                 textAlign: "center",
               }}
@@ -662,17 +750,19 @@ export default function NovaAI() {
                   justifyContent:
                     "center",
 
-                  marginBottom: 25,
+                  marginBottom: 30,
                 }}
               >
-                <RobotFace />
+                <RobotFace size={120} />
               </div>
 
               <h1
                 style={{
-                  fontSize: 85,
+                  fontSize: 90,
 
                   fontWeight: 900,
+
+                  marginBottom: 20,
                 }}
               >
                 Nova AI
@@ -682,299 +772,218 @@ export default function NovaAI() {
                 style={{
                   opacity: 0.6,
 
-                  fontSize: 22,
+                  fontSize: 24,
 
-                  marginBottom: 40,
+                  marginBottom: 50,
                 }}
               >
-                AI Website Builder
+                Create powerful AI websites instantly
               </p>
-
-              <div
-                style={{
-                  background:
-                    "rgba(255,255,255,.05)",
-
-                  border:
-                    "1px solid rgba(255,255,255,.05)",
-
-                  borderRadius: 35,
-
-                  padding: 30,
-
-                  backdropFilter:
-                    "blur(20px)",
-                }}
-              >
-                <input
-                  value={input}
-                  onChange={(e) =>
-                    setInput(
-                      e.target.value
-                    )
-                  }
-                  onKeyDown={
-                    handleKeyDown
-                  }
-                  placeholder="Describe your website idea..."
-                  style={{
-                    width: "100%",
-
-                    background:
-                      "transparent",
-
-                    border: "none",
-
-                    outline: "none",
-
-                    color: "white",
-
-                    fontSize: 24,
-                  }}
-                />
-
-                <div
-                  style={{
-                    display: "flex",
-
-                    justifyContent:
-                      "flex-end",
-
-                    marginTop: 20,
-                  }}
-                >
-                  <button
-                    onClick={
-                      sendMessage
-                    }
-                    disabled={
-                      loading
-                    }
-                    style={{
-                      background:
-                        "linear-gradient(135deg,#2563eb,#7c3aed)",
-
-                      border: "none",
-
-                      color: "white",
-
-                      padding:
-                        "16px 30px",
-
-                      borderRadius: 20,
-
-                      fontSize: 17,
-
-                      cursor:
-                        "pointer",
-                    }}
-                  >
-                    {loading
-                      ? "Thinking..."
-                      : "Generate"}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         )}
 
         {/* CHAT */}
 
-        {messages.length > 0 && (
-          <>
-            <div
-              style={{
-                flex: 1,
+        <div
+          style={{
+            width: "100%",
 
-                overflowY:
-                  "auto",
+            maxWidth: 1100,
 
-                padding:
-                  "40px 70px 170px",
-
-                maxWidth: 1200,
-
-                width: "100%",
-
-                margin: "0 auto",
-              }}
-            >
-              {messages.map(
-                (m, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      marginBottom: 35,
-                    }}
-                  >
-                    <div
-                      style={{
-                        opacity: 0.5,
-
-                        fontSize: 13,
-
-                        marginBottom: 10,
-                      }}
-                    >
-                      {m.role ===
-                      "user"
-                        ? "YOU"
-                        : "NOVA AI"}
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: 20,
-
-                        lineHeight: 1.8,
-
-                        background:
-                          m.role ===
-                          "assistant"
-                            ? "rgba(255,255,255,.05)"
-                            : "transparent",
-
-                        borderRadius: 28,
-
-                        padding:
-                          m.role ===
-                          "assistant"
-                            ? 28
-                            : 0,
-
-                        border:
-                          m.role ===
-                          "assistant"
-                            ? "1px solid rgba(255,255,255,.05)"
-                            : "none",
-
-                        wordBreak:
-                          "break-word",
-                      }}
-                    >
-                      {m.content}
-                    </div>
-                  </div>
-                )
-              )}
-
+            margin:
+              messages.length > 0
+                ? "0 auto"
+                : "auto auto 0",
+          }}
+        >
+          {messages.map(
+            (m, i) => (
               <div
-                ref={bottomRef}
-              />
-            </div>
-
-            {/* INPUT */}
-
-            <div
-              style={{
-                position: "fixed",
-
-                bottom: 0,
-
-                left: 110,
-
-                right: 0,
-
-                padding: 25,
-
-                background:
-                  "rgba(5,8,22,.92)",
-
-                backdropFilter:
-                  "blur(20px)",
-
-                borderTop:
-                  "1px solid rgba(255,255,255,.05)",
-              }}
-            >
-              <div
+                key={i}
                 style={{
-                  maxWidth: 1200,
-
-                  margin: "0 auto",
-
-                  background:
-                    "rgba(255,255,255,.05)",
-
-                  borderRadius: 30,
-
-                  padding: 22,
-
-                  border:
-                    "1px solid rgba(255,255,255,.05)",
+                  marginBottom: 35,
                 }}
               >
                 <div
                   style={{
                     display: "flex",
 
-                    gap: 15,
-
                     alignItems:
                       "center",
+
+                    gap: 12,
+
+                    marginBottom: 10,
                   }}
                 >
-                  <input
-                    value={input}
-                    onChange={(e) =>
-                      setInput(
-                        e.target.value
-                      )
-                    }
-                    onKeyDown={
-                      handleKeyDown
-                    }
-                    placeholder="Describe your website..."
+                  {m.role ===
+                    "assistant" && (
+                    <RobotFace size={42} />
+                  )}
+
+                  <div
                     style={{
-                      flex: 1,
+                      opacity: 0.5,
 
-                      background:
-                        "transparent",
-
-                      border: "none",
-
-                      outline: "none",
-
-                      color: "white",
-
-                      fontSize: 18,
-                    }}
-                  />
-
-                  <button
-                    onClick={
-                      sendMessage
-                    }
-                    disabled={
-                      loading
-                    }
-                    style={{
-                      background:
-                        "linear-gradient(135deg,#2563eb,#7c3aed)",
-
-                      border: "none",
-
-                      color: "white",
-
-                      padding:
-                        "13px 25px",
-
-                      borderRadius: 18,
-
-                      cursor:
-                        "pointer",
+                      fontSize: 13,
                     }}
                   >
-                    {loading
-                      ? "..."
-                      : "Send"}
-                  </button>
+                    {m.role ===
+                    "user"
+                      ? "YOU"
+                      : "NOVA AI"}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 20,
+
+                    lineHeight: 1.8,
+
+                    background:
+                      m.role ===
+                      "assistant"
+                        ? "rgba(255,255,255,.05)"
+                        : "transparent",
+
+                    borderRadius: 28,
+
+                    padding:
+                      m.role ===
+                      "assistant"
+                        ? 28
+                        : 0,
+
+                    border:
+                      m.role ===
+                      "assistant"
+                        ? "1px solid rgba(255,255,255,.05)"
+                        : "none",
+
+                    wordBreak:
+                      "break-word",
+                  }}
+                >
+                  {m.content}
                 </div>
               </div>
+            )
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+
+        {/* INPUT */}
+
+        <div
+          style={{
+            position: "fixed",
+
+            bottom: 0,
+
+            left: 0,
+
+            right: 0,
+
+            padding: 25,
+
+            background:
+              "rgba(5,8,22,.92)",
+
+            backdropFilter:
+              "blur(20px)",
+
+            borderTop:
+              "1px solid rgba(255,255,255,.05)",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 1100,
+
+              margin: "0 auto",
+
+              background:
+                "rgba(255,255,255,.05)",
+
+              borderRadius: 30,
+
+              padding: 22,
+
+              border:
+                "1px solid rgba(255,255,255,.05)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+
+                gap: 15,
+
+                alignItems:
+                  "center",
+              }}
+            >
+              <input
+                value={input}
+                onChange={(e) =>
+                  setInput(
+                    e.target.value
+                  )
+                }
+                onKeyDown={
+                  handleKeyDown
+                }
+                placeholder="Describe your website..."
+                style={{
+                  flex: 1,
+
+                  background:
+                    "transparent",
+
+                  border: "none",
+
+                  outline: "none",
+
+                  color: "white",
+
+                  fontSize: 20,
+                }}
+              />
+
+              <button
+                onClick={
+                  sendMessage
+                }
+                disabled={loading}
+                style={{
+                  background:
+                    "linear-gradient(135deg,#2563eb,#7c3aed)",
+
+                  border: "none",
+
+                  color: "white",
+
+                  padding:
+                    "14px 28px",
+
+                  borderRadius: 18,
+
+                  fontSize: 16,
+
+                  cursor:
+                    "pointer",
+                }}
+              >
+                {loading
+                  ? "Thinking..."
+                  : "Generate"}
+              </button>
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
