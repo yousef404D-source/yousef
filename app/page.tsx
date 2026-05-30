@@ -11,18 +11,29 @@ import {
   Zap,
   CheckCircle2,
   AlertTriangle,
-  Globe,
-  ExternalLink
+  ExternalLink,
+  Mic,
+  Image,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Eye,
+  Layout,
+  Sparkles,
+  HelpCircle,
+  Code
 } from "lucide-react";
 
 type Message = { 
   role: "user" | "assistant"; 
   content: string; 
-  previewUrl?: string; // لإضافة رابط الموقع الحي داخل الرسالة
+  previewUrl?: string; 
 };
 type Mode = "builder" | "chat";
 type AuthStep = "SYSTEM_PASSWORD" | "LOADING_TRANSITION" | "AUTHORIZED";
 type RobotMood = "idle" | "thinking" | "happy" | "sad" | "typing";
+type ViewLayout = "split" | "preview_only";
+type ScreenSize = "desktop" | "tablet" | "mobile";
 
 export default function NovaAI() {
   /* ---------------- STATES ---------------- */
@@ -34,9 +45,23 @@ export default function NovaAI() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [robotMood, setRobotMood] = useState<RobotMood>("idle");
 
+  // ميزات العرض والتجاوب الجديدة
+  const [viewLayout, setViewLayout] = useState<ViewLayout>("split");
+  const [screenSize, setScreenSize] = useState<ScreenSize>("desktop");
+
+  // ميزات المحاورة الذكية (Lovable Style)
+  const [showCoPilot, setShowCoPilot] = useState(false);
+  const [coPilotAnswers, setCoPilotAnswers] = useState({ type: "", theme: "", pages: "" });
+
+  // ميزات أدوات الشات الإضافية
+  const [isRecording, setIsRecording] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* ---------------- ADMIN PANEL STATES ---------------- */
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -46,10 +71,21 @@ export default function NovaAI() {
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0 });
 
-  /* ---------------- SCROLL EFFECT ---------------- */
+  /* ---------------- EFFECTS ---------------- */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading]);
+
+  useEffect(() => {
+    if (loading) {
+      const interval = setInterval(() => {
+        setLoadingStep((prev) => (prev + 1) % 4);
+      }, 2500);
+      return () => clearInterval(interval);
+    } else {
+      setLoadingStep(0);
+    }
+  }, [loading]);
 
   /* ---------------- ADMIN DRAG LOGIC ---------------- */
   const handleDragStart = (e: React.MouseEvent) => {
@@ -64,52 +100,82 @@ export default function NovaAI() {
   
   const handleDragEnd = () => setIsDragging(false);
 
-  /* ---------------- AUTH LOGIC WITH SYSTEM ANIMATION ---------------- */
+  /* ---------------- AUTH LOGIC (.env.local CONNECTION) ---------------- */
   async function unlock() {
     setWrongPass(false);
-    if (password === "123") {
+    
+    // جلب الباسورد الطويل المشفر من ملف البيئة المحمي
+    const securePassword = process.env.NEXT_PUBLIC_SITE_PASSWORD;
+
+    if (password === securePassword) {
       setRobotMood("happy");
-      setWrongPass(false);
-      
-      // الانتقال إلى مرحلة أنيميشن التحميل السيبراني قبل فتح الشات
       setTimeout(() => {
         setAuthStep("LOADING_TRANSITION");
-        
-        // بعد انتهاء أنيميشن التحميل نفتح الشات الفعلي
         setTimeout(() => {
           setAuthStep("AUTHORIZED");
           setRobotMood("idle");
-        }, 2200);
-      }, 800);
-
+        }, 2500);
+      }, 600);
     } else {
       setRobotMood("sad");
       setWrongPass(true);
-      setTimeout(() => setWrongPass(false), 500); // إيقاف الهز
+      setTimeout(() => setWrongPass(false), 500);
       setTimeout(() => setRobotMood("idle"), 2500);
     }
   }
 
-  /* ---------------- SEND MESSAGES (REAL API CONNECTION) ---------------- */
-  async function sendMessage() {
-    if (!input.trim()) return;
+  /* ---------------- VOICE & VISION SIMULATORS ---------------- */
+  const handleVoiceClick = () => {
+    if (loading) return;
+    setIsRecording(!isRecording);
+    if (!isRecording) {
+      setRobotMood("typing");
+      setTimeout(() => {
+        setInput("توليد واجهة مستخدم متطورة مبنية على هندسة التصاميم السيبرانية");
+        setIsRecording(false);
+        setRobotMood("idle");
+      }, 3000);
+    }
+  };
 
-    // Secret Admin Command
-    if (input.trim() === "/ad") {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+        setRobotMood("happy");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  /* ---------------- SEND MESSAGES WITH CO-PILOT CHECK ---------------- */
+  async function sendMessage(overridePrompt?: string) {
+    const finalInput = overridePrompt || input;
+    if (!finalInput.trim() && !selectedImage) return;
+
+    if (finalInput.trim() === "/ad") {
       setShowAdminLogin(true);
       setInput("");
       return;
     }
 
-    const text = input;
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    if (aiMode === "builder" && finalInput.trim().split(" ").length <= 2 && !overridePrompt && !selectedImage) {
+      setShowCoPilot(true);
+      setRobotMood("thinking");
+      return;
+    }
+
+    const text = finalInput;
+    setMessages((prev) => [...prev, { role: "user", content: text + (selectedImage ? " [مرفق صورة سكتش]" : "") }]);
     setInput("");
+    setSelectedImage(null);
     setLoading(true);
     setRobotMood("thinking");
 
     if (aiMode === "builder") {
       try {
-        // الاتصال الفعلي بالـ API الموجود في مشروعك بمسار app/api/nova/route.ts
         const res = await fetch("/api/nova", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -117,55 +183,52 @@ export default function NovaAI() {
         });
         
         const data = await res.json();
-        
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || "فشل توليد الموقع الحقيقي.");
-        }
+        if (!res.ok || !data.success) throw new Error(data.error || "فشل توليد الموقع الحقيقي.");
 
         setRobotMood("happy");
         setMessages((prev) => [
           ...prev, 
           { 
             role: "assistant", 
-            content: `✅ تم بناء وتوليد الموقع الفعلي بنجاح طبقاً لأعلى معايير الـ UI/UX المستقبلية!\n\nيمكنك الآن استعراض موقعك والتفاعل معه بالكامل بالأسفل أو فتحه في صفحة مستقلة.`,
-            previewUrl: data.url // تخزين الرابط الحي للـ iframe والزر
+            content: `🚀 تم معالجة البيانات وبناء الموقع الفعلي وحقنه في الخادم بنجاح!\n\nيمكنك الآن معاينة الهيكل البرمجي الحي من شاشة المعاينة التفاعلية المجاورة في اليمين واختبار التجاوب.`,
+            previewUrl: data.url
           }
         ]);
-
       } catch (err: any) {
         setRobotMood("sad");
         setMessages((prev) => [
           ...prev, 
-          { role: "assistant", content: `❌ خطأ في محرك Nova الفعلي: ${err.message}` }
+          { role: "assistant", content: `❌ خطأ غير متوقع في المحرك: ${err.message}` }
         ]);
       }
     } else {
-      // وضع الشات العادي (المحادثة الفائقة الدقيقة)
       try {
         const res = await fetch("/api/nova", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: `أجب على السؤال التالي بشكل فخم وذكي ومختصر جداً: ${text}` }),
+          body: JSON.stringify({ prompt: `أجب بشكل فخم ومختصر: ${text}` }),
         });
         const data = await res.json();
-        
         setRobotMood("happy");
         setMessages((prev) => [
           ...prev, 
-          { role: "assistant", content: data.code || "أنا هنا لخدمتك ومعالجة كافة البيانات بذكاء." }
+          { role: "assistant", content: data.code || "أنا هنا لمعالجة البيانات وحل المشكلات البرمجية العميقة." }
         ]);
       } catch (e) {
         setRobotMood("sad");
-        setMessages((prev) => [...prev, { role: "assistant", content: "عذراً، حدثت مشكلة في الاتصال بالمحرك." }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: "فشل الاتصال بالمحرك الفائق." }]);
       }
     }
 
     setLoading(false);
-    setTimeout(() => setRobotMood("idle"), 3000);
+    setTimeout(() => setRobotMood("idle"), 2000);
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") sendMessage();
+  function handleCoPilotSubmit() {
+    setShowCoPilot(false);
+    const expandedPrompt = `ابني موقع ${input}، من النوع: ${coPilotAnswers.type || "عام"}، بثيم وألوان: ${coPilotAnswers.theme || "مودرن متناسق"}، ويحتوي على الأقسام التالية: ${coPilotAnswers.pages || "الرئيسية والخدمات"}`;
+    sendMessage(expandedPrompt);
+    setCoPilotAnswers({ type: "", theme: "", pages: "" });
   }
 
   function handleAdminAuth() {
@@ -174,23 +237,15 @@ export default function NovaAI() {
       setShowAdminLogin(false);
       setAdminPassInput("");
     } else {
-      alert("⚠️ CRITICAL ERROR: Unauthorized access attempt recorded.");
+      alert("⚠️ CRITICAL SECURITY EXCEPTION: Access Denied.");
       setShowAdminLogin(false);
       setAdminPassInput("");
     }
   }
 
-  /* ---------------- REALISTIC ROBOT COMPONENT ---------------- */
+  /* ---------------- NEW CYBER ROBOT DESIGN ---------------- */
   function RealisticRobot({ size = 50 }: { size?: number }) {
-    const getGlowStyle = () => {
-      if (robotMood === "sad") return "0 0 35px #ef4444, inset 0 0 15px #000"; 
-      if (robotMood === "happy") return "0 0 35px #10b981, inset 0 0 15px #000"; 
-      if (robotMood === "thinking") return "0 0 40px #a855f7, inset 0 0 15px #000"; 
-      if (robotMood === "typing") return "0 0 30px #f59e0b, inset 0 0 15px #000"; 
-      return "0 0 30px #3b82f6, inset 0 0 15px #000"; 
-    };
-
-    const getEyeColor = () => {
+    const getThemeColor = () => {
       if (robotMood === "sad") return "#ef4444";
       if (robotMood === "happy") return "#10b981";
       if (robotMood === "thinking") return "#a855f7";
@@ -199,110 +254,150 @@ export default function NovaAI() {
     };
 
     return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
+      <div 
+        style={{ 
+          width: size, 
+          height: size, 
           position: "relative",
-          background: "linear-gradient(145deg, #0f172a, #020617)",
-          boxShadow: getGlowStyle(),
-          border: `2px solid ${getEyeColor()}40`,
-          overflow: "hidden",
-          transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-          animation: robotMood === "thinking" ? "pulseGlow 1.2s infinite ease-in-out" : "float 4s ease-in-out infinite"
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          animation: robotMood === "thinking" ? "pulseGlow 1s infinite ease-in-out" : "float 4s ease-in-out infinite"
         }}
       >
-        <div style={{ position: "absolute", inset: "15%", background: "#000", borderRadius: "50%", overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <div
-            style={{
-              width: robotMood === "sad" ? "45%" : robotMood === "happy" ? "65%" : "50%",
-              height: robotMood === "sad" ? "15%" : robotMood === "happy" ? "45%" : "50%",
-              background: getEyeColor(),
-              borderRadius: robotMood === "sad" ? "4px" : "50%",
-              boxShadow: `0 0 20px ${getEyeColor()}`,
-              transition: "all 0.3s ease",
-              transform: robotMood === "sad" ? "translateY(4px)" : "none",
-              animation: "realisticBlink 4s infinite"
-            }}
-          />
+        <div style={{
+          width: "90%",
+          height: "85%",
+          background: "linear-gradient(145deg, #1e293b, #0f172a)",
+          borderRadius: "24px 24px 40px 40px",
+          border: `2px solid ${getThemeColor()}`,
+          boxShadow: `0 0 25px ${getThemeColor()}30, inset 0 0 15px rgba(0,0,0,0.6)`,
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "4px"
+        }}>
           <div style={{
-            position: "absolute", top: 0, width: "100%", height: "50%", background: "#000",
-            transformOrigin: "top", transition: "transform 0.3s",
-            transform: robotMood === "sad" ? "translateY(5%)" : robotMood === "happy" ? "translateY(-75%)" : "translateY(-100%)"
+            position: "absolute",
+            top: "-6px",
+            width: "30%",
+            height: "4px",
+            background: getThemeColor(),
+            borderRadius: "10px",
+            boxShadow: `0 0 10px ${getThemeColor()}`
           }} />
+
           <div style={{
-            position: "absolute", bottom: 0, width: "100%", height: "50%", background: "#000",
-            transformOrigin: "bottom", transition: "transform 0.3s",
-            transform: robotMood === "happy" ? "translateY(15%)" : "translateY(100%)"
-          }} />
+            width: "85%",
+            height: "35%",
+            background: "#020617",
+            borderRadius: "8px",
+            border: `1px solid ${getThemeColor()}50`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+            position: "relative"
+          }}>
+            <div style={{ position: "absolute", inset: 0, opacity: 0.1, background: `repeating-linear-gradient(0deg, ${getThemeColor()}, ${getThemeColor()} 2px, transparent 2px, transparent 4px)` }} />
+            
+            <div style={{
+              width: robotMood === "happy" ? "75%" : robotMood === "sad" ? "60%" : "80%",
+              height: robotMood === "sad" ? "3px" : "8px",
+              background: getThemeColor(),
+              borderRadius: robotMood === "happy" ? "50% 50% 0 0" : "4px",
+              boxShadow: `0 0 15px ${getThemeColor()}, 0 0 30px ${getThemeColor()}`,
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              transform: robotMood === "thinking" ? "translateX(-10%)" : "none",
+              animation: robotMood === "thinking" ? "cyberScan 1.5s infinite alternate ease-in-out" : "none"
+            }} />
+          </div>
+
+          <div style={{ display: "flex", gap: "3px", marginTop: "8px" }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} style={{
+                width: "3px",
+                height: robotMood === "typing" ? `${Math.random() * 12 + 4}px` : "6px",
+                background: `${getThemeColor()}60`,
+                borderRadius: "2px",
+                transition: "all 0.2s ease"
+              }} />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
+  const loadingTexts = [
+    "⏳ جاري تحليل العبارات وصياغة الهيكل السلكي المبدئي...",
+    "🎨 جاري هندسة وتوزيع عناصر الواجهة ونظام النيون المظلم...",
+    "⚡ جاري كتابة أكواد الـ JSX وحقن التجاوب الذكي للشاشات...",
+    "🚀 وضع اللمسات الأخيرة ومزامنة الملفات الحية مع السيرفر الرئيسي..."
+  ];
+
   /* ---------------- 1. FIRST SCREEN: SYSTEM PASSWORD ---------------- */
   if (authStep === "SYSTEM_PASSWORD") {
     return (
-      <div style={{ minHeight: "100vh", background: "radial-gradient(circle at center, #0b0f24 0%, #030510 100%)", display: "flex", justifyContent: "center", alignItems: "center", fontFamily: "Arial", color: "white" }} dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-[#030512] text-white p-4 font-sans" dir="rtl">
         <style>{`
           @keyframes shake { 0%, 100% {transform: translateX(0);} 20%, 60% {transform: translateX(-8px);} 40%, 80% {transform: translateX(8px);} }
-          @keyframes realisticBlink { 0%, 95%, 97%, 100% {transform: scaleY(1)} 96%, 98% {transform: scaleY(0.1)} }
           @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-8px)} }
+          @keyframes pulseGlow { 0%, 100% {transform: scale(1); opacity: 0.9;} 50% {transform: scale(1.02); opacity: 1;} }
         `}</style>
         
-        <div style={{ width: 460, background: "rgba(10, 15, 36, 0.7)", border: `1px solid ${wrongPass ? '#ef4444' : 'rgba(59, 130, 246, 0.2)'}`, backdropFilter: "blur(25px)", borderRadius: 28, padding: "40px 30px", textAlign: "center", boxShadow: wrongPass ? "0 0 40px rgba(239, 68, 68, 0.15)" : "0 20px 50px rgba(0,0,0,0.4)", animation: wrongPass ? "shake 0.4s ease-in-out" : "none" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 25 }}><RealisticRobot size={100} /></div>
+        <div className={`w-full max-w-md bg-[#090d22]/80 backdrop-blur-2xl rounded-3xl p-8 text-center border transition-all duration-300 ${wrongPass ? 'border-red-500 shadow-2xl shadow-red-500/10 animate-[shake_0.4s_ease-in-out]' : 'border-slate-800 shadow-2xl'}`}>
+          <div className="flex justify-center mb-6"><RealisticRobot size={110} /></div>
           
-          <h1 style={{ fontSize: 28, marginBottom: 8, fontWeight: 800 }}>بوابة العبور الآمن</h1>
-          <p style={{ opacity: 0.5, fontSize: 13, marginBottom: 30 }}>الرجاء إدخال رمز النظام للاتصال بـ Nova AI</p>
+          <h1 className="text-2xl font-black mb-2 tracking-tight bg-gradient-to-l from-white to-slate-400 WebkitBackgroundClip: text text-transparent">بوابة النظام العليا</h1>
+          <p className="text-xs text-slate-500 mb-6 font-medium">قم بمصادقة هويتك الرقمية لفتح قناة اتصال مع Nova AI</p>
           
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <input
               type="password" 
               placeholder="••••••••" 
               value={password}
               onChange={(e) => setPassword(e.target.value)} 
               onKeyDown={(e) => e.key === "Enter" && unlock()}
-              style={{ width: "100%", padding: "18px 20px", borderRadius: 16, border: wrongPass ? "2px solid #ef4444" : "1px solid rgba(255,255,255,0.08)", background: "#040714", color: "white", outline: "none", fontSize: 16, textAlign: "center", letterSpacing: "4px" }}
+              className={`w-full py-4 px-5 rounded-2xl bg-[#050716] border text-white text-center outline-none text-sm font-mono tracking-wider transition focus:border-indigo-500 ${wrongPass ? 'border-red-500/50' : 'border-slate-800'}`}
             />
-            <Lock style={{ position: "absolute", right: 18, top: 20, width: 18, height: 18, opacity: 0.3 }} />
+            <Lock className="absolute right-4 top-4.5 w-5 h-5 text-slate-600" />
           </div>
 
           {wrongPass && (
-            <p style={{ color: "#ef4444", fontSize: 12, marginTop: 10, fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-              <AlertTriangle className="w-4 h-4" /> الرمز المدخل غير صحيح. حاول مجدداً.
+            <p className="text-red-400 text-xs mt-3 font-semibold flex items-center justify-center gap-1.5 animate-pulse">
+              <AlertTriangle className="w-4 h-4" /> رمز التشفير غير صالح للمنظومة الكونية.
             </p>
           )}
 
-          <button onClick={unlock} style={{ width: "100%", marginTop: 20, padding: 16, borderRadius: 16, border: "none", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", color: "white", fontSize: 15, cursor: "pointer", fontWeight: "bold", boxShadow: "0 4px 20px rgba(59, 130, 246, 0.3)" }}>
-            بدء التحقق والمصادقة
+          <button onClick={unlock} className="w-full mt-5 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/20 active:scale-[0.99] transition-all">
+            تأكيد الاتصال بالمحرك
           </button>
         </div>
       </div>
     );
   }
 
-  /* ---------------- 2. SECOND SCREEN: INTERMEDIATE CYBER LOADING ---------------- */
+  /* ---------------- 2. SECOND SCREEN: INTERMEDIATE LOADING ---------------- */
   if (authStep === "LOADING_TRANSITION") {
     return (
-      <div style={{ minHeight: "100vh", background: "#030510", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", fontFamily: "Arial", color: "white" }} dir="rtl">
-        <div style={{ textAlign: "center" }}>
-          <div style={{ position: "relative", width: 140, height: 140, margin: "0 auto 30px", display: "flex", justifyContent: "center", alignItems: "center" }}>
-            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px dashed #10b981", animation: "spin 10s linear infinite", opacity: 0.6 }}></div>
-            <div style={{ position: "absolute", inset: 10, borderRadius: "50%", border: "1px solid #3b82f6", opacity: 0.3 }}></div>
+      <div className="min-h-screen bg-[#030510] flex flex-col items-center justify-center text-white font-sans" dir="rtl">
+        <div className="text-center">
+          <div className="relative w-36 h-36 mx-auto mb-8 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-2 border-dashed border-indigo-500 animate-[spin_12s_linear_infinite] opacity-40"></div>
+            <div className="absolute inset-2 rounded-full border border-blue-500/20 animate-[spin_6s_linear_infinite_reverse]"></div>
             <RealisticRobot size={90} />
           </div>
 
-          <div>
-            <h2 style={{ fontSize: 20, fontWeight: "bold", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <CheckCircle2 className="w-5 h-5" /> تم قبول الرمز بنجاح
-            </h2>
-            <p style={{ opacity: 0.5, fontSize: 12, marginTop: 6, letterSpacing: "1px" }}>LOADING NOVA CORE WORKSPACE...</p>
-          </div>
+          <h2 className="text-lg font-bold text-indigo-400 flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-indigo-400" /> مصادقة ناجحة للمفتاح الآمن
+          </h2>
+          <p className="text-[11px] font-mono text-slate-500 mt-2 tracking-widest">INITIALIZING GLOBAL WORKSPACE...</p>
 
-          <div style={{ width: 240, height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 10, margin: "20px auto 0", overflow: "hidden", position: "relative" }}>
-            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", background: "linear-gradient(90deg, #3b82f6, #10b981)", width: "100%", animation: "slideLoading 2s forwards" }}></div>
+          <div className="w-56 h-1 bg-slate-900 rounded-full mx-auto mt-6 overflow-hidden relative">
+            <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-indigo-500 w-full animate-[slideLoading_2.5s_forwards]"></div>
           </div>
         </div>
         <style>{`
@@ -313,225 +408,372 @@ export default function NovaAI() {
     );
   }
 
-  /* ---------------- 3. THIRD SCREEN: AUTHORIZED SYSTEM ---------------- */
+  /* ---------------- 3. THIRD SCREEN: AUTHORIZED WORKSPACE ---------------- */
   return (
     <div 
       onMouseMove={handleDragMove} 
       onMouseUp={handleDragEnd} 
-      style={{ minHeight: "100vh", background: "#040612", color: "white", overflow: "hidden", fontFamily: "Arial", position: "relative" }}
+      className="min-h-screen bg-[#030511] text-white flex flex-col font-sans relative"
       dir="rtl"
     >
       <style>{`
-        @keyframes slideUpFade { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulseGlow { 0%, 100% {box-shadow: 0 0 20px rgba(59,130,246,0.4)} 50% {box-shadow: 0 0 50px rgba(139,92,246,0.7)} }
-        @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-6px)} }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+        @keyframes slideUpFade { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cyberScan { from { transform: translateX(-25%); } to { transform: translateX(25%); } }
+        @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-5px)} }
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 15px rgba(59,130,246,0.2); } 50% { box-shadow: 0 0 30px rgba(139,92,246,0.5); } }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
       `}</style>
 
       {/* HEADER BAR */}
-      <header style={{ padding: "15px 40px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(4,6,18,0.7)", backdropFilter: "blur(15px)", position: "sticky", top: 0, zIndex: 40 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <RealisticRobot size={45} />
+      <header className="px-6 py-4 border-b border-slate-900/60 flex flex-wrap gap-4 justify-between items-center bg-[#040715]/80 backdrop-blur-xl sticky top-0 z-40">
+        <div className="flex items-center gap-3">
+          <RealisticRobot size={48} />
           <div>
-            <h1 style={{ margin: 0, fontSize: 18, fontWeight: "extrabold", background: "linear-gradient(to left, #fff, #818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NOVA MAIN CORE</h1>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 10px #10b981" }} />
-              <span style={{ fontSize: 11, opacity: 0.5 }}>SECURE TUNNEL ACTIVE</span>
+            <h1 className="text-base font-black tracking-tight bg-gradient-to-l from-white to-slate-400 WebkitBackgroundClip: text text-transparent">NOVA LIVE WORKSPACE</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]" />
+              <span className="text-[10px] text-slate-500 font-bold tracking-wider font-mono">HYBRID INTERACTIVE LINK ACTIVE</span>
             </div>
           </div>
         </div>
 
-        {/* AI MODE SWITCHER */}
-        <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: 3 }}>
-          <button onClick={() => setAiMode("builder")} style={{ padding: "8px 18px", borderRadius: 11, border: "none", cursor: "pointer", background: aiMode === "builder" ? "rgba(255,255,255,0.08)" : "transparent", color: aiMode === "builder" ? "white" : "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "bold", transition: "all 0.2s" }}>
-            🛠️ محرك البناء
-          </button>
-          <button onClick={() => setAiMode("chat")} style={{ padding: "8px 18px", borderRadius: 11, border: "none", cursor: "pointer", background: aiMode === "chat" ? "rgba(255,255,255,0.08)" : "transparent", color: aiMode === "chat" ? "white" : "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "bold", transition: "all 0.2s" }}>
-            💬 محادثة فائقة
-          </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl">
+            <button 
+              onClick={() => setViewLayout("split")}
+              className={`p-2 rounded-lg flex items-center gap-1.5 text-xs font-bold transition ${viewLayout === "split" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              <Layout className="w-3.5 h-3.5" /> العرض المتناسق
+            </button>
+            <button 
+              onClick={() => setViewLayout("preview_only")}
+              className={`p-2 rounded-lg flex items-center gap-1.5 text-xs font-bold transition ${viewLayout === "preview_only" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              <Eye className="w-3.5 h-3.5" /> المعاينة الكاملة
+            </button>
+          </div>
+
+          <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl">
+            <button onClick={() => setAiMode("builder")} className={`py-2 px-4 rounded-lg text-xs font-bold transition ${aiMode === "builder" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/20" : "text-slate-400 hover:text-slate-200"}`}>
+              🛠️ محرك البناء
+            </button>
+            <button onClick={() => setAiMode("chat")} className={`py-2 px-4 rounded-lg text-xs font-bold transition ${aiMode === "chat" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/20" : "text-slate-400 hover:text-slate-200"}`}>
+              💬 محادثة فائقة
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* MAIN CONTAINER CHAT */}
-      <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto", padding: "40px 20px 160px", minHeight: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
-        
-        {messages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: "12vh", animation: "slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 25 }}><RealisticRobot size={110} /></div>
-            <h2 style={{ fontSize: 32, fontWeight: 800, marginBottom: 8 }}>كيف يمكنني صياغة نظامك اليوم؟</h2>
-            <p style={{ opacity: 0.4, fontSize: 14 }}>
-              الوضع الفعال الحالي: {aiMode === "builder" ? "توليد كود وبناء مواقع حية ورفعها" : "إجابة ذكية ومفتوحة على كافة الأسئلة والبرمجيات"}
-            </p>
-          </div>
-        )}
+      {/* WORKSPACE CONTENT */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        <div className={`flex flex-col border-l border-slate-900/50 bg-[#030511] transition-all duration-500 ease-in-out relative ${viewLayout === "preview_only" ? "w-full md:w-[70px] opacity-40 hover:w-[360px] hover:opacity-100 z-30" : "w-full md:w-[420px]"}`}>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-36">
+            {messages.length === 0 && (
+              <div className="text-center pt-16 animate-[slideUpFade_0.5s_ease-out]">
+                <div className="flex justify-center mb-4"><RealisticRobot size={90} /></div>
+                <h3 className="text-lg font-black text-slate-200">مرحباً بك في نواة الابتكار</h3>
+                <p className="text-xs text-slate-500 max-w-xs mx-auto mt-2 leading-relaxed">
+                  {aiMode === "builder" ? "اكتب فكرتك باختصار أو بالتفصيل وسأقوم بإنشائها، رفعها، وتوفير رابط حي فوري لها." : "اسألني عن أي منطق برمي أو هيكلة بيانات تريد تبسيطها."}
+                </p>
+              </div>
+            )}
 
-        {/* MESSAGES FEEDS */}
-        <div style={{ flex: 1 }}>
-          {messages.map((m, i) => {
-            const isAss = m.role === "assistant";
-            const hasUrl = !!m.previewUrl;
-            
-            return (
-              <div key={i} style={{ marginBottom: 35, display: "flex", flexDirection: "column", alignItems: isAss ? "flex-start" : "flex-end", animation: "slideUpFade 0.3s ease-out" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexDirection: isAss ? "row" : "row-reverse" }}>
-                  {isAss ? <RealisticRobot size={28} /> : <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, #3b82f6, #4f46e5)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: 10, fontWeight: "bold" }}>UR</div>}
-                  <span style={{ fontSize: 11, opacity: 0.4, fontWeight: "bold" }}>{isAss ? "NOVA AI CORE" : "YOU"}</span>
+            {messages.map((m, i) => {
+              const isAss = m.role === "assistant";
+              return (
+                <div key={i} className={`flex flex-col ${isAss ? "items-start" : "items-end"} animate-[slideUpFade_0.25s_ease-out]`}>
+                  <div className={`flex items-center gap-2 mb-1.5 ${isAss ? "flex-row" : "flex-row-reverse"}`}>
+                    {isAss ? <RealisticRobot size={32} /> : <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-[10px] font-black">UR</div>}
+                    <span className="text-[10px] font-bold text-slate-500 tracking-wide">{isAss ? "NOVA AGENT" : "USER"}</span>
+                  </div>
+                  
+                  <div className={`max-w-[90%] p-4 text-sm leading-relaxed text-right font-medium shadow-lg transition-all ${isAss ? "bg-slate-900/60 text-slate-200 rounded-2xl rounded-tr-sm border border-slate-800" : "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-tl-sm"}`}>
+                    {m.content}
+                  </div>
                 </div>
-                
-                {/* صندوق الرسالة */}
-                <div style={{ 
-                  maxWidth: "90%", 
-                  background: hasUrl ? "#051a10" : isAss ? "rgba(255,255,255,0.03)" : "linear-gradient(135deg, #2563eb, #4f46e5)", 
-                  border: hasUrl ? "2px solid #10b981" : isAss ? "1px solid rgba(255,255,255,0.05)" : "none",
-                  color: hasUrl ? "#10b981" : "white",
-                  padding: "16px 22px", 
-                  borderRadius: isAss ? "20px 20px 20px 4px" : "20px 20px 4px 20px", 
-                  fontSize: 15, 
-                  lineHeight: 1.6, 
-                  whiteSpace: "pre-wrap", 
-                  boxShadow: hasUrl ? "0 0 25px rgba(16,185,129,0.08)" : "0 10px 30px rgba(0,0,0,0.15)",
-                  textAlign: "right"
-                }}>
-                  {m.content}
+              );
+            })}
 
-                  {/* 🚀 الـ Magic الفعلي: عند نجاح بناء الموقع يتم حقن أزرار المعاينة وشاشة iframe فوراً */}
-                  {hasUrl && (
-                    <div style={{ marginTop: 20 }}>
-                      <a 
-                        href={m.previewUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#10b981", color: "black", borderRadius: 10, fontWeight: "bold", fontSize: 13, textDecoration: "none", boxShadow: "0 4px 15px rgba(16,185,129,0.3)" }}
-                      >
-                        <ExternalLink className="w-4 h-4" /> فتح الموقع في نافذة جديدة حية
-                      </a>
-
-                      {/* شاشة العرض والتشغيل المباشر للموقع التفاعلي */}
-                      <div style={{ marginTop: 15, background: "#000", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(16,185,129,0.3)" }}>
-                        <div style={{ background: "#0a0f0d", padding: "8px 15px", display: "flex", alignItems: "center", gap: 6, borderBottom: "1px solid rgba(16,185,129,0.1)" }}>
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }} />
-                          <span style={{ fontSize: 11, opacity: 0.5, marginRight: 10, fontFamily: "monospace" }}>nova_live_browser.html</span>
-                        </div>
-                        <iframe 
-                          src={m.previewUrl} 
-                          style={{ width: "100%", height: "450px", border: "none", background: "white" }} 
-                          title="Nova Live Website Preview"
-                        />
-                      </div>
-                    </div>
-                  )}
+            {loading && (
+              <div className="flex flex-col items-start animate-pulse">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <RealisticRobot size={32} />
+                  <span className="text-[10px] font-bold text-slate-500">NOVA CORE THINKING</span>
+                </div>
+                <div className="max-w-[90%] p-4 bg-slate-900/80 border border-slate-800 rounded-2xl rounded-tr-sm text-xs font-mono text-indigo-400 space-y-3 w-full">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                    <span>{loadingTexts[loadingStep]}</span>
+                  </div>
+                  <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 rounded-full transition-all duration-700" style={{ width: `${(loadingStep + 1) * 25}%` }} />
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-        <div ref={bottomRef} />
-      </div>
+            )}
+          </div>
 
-      {/* BOX INPUT AT BOTTOM */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "30px 20px", background: "linear-gradient(to top, #040612 70%, rgba(4,6,18,0))", zIndex: 30 }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", background: "rgba(10, 14, 35, 0.7)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, padding: "6px 10px", display: "flex", alignItems: "center", backdropFilter: "blur(20px)", boxShadow: "0 15px 40px rgba(0,0,0,0.4)" }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => !loading && setRobotMood("typing")}
-            onBlur={() => !loading && setRobotMood("idle")}
-            disabled={loading}
-            placeholder={aiMode === "builder" ? "اصنع لي موقع متجر إلكتروني فخم بنظام نيون غامق..." : "اسألني عن أي سكريبت أو قاعدة بيانات برمجية..."}
-            style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "white", fontSize: 14, padding: "14px 15px", textAlign: "right" }}
-          />
-          <button 
-            onClick={sendMessage} 
-            disabled={loading || !input.trim()} 
-            style={{ border: "none", padding: "12px 24px", borderRadius: 14, background: "white", color: "black", cursor: "pointer", fontSize: 14, fontWeight: "bold", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6 }}
-          >
-            {loading ? "جاري البناء الفعلي..." : <><Send className="w-4 h-4 transform rotate-180" /> إرسال</>}
-          </button>
-        </div>
-      </div>
+          {/* INPUT CHAT BOX */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#030511] via-[#030511] to-transparent pt-10 z-20">
+            {selectedImage && (
+              <div className="mb-2 p-2 bg-slate-950 border border-slate-850 rounded-xl flex items-center justify-between animate-[slideUpFade_0.2s_ease-out]">
+                <div className="flex items-center gap-2">
+                  <img src={selectedImage} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-slate-800" />
+                  <span className="text-xs text-slate-400 font-medium">تم إرفاق صورة السكتش بنجاح</span>
+                </div>
+                <button onClick={() => setSelectedImage(null)} className="p-1 text-slate-500 hover:text-red-400"><X className="w-4 h-4" /></button>
+              </div>
+            )}
 
-      {/* ---------------- SECRET ADMIN PROMPT MODAL ---------------- */}
-      {showAdminLogin && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(2, 3, 10, 0.85)", backdropFilter: "blur(12px)", zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <div style={{ background: "#0c0407", padding: 35, borderRadius: 24, border: "2px solid #ef4444", width: 420, boxShadow: "0 0 40px rgba(239, 68, 68, 0.15)", animation: "slideUpFade 0.25s ease-out" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 15, color: "#ef4444" }}>
-              <ShieldAlert className="w-5 h-5" />
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: "extrabold" }}>منطقة محظورة بالكامل</h3>
+            <div className="bg-slate-950 border border-slate-900 rounded-2xl p-1.5 flex items-center shadow-2xl focus-within:border-indigo-500/50 transition">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                onFocus={() => !loading && setRobotMood("typing")}
+                onBlur={() => !loading && setRobotMood("idle")}
+                disabled={loading}
+                placeholder={aiMode === "builder" ? "ابني لي موقع متجر إلكتروني فخم..." : "اسألني عن أي كود أو سكريبت برمجي..."}
+                className="flex-1 bg-transparent border-none outline-none text-white text-xs px-3 text-right"
+              />
+              
+              <div className="flex items-center gap-1 px-1">
+                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-slate-500 hover:text-indigo-400 rounded-xl hover:bg-slate-900 transition" 
+                >
+                  <Image className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={handleVoiceClick}
+                  className={`p-2 rounded-xl transition ${isRecording ? "bg-red-500/20 text-red-400 animate-pulse" : "text-slate-500 hover:text-indigo-400 hover:bg-slate-900"}`} 
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              </div>
+
+              <button 
+                onClick={() => sendMessage()} 
+                disabled={loading || (!input.trim() && !selectedImage)} 
+                className="py-2 px-4 rounded-xl bg-white hover:bg-slate-200 disabled:bg-slate-900 disabled:text-slate-600 text-black font-extrabold text-xs transition flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5 transform rotate-180" /> إرسال
+              </button>
             </div>
-            <p style={{ opacity: 0.6, marginBottom: 25, fontSize: 13, lineHeight: 1.5 }}>الرجاء إدخل المفتاح الرئيسي (Master Key) لفك تشفير لوحة التحكم العليا.</p>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: PREVIEW CONTAINER */}
+        <div className="flex-1 flex flex-col bg-[#010207] relative">
+          <div className="px-4 py-3 bg-[#050817] border-b border-slate-900 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+              <Sparkles className="w-4 h-4 text-indigo-400" /> نافذة المعاينة التفاعلية والتجاوب الذكي
+            </div>
+
+            <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl">
+              <button 
+                onClick={() => setScreenSize("desktop")}
+                className={`p-2 rounded-lg flex items-center gap-1 text-xs font-bold transition ${screenSize === "desktop" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/15" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                <Monitor className="w-3.5 h-3.5" /> كمبيوتر
+              </button>
+              <button 
+                onClick={() => setScreenSize("tablet")}
+                className={`p-2 rounded-lg flex items-center gap-1 text-xs font-bold transition ${screenSize === "tablet" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/15" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                <Tablet className="w-3.5 h-3.5" /> تابلت
+              </button>
+              <button 
+                onClick={() => setScreenSize("mobile")}
+                className={`p-2 rounded-lg flex items-center gap-1 text-xs font-bold transition ${screenSize === "mobile" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/15" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                <Smartphone className="w-3.5 h-3.5" /> جوال
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 p-6 flex justify-center items-center overflow-auto bg-[#020309] relative">
+            {messages.filter(m => m.previewUrl).length === 0 ? (
+              <div className="text-center text-slate-600 font-medium space-y-2 animate-pulse">
+                <Code className="w-12 h-12 mx-auto text-slate-800" />
+                <div className="text-xs">شاشة العرض الحية فارغة حالياً.</div>
+                <div className="text-[10px] opacity-60">قم بإرسال طلب بناء في الشات لتشاهد الهيكل هنا فوراً.</div>
+              </div>
+            ) : (
+              <div 
+                className="bg-white rounded-2xl shadow-2xl border border-slate-800/20 overflow-hidden transition-all duration-300"
+                style={{
+                  width: screenSize === "mobile" ? "375px" : screenSize === "tablet" ? "768px" : "100%",
+                  height: screenSize === "desktop" ? "100%" : "680px",
+                  maxHeight: "100%"
+                }}
+              >
+                <div className="bg-slate-950 px-4 py-2 flex items-center justify-between border-b border-slate-900">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/40" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/40" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-500/40" />
+                    <span className="text-[10px] font-mono text-slate-500 mr-2">nova_deployment_sandbox.output</span>
+                  </div>
+                  {messages.filter(m => m.previewUrl).map((m, idx, arr) => {
+                    if (idx === arr.length - 1) {
+                      return (
+                        <a key={idx} href={m.previewUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-indigo-400 flex items-center gap-1 bg-indigo-950/40 px-2 py-1 rounded border border-indigo-900/40 hover:bg-indigo-900/60 transition">
+                          فتح كصفحة مستقلة <ExternalLink className="w-3 h-3" />
+                        </a>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+                {messages.filter(m => m.previewUrl).map((m, idx, arr) => {
+                  if (idx === arr.length - 1) {
+                    return (
+                      <iframe 
+                        key={idx}
+                        src={m.previewUrl} 
+                        className="w-full h-full bg-white border-none"
+                        title="Nova Engine Sandbox Preview"
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* CO-PILOT DIALOG MODAL */}
+      {showCoPilot && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="w-full max-w-lg bg-[#0a0f26] border border-indigo-500/30 rounded-3xl p-6 shadow-2xl animate-[slideUpFade_0.2s_ease-out]">
+            <div className="flex items-center gap-2.5 text-indigo-400 mb-3">
+              <HelpCircle className="w-5 h-5 animate-bounce" />
+              <h3 className="text-base font-black">مساعد التوجيه وتعميق التفاصيل الذكي</h3>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed mb-5">لقد كتبت طلباً مختصراً جداً. لنقوم بصياغة النتيجة بدقة ملهمة، يرجى تزويدنا بالخيارات المفضلة التالية بضغطة زر:</p>
+            
+            <div className="space-y-4 text-right">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">1. تصنيف ونوع المنصة المطلوبة:</label>
+                <div className="flex flex-wrap gap-2">
+                  {["متجر تجارة إلكترونية", "معرض أعمال شخصي", "منصة هبوط تسويقية", "منصة مدونة تقنية"].map((v) => (
+                    <button key={v} onClick={() => setCoPilotAnswers(p => ({...p, type: v}))} className={`py-1.5 px-3 rounded-xl text-xs font-bold transition border ${coPilotAnswers.type === v ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200'}`}>{v}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">2. النمط اللوني والهوية الإبداعية:</label>
+                <div className="flex flex-wrap gap-2">
+                  {["سيبراني داكن نيون", "لوك فاخر ذهبي وأسود", "أبيض مينيمال هادئ", "مرح بألوان الباستيل"].map((v) => (
+                    <button key={v} onClick={() => setCoPilotAnswers(p => ({...p, theme: v}))} className={`py-1.5 px-3 rounded-xl text-xs font-bold transition border ${coPilotAnswers.theme === v ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200'}`}>{v}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">3. الأقسام والمكونات الأساسية المدمجة:</label>
+                <div className="flex flex-wrap gap-2">
+                  {["الرئيسية مع سلة مشتريات حية", "معرض صور شبكي مع نموذج اتصال", "قسم خدمات ميكانيكي مع جدول أسعار", "صفحة وحيدة مع أسئلة شائعة تفاعلية"].map((v) => (
+                    <button key={v} onClick={() => setCoPilotAnswers(p => ({...p, pages: v}))} className={`py-1.5 px-3 rounded-xl text-xs font-bold transition border ${coPilotAnswers.pages === v ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200'}`}>{v}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 pt-4 border-t border-slate-900">
+              <button onClick={() => { setShowCoPilot(false); setRobotMood("idle"); }} className="flex-1 py-3 text-xs font-bold bg-transparent text-slate-400 border border-slate-900 hover:text-white rounded-xl">تخطي وبناء اعتيادي</button>
+              <button onClick={handleCoPilotSubmit} className="flex-1 py-3 text-xs font-bold bg-white text-black rounded-xl hover:bg-slate-200 shadow-lg shadow-white/5">تأكيد خيارات البناء الكوني</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECRET ADMIN PROMPT MODAL */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#0b0406] p-8 rounded-3xl border-2 border-red-500/40 w-full max-w-sm shadow-2xl text-center shadow-red-500/5 animate-[slideUpFade_0.2s_ease-out]">
+            <div className="flex items-center justify-center gap-2 text-red-500 mb-2">
+              <ShieldAlert className="w-6 h-6 animate-pulse" />
+              <h3 className="text-base font-black">ممر الماستر المحظور عبوره</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-6 leading-relaxed">قم بحقن المفتاح الفيدرالي الأعلى (Master Key) لتوليد صلاحية الإشراف الفوري.</p>
             
             <input 
               type="password" 
               value={adminPassInput} 
               onChange={e => setAdminPassInput(e.target.value)} 
               onKeyDown={e => e.key === "Enter" && handleAdminAuth()} 
-              placeholder="تشفير روت الـ Master..." 
-              style={{ width: "100%", padding: 15, borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)", background: "#020308", color: "white", marginBottom: 20, textAlign: "center", fontSize: 14 }} 
+              placeholder="تشفير الروت الـ Master..." 
+              className="w-full p-3.5 rounded-xl border border-red-950 bg-black text-white text-center text-sm mb-4 outline-none focus:border-red-500" 
               autoFocus 
             />
             
-            <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={() => { setShowAdminLogin(false); setAdminPassInput(""); }} style={{ flex: 1, padding: 12, background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, cursor: "pointer", fontSize: 13 }}>إلغاء الأمر</button>
-              <button onClick={handleAdminAuth} style={{ flex: 1, padding: 12, background: "#ef4444", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: "bold", fontSize: 13, boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3)" }}>تأكيد الهوية</button>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowAdminLogin(false); setAdminPassInput(""); }} className="flex-1 py-2.5 text-xs font-bold bg-transparent border border-slate-900 rounded-xl text-slate-400">إلغاء الحاقن</button>
+              <button onClick={handleAdminAuth} className="flex-1 py-2.5 text-xs font-bold bg-red-600 text-white rounded-xl hover:bg-red-500 shadow-lg shadow-red-600/20">اختراق الهوية</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ---------------- DRAGGABLE GLASS ADMIN PANEL ---------------- */}
+      {/* DRAGGABLE GLASS ADMIN PANEL */}
       {isAdminAuth && (
         <div 
-          style={{ position: "fixed", left: adminPos.x, top: adminPos.y, width: 560, background: "rgba(11, 16, 43, 0.95)", border: "1px solid rgba(59, 130, 246, 0.2)", borderRadius: 20, zIndex: 99, boxShadow: "0 25px 60px rgba(0,0,0,0.6)", backdropFilter: "blur(25px)", overflow: "hidden", animation: "slideUpFade 0.3s ease-out" }}
+          style={{ left: adminPos.x, top: adminPos.y }}
+          className="fixed w-[420px] md:w-[520px] bg-[#090d23]/95 border border-blue-500/30 rounded-2xl z-[99] shadow-2xl backdrop-blur-3xl overflow-hidden animate-[slideUpFade_0.3s_ease-out]"
         >
           <div 
             onMouseDown={handleDragStart} 
-            style={{ padding: "16px 20px", background: "rgba(4, 7, 24, 0.6)", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "grab", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            className="p-4 bg-slate-950/80 border-b border-slate-900 cursor-grab flex justify-between items-center select-none"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
-              <span style={{ fontWeight: "extrabold", fontSize: 13, color: "#fff" }}>لوحة تحكم المشرف الأعلى (MASTER PANEL)</span>
+              <span className="font-black text-xs text-slate-200">لوحة تحكم المشرف الأعلى (MASTER PANEL)</span>
             </div>
-            <button onClick={() => setIsAdminAuth(false)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer" }}><X className="w-5 h-5" /></button>
+            <button onClick={() => setIsAdminAuth(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
           </div>
 
-          <div style={{ padding: 22 }}>
-            <div style={{ display: "flex", gap: 15, marginBottom: 25 }}>
-              <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", padding: 15, borderRadius: 14, border: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 12 }}>
-                <Users className="w-8 h-8 text-indigo-400" />
+          <div className="p-5">
+            <div className="flex gap-4 mb-5">
+              <div className="flex-1 bg-slate-950 p-4 rounded-xl border border-slate-900 flex gap-3 items-center">
+                <Users className="w-7 h-7 text-indigo-400" />
                 <div>
-                  <div style={{ opacity: 0.4, fontSize: 11 }}>المستخدمين النشطين</div>
-                  <div style={{ fontSize: 20, fontWeight: "bold", color: "#10b981", fontFamily: "monospace", marginTop: 2 }}>1,432</div>
+                  <div className="text-[10px] text-slate-500 font-bold">المستخدمين النشطين</div>
+                  <div className="text-lg font-black text-green-400 font-mono mt-0.5">1,432</div>
                 </div>
               </div>
-              <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", padding: 15, borderRadius: 14, border: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 12 }}>
-                <Activity className="w-8 h-8 text-indigo-400" />
+              <div className="flex-1 bg-slate-950 p-4 rounded-xl border border-slate-900 flex gap-3 items-center">
+                <Activity className="w-7 h-7 text-indigo-400" />
                 <div>
-                  <div style={{ opacity: 0.4, fontSize: 11 }}>إجمالي الـ Deploys</div>
-                  <div style={{ fontSize: 20, fontWeight: "bold", color: "#3b82f6", fontFamily: "monospace", marginTop: 2 }}>89,204</div>
+                  <div className="text-[10px] text-slate-500 font-bold">إجمالي الـ Deploys</div>
+                  <div className="text-lg font-black text-blue-400 font-mono mt-0.5">89,204</div>
                 </div>
               </div>
             </div>
 
-            <h4 style={{ margin: "0 0 12px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: 8, fontSize: 13, color: "#818cf8" }}>سجلات الرصد والتحكم الحية</h4>
+            <h4 className="text-xs font-bold text-indigo-400 mb-3 pb-1 border-b border-slate-900 text-right">سجلات الرصد والتحكم الحية</h4>
             
-            <div style={{ maxHeight: 180, overflowY: "auto" }}>
+            <div className="max-h-40 overflow-y-auto space-y-2">
               {[
-                { email: "admin@nova.ai", status: "Active", ip: "192.168.1.1", color: "#10b981" },
-                { email: "user_992@gmail.com", status: "Online", ip: "10.0.0.45", color: "#3b82f6" },
-                { email: "hacker@test.com", status: "Suspicious", ip: "Unknown", color: "#ef4444" },
+                { email: "admin@nova.ai", status: "Active", ip: "192.168.1.1", color: "text-green-400" },
+                { email: "user_992@gmail.com", status: "Online", ip: "10.0.0.45", color: "text-blue-400" },
+                { email: "hacker@test.com", status: "Suspicious", ip: "Unknown", color: "text-red-400" },
               ].map((u, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div key={i} className="flex justify-between items-center p-2 bg-slate-950/40 border border-slate-900 rounded-xl text-right">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: "bold" }}>{u.email}</div>
-                    <div style={{ fontSize: 11, opacity: 0.4, marginTop: 2 }}>IP: {u.ip} • الحالة: <span style={{ color: u.color }}>{u.status}</span></div>
+                    <div className="text-xs font-bold">{u.email}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5 font-medium">IP: {u.ip} • الحالة: <span className={u.color}>{u.status}</span></div>
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button style={{ padding: "6px 12px", background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#60a5fa", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>تعديل</button>
-                    <button style={{ padding: "6px 12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>حظر</button>
+                  <div className="flex gap-2">
+                    <button className="py-1 px-2 bg-blue-950/40 text-blue-400 border border-blue-900/40 rounded-lg text-[10px] font-bold">تعديل</button>
+                    <button className="py-1 px-2 bg-red-950/40 text-red-400 border border-red-900/40 rounded-lg text-[10px] font-bold">حظر</button>
                   </div>
                 </div>
               ))}
