@@ -226,26 +226,26 @@ export default function UltimateBuilderPage() {
 
   if (!isAuthenticated) {
     return (
-      <div class="min-h-screen bg-[#0b0c10] flex items-center justify-center p-4 font-sans text-slate-100">
-        <div class="w-full max-w-md bg-[#12141c] border border-cyan-500/20 rounded-3xl p-8 shadow-2xl relative">
-          <div class="text-center mb-6">
-            <div class="w-14 h-14 bg-[#0b0c10] border border-cyan-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Lock class="w-6 h-6 text-cyan-400" />
+      <div className="min-h-screen bg-[#0b0c10] flex items-center justify-center p-4 font-sans text-slate-100">
+        <div className="w-full max-w-md bg-[#12141c] border border-cyan-500/20 rounded-3xl p-8 shadow-2xl relative">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-[#0b0c10] border border-cyan-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Lock className="w-6 h-6 text-cyan-400" />
             </div>
-            <h2 class="text-xl font-black text-white">NOVA LIVE WORKSPACE</h2>
-            <p class="text-xs text-slate-500 mt-1">يرجى إدخال رمز الوصول لفتح المنظومة البرمجية</p>
+            <h2 className="text-xl font-black text-white">NOVA LIVE WORKSPACE</h2>
+            <p className="text-xs text-slate-500 mt-1">يرجى إدخال رمز الوصول لفتح المنظومة البرمجية</p>
           </div>
-          <form onSubmit={handleLogin} class="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <input 
               type="password" 
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               placeholder="أدخل الباسورد الطويل المدمج..." 
-              class="w-full bg-[#0b0c10] border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-700 focus:outline-none focus:border-cyan-400 transition-all"
+              className="w-full bg-[#0b0c10] border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-700 focus:outline-none focus:border-cyan-400 transition-all"
             />
-            {authError && <p class="text-red-400 text-[11px] text-center">{authError}</p>}
-            <button type="submit" class="w-full bg-cyan-400 text-[#0b0c10] py-3 rounded-xl font-black text-xs hover:bg-cyan-300 transition-all flex items-center justify-center gap-2">
-              دخول المنصة <ArrowRight class="w-3.5 h-3.5" />
+            {authError && <p className="text-red-400 text-[11px] text-center">{authError}</p>}
+            <button type="submit" className="w-full bg-cyan-400 text-[#0b0c10] py-3 rounded-xl font-black text-xs hover:bg-cyan-300 transition-all flex items-center justify-center gap-2">
+              دخول المنصة <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </form>
         </div>
@@ -254,155 +254,154 @@ export default function UltimateBuilderPage() {
   }
 
   return (
-    <div class="w-full h-screen min-h-screen bg-[#0a0b0d] text-slate-100 flex flex-col font-sans overflow-hidden">
+    <div className="w-full h-screen min-h-screen bg-[#0a0b0d] text-slate-100 flex flex-col font-sans overflow-hidden">
       
       {/* هيدر ثابت ونحيف */}
-      <header class="h-14 border-b border-slate-900 bg-[#0d0e12]/90 backdrop-blur px-6 flex justify-between items-center shrink-0 z-50">
-        <div class="flex items-center gap-3">
-          <div class={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-300 ${
+      <header className="h-14 border-b border-slate-900 bg-[#0d0e12]/90 backdrop-blur px-6 flex justify-between items-center shrink-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-300 ${
             botStatus === "thinking" ? "bg-purple-950/40 border-purple-500 animate-pulse" : botStatus === "success" ? "bg-emerald-950/40 border-emerald-500" : "bg-cyan-950/40 border-cyan-400"
           }`}>
-            <Bot class={`w-4 h-4 ${botStatus === "thinking" ? "text-purple-400" : botStatus === "success" ? "text-emerald-400" : "text-cyan-400"}`} />
+            <Bot className={`w-4 h-4 ${botStatus === "thinking" ? "text-purple-400" : botStatus === "success" ? "text-emerald-400" : "text-cyan-400"}`} />
           </div>
           <div>
-            <h1 class="font-black text-xs tracking-wider text-white">NOVA LIVE WORKSPACE</h1>
+            <h1 className="font-black text-xs tracking-wider text-white">NOVA LIVE WORKSPACE</h1>
           </div>
         </div>
 
         {/* التبديل السريع بين مود البناء والشات العادي */}
-        <div class="flex bg-[#12141a] p-0.5 rounded-xl border border-slate-800">
+        <div className="flex bg-[#12141a] p-0.5 rounded-xl border border-slate-800">
           <button 
             onClick={() => setActiveMode("builder")}
-            class={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
               activeMode === "builder" ? "bg-cyan-400 text-[#0a0b0d]" : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <Wand2 class="w-3 h-3" /> 🛠️ محرك البناء
+            <Wand2 className="w-3 h-3" /> 🛠️ محرك البناء
           </button>
           <button 
             onClick={() => setActiveMode("chat")}
-            class={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
               activeMode === "chat" ? "bg-purple-600 text-white" : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <MessageSquare class="w-3 h-3" /> 💬 محادثة فائقة
+            <MessageSquare className="w-3 h-3" /> 💬 محادثة فائقة
           </button>
         </div>
       </header>
 
       {/* --- التقسيم الاحترافي العريض المانع للمشاكل البصرية --- */}
-      <div class="flex-1 flex overflow-hidden w-full h-[calc(100vh-56px)]">
+      <div className="flex-1 flex overflow-hidden w-full h-[calc(100vh-56px)]">
         
-        {/* اليسار: شاشة المعاينة الحية (تأخذ المساحة الكبرى 65% لمنع ضغط الواجهات) */}
-        <section class="w-[65%] h-full bg-[#0e1014] p-4 flex flex-col border-r border-slate-900/60 overflow-hidden">
-          <div class="flex justify-between items-center mb-2 shrink-0">
-            <div class="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold tracking-wider">
-              <Globe class="w-3.5 h-3.5 text-cyan-400" /> LIVE SANDBOX ENVIRONMENT
+        {/* اليسار: شاشة المعاينة الحية */}
+        <section className="w-[65%] h-full bg-[#0e1014] p-4 flex flex-col border-r border-slate-900/60 overflow-hidden">
+          <div className="flex justify-between items-center mb-2 shrink-0">
+            <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold tracking-wider">
+              <Globe className="w-3.5 h-3.5 text-cyan-400" /> LIVE SANDBOX ENVIRONMENT
             </div>
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               {deployUrl && (
-                <a href={deployUrl} target="_blank" rel="noreferrer" class="text-[10px] text-cyan-400 bg-cyan-950/40 border border-cyan-900 px-2.5 py-1 rounded-lg hover:underline">
+                <a href={deployUrl} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 bg-cyan-950/40 border border-cyan-900 px-2.5 py-1 rounded-lg hover:underline">
                   رابط الموقع المباشر 🔗
                 </a>
               )}
               <button 
                 onClick={handleDeployProject}
                 disabled={isDeploying}
-                class="bg-gradient-to-r from-emerald-500 to-teal-600 text-[#0b0c10] px-3 py-1.5 rounded-xl text-[10px] font-black hover:opacity-90 transition-all flex items-center gap-1"
+                className="bg-gradient-to-r from-emerald-500 to-teal-600 text-[#0b0c10] px-3 py-1.5 rounded-xl text-[10px] font-black hover:opacity-90 transition-all flex items-center gap-1"
               >
-                {isDeploying ? <RefreshCw class="w-3 h-3 animate-spin" /> : "🚀 نشر / Deploy"}
+                {isDeploying ? <RefreshCw className="w-3 h-3 animate-spin" /> : "🚀 نشر / Deploy"}
               </button>
             </div>
           </div>
 
           {/* الإطار الحاضن للـ preview */}
-          <div class="flex-1 bg-white rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
+          <div className="flex-1 bg-white rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
             <iframe 
               srcDoc={previewCode}
               title="Sandbox Screen"
-              class={`h-full bg-white transition-all duration-300 border-none ${
+              className={`h-full bg-white transition-all duration-300 border-none ${
                 responsiveView === "mobile" ? "w-[375px] max-w-full border-x-4 border-slate-900" : "w-full"
               }`}
             />
           </div>
         </section>
 
-        {/* اليمين: حيز أدوات التحكم، الشات، ونظام الاستبيان التفاعلي (يأخذ 35% بشكل رشيق وجانبي ومريح للعين) */}
-        <section class="w-[35%] h-full flex flex-col bg-[#0a0b0d] p-4 overflow-hidden justify-between">
+        {/* اليمين: حيز أدوات التحكم والشات ونظام الاستبيان التفاعلي */}
+        <section className="w-[35%] h-full flex flex-col bg-[#0a0b0d] p-4 overflow-hidden justify-between">
           
-          <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             
             {/* أزرار تجاوب الشاشات مدمجة أعلى اليمين مباشرة فوق نافذة التفاعل */}
-            <div class="flex bg-[#12141a] p-1 rounded-xl border border-slate-800 self-start mb-3 shrink-0">
+            <div className="flex bg-[#12141a] p-1 rounded-xl border border-slate-800 self-start mb-3 shrink-0">
               <button 
                 onClick={() => setResponsiveView("full")}
-                class={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
                   responsiveView === "full" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
               >
-                <Monitor class="w-3 h-3" /> Full Stack App
+                <Monitor className="w-3 h-3" /> Full Stack App
               </button>
               <button 
                 onClick={() => setResponsiveView("mobile")}
-                class={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
                   responsiveView === "mobile" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
               >
-                <Smartphone class="w-3 h-3" /> Mobile App
+                <Smartphone className="w-3 h-3" /> Mobile App
               </button>
             </div>
 
             {/* سياق الرسائل والمحادثات الجارية مع البوت */}
-            <div class="flex-1 overflow-y-auto space-y-3 pr-1 mb-3 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-3 custom-scrollbar">
               {messages.map((msg, index) => (
-                <div key={index} class={`flex flex-col ${msg.sender === "user" ? "items-end text-right" : "items-start text-left"}`}>
-                  <div class={`max-w-[90%] rounded-2xl p-3 text-[11px] leading-relaxed shadow-md ${
+                <div key={index} className={`flex flex-col ${msg.sender === "user" ? "items-end text-right" : "items-start text-left"}`}>
+                  <div className={`max-w-[90%] rounded-2xl p-3 text-[11px] leading-relaxed shadow-md ${
                     msg.sender === "user" 
                       ? "bg-slate-800 text-slate-100 rounded-tr-none" 
                       : "bg-[#12151c] border border-slate-800 text-slate-300 rounded-tl-none"
                   }`}>
-                    {msg.image && <img src={msg.image} alt="Sketch input" class="w-full max-h-24 object-cover rounded-xl mb-1.5 border border-slate-700" />}
-                    <p class="whitespace-pre-line">{msg.text}</p>
+                    {msg.image && <img src={msg.image} alt="Sketch input" className="w-full max-h-24 object-cover rounded-xl mb-1.5 border border-slate-700" />}
+                    <p className="whitespace-pre-line">{msg.text}</p>
                   </div>
                 </div>
               ))}
 
-              {/* معالج الاستبيان الذكي: منبثق بمساحة كاملة ومريحة داخل القسم الأيمن */}
+              {/* معالج الاستبيان الذكي */}
               {showWizard && (
-                <div class="bg-[#11141b] border border-cyan-500/20 rounded-2xl p-4 shadow-2xl my-2 text-left animate-fade-in">
-                  <div class="text-[9px] font-bold text-cyan-400 uppercase tracking-widest mb-1">
+                <div className="bg-[#11141b] border border-cyan-500/20 rounded-2xl p-4 shadow-2xl my-2 text-left animate-fade-in">
+                  <div className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest mb-1">
                     {QUESTIONNAIRE_STEPS[currentStepIndex].title}
                   </div>
-                  <h3 class="text-[11px] font-bold text-slate-200 mb-3 leading-normal">
+                  <h3 className="text-[11px] font-bold text-slate-200 mb-3 leading-normal">
                     {QUESTIONNAIRE_STEPS[currentStepIndex].question}
                   </h3>
 
-                  {/* قائمة الخيارات التفاعلية مع الخيار المخصص والديناميكي */}
-                  <div class="space-y-1.5 mb-4">
+                  {/* قائمة الخيارات التفاعلية */}
+                  <div className="space-y-1.5 mb-4">
                     {QUESTIONNAIRE_STEPS[currentStepIndex].options.map((opt) => {
                       const isChecked = !!selectedOptions[opt.id];
                       return (
-                        <div key={opt.id} class="flex flex-col">
-                          <label class={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        <div key={opt.id} className="flex flex-col">
+                          <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
                             isChecked ? "bg-[#161b26] border-cyan-400 text-white" : "bg-[#141720] border-slate-800/80 text-slate-400 hover:bg-[#181c28]"
                           }`}>
                             <input 
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleCheckboxChange(opt.id)}
-                              class="rounded border-slate-700 text-cyan-400 focus:ring-0 bg-[#0b0c10] w-3.5 h-3.5"
+                              className="rounded border-slate-700 text-cyan-400 focus:ring-0 bg-[#0b0c10] w-3.5 h-3.5"
                             />
-                            <span class="text-[11px]">{opt.label}</span>
+                            <span className="text-[11px]">{opt.label}</span>
                           </label>
 
-                          {/* ظهور شات حقل الكتابة فوراً وبشكل منبثق عند ضغط صح على الخيارات المخصصة */}
                           {opt.isCustom && isChecked && (
-                            <div class="mt-1.5 pl-2">
+                            <div className="mt-1.5 pl-2">
                               <textarea
                                 value={customTextInputs[opt.id] || ""}
                                 onChange={(e) => setCustomTextInputs(prev => ({ ...prev, [opt.id]: e.target.value }))}
                                 placeholder="اكتب الخيار المخصص أو الذي يناسبك هنا بحرية..."
-                                class="w-full bg-[#0b0c10] border border-slate-800 rounded-xl p-2.5 text-[11px] text-white focus:outline-none focus:border-cyan-400 min-h-[50px] resize-none"
+                                className="w-full bg-[#0b0c10] border border-slate-800 rounded-xl p-2.5 text-[11px] text-white focus:outline-none focus:border-cyan-400 min-h-[50px] resize-none"
                               />
                             </div>
                           )}
@@ -412,15 +411,15 @@ export default function UltimateBuilderPage() {
                   </div>
 
                   {/* الفوتر والتحكم بالأسئلة */}
-                  <div class="flex justify-between items-center border-t border-slate-800/80 pt-3">
-                    <span class="text-[10px] text-slate-500 font-medium">
+                  <div className="flex justify-between items-center border-t border-slate-800/80 pt-3">
+                    <span className="text-[10px] text-slate-500 font-medium">
                       Question {currentStepIndex + 1} of {QUESTIONNAIRE_STEPS.length}
                     </span>
-                    <div class="flex gap-1.5">
-                      <button type="button" onClick={handleAutoAnswer} class="bg-slate-800 text-slate-300 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-slate-700">
+                    <div className="flex gap-1.5">
+                      <button type="button" onClick={handleAutoAnswer} className="bg-slate-800 text-slate-300 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-slate-700">
                         Auto-answer
                       </button>
-                      <button type="button" onClick={handleNextStep} class="bg-cyan-400 text-[#0a0b0d] text-[10px] font-black px-3.5 py-1.5 rounded-lg hover:bg-cyan-300">
+                      <button type="button" onClick={handleNextStep} className="bg-cyan-400 text-[#0a0b0d] text-[10px] font-black px-3.5 py-1.5 rounded-lg hover:bg-cyan-300">
                         {currentStepIndex === QUESTIONNAIRE_STEPS.length - 1 ? "Finish & Build" : "Next"}
                       </button>
                     </div>
@@ -430,39 +429,39 @@ export default function UltimateBuilderPage() {
             </div>
           </div>
 
-          {/* صندوق المحادثة والإدخال السفلي الثابت والآمن */}
-          <form onSubmit={handleSendMessage} class="bg-[#111317] border border-slate-800 rounded-2xl p-2.5 flex flex-col gap-2 shrink-0 shadow-lg">
+          {/* صندوق المحادثة والإدخل السفلي */}
+          <form onSubmit={handleSendMessage} className="bg-[#111317] border border-slate-800 rounded-2xl p-2.5 flex flex-col gap-2 shrink-0 shadow-lg">
             <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder={activeMode === "builder" ? "Build me a high performance store..." : "تناقش مع الذكاء الاصطناعي برمجياً هنا..."}
               rows={2}
-              class="w-full bg-transparent text-[11px] text-slate-200 placeholder-slate-600 resize-none focus:outline-none"
+              className="w-full bg-transparent text-[11px] text-slate-200 placeholder-slate-600 resize-none focus:outline-none"
             />
             
-            <div class="flex justify-between items-center border-t border-slate-800/60 pt-2">
-              <div class="flex items-center gap-1">
+            <div className="flex justify-between items-center border-t border-slate-800/60 pt-2">
+              <div className="flex items-center gap-1">
                 <button 
                   type="button" 
                   onClick={() => fileInputRef.current?.click()}
-                  class={`p-1.5 rounded-lg transition ${uploadedImage ? "bg-cyan-950 text-cyan-400" : "text-slate-500 hover:bg-slate-800"}`}
+                  className={`p-1.5 rounded-lg transition ${uploadedImage ? "bg-cyan-950 text-cyan-400" : "text-slate-500 hover:bg-slate-800"}`}
                 >
-                  <ImageIcon class="w-3.5 h-3.5" />
+                  <ImageIcon className="w-3.5 h-3.5" />
                 </button>
-                <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" class="hidden" />
+                <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
 
                 <button 
                   type="button" 
                   onClick={toggleVoiceRecording}
-                  class={`p-1.5 rounded-lg transition ${isRecording ? "bg-red-950 text-red-400" : "text-slate-500 hover:bg-slate-800"}`}
+                  className={`p-1.5 rounded-lg transition ${isRecording ? "bg-red-950 text-red-400" : "text-slate-500 hover:bg-slate-800"}`}
                 >
-                  {isRecording ? <MicOff class="w-3.5 h-3.5" /> : <Mic class="w-3.5 h-3.5" />}
+                  {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                 </button>
-                {uploadedImage && <span class="text-[8px] bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded">Attached</span>}
+                {uploadedImage && <span className="text-[8px] bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded">Attached</span>}
               </div>
 
-              <button type="submit" class="bg-slate-800 text-slate-300 p-1.5 rounded-lg hover:bg-cyan-400 hover:text-[#0b0c10] transition-all">
-                <Send class="w-3 h-3" />
+              <button type="submit" className="bg-slate-800 text-slate-300 p-1.5 rounded-lg hover:bg-cyan-400 hover:text-[#0b0c10] transition-all">
+                <Send className="w-3 h-3" />
               </button>
             </div>
           </form>
