@@ -2,7 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"; 
+// إذا استمر الخطأ بعد الاستبدال، السطر الأحدث في Next.js App Router هو:
+// import { createClientComponentClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import { Bot, Terminal, Globe, LogOut, Layers, Cpu, CheckCircle, Loader2, ExternalLink, Sparkles, User } from "lucide-react";
 
