@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
-// 🛠️ التحديث الجذري: استخدام العميل الأساسي والمستقر لمنع خطأ الـ Build نهائياً
+import { useState, useEffect } from "react";
+// 🛠️ استخدام المكتبة المستقرة
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { Cpu, Sparkles, Loader2, Lock, Mail } from "lucide-react";
 
-// تهيئة عميل Supabase المستقر والآمن للـ Client Components
+// 🚀 السطر السحري: إجبار Next.js على عدم عمل Prerender لصفحة الدخول أثناء الـ Build
+export const dynamic = "force-dynamic";
+
+// جلب المتغيرات مع حماية نصية
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,12 +19,27 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // تعريف متغير حالة لعميل Supabase لضمان تهيئته داخل المتصفح فقط
+  const [supabaseClient, setSupabaseClient] = useState<any>(null);
 
-  // 1. منطق تسجيل الدخول عبر Google (من كودك القديم)
+  useEffect(() => {
+    // نقوم بإنشاء العميل فقط إذا كانت المتغيرات موجودة وداخل المتصفح
+    if (supabaseUrl && supabaseAnonKey) {
+      setSupabaseClient(createClient(supabaseUrl, supabaseAnonKey));
+    }
+  }, []);
+
+  // 1. منطق تسجيل الدخول عبر Google
   const handleGoogleLogin = async () => {
     setError(null);
+    if (!supabaseClient) {
+      setError("إعدادات Supabase غير مكتملة بعد.");
+      return;
+    }
+    
     try {
-      await supabase.auth.signInWithOAuth({
+      await supabaseClient.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/admin/dashboard`,
@@ -39,8 +56,14 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    if (!supabaseClient) {
+      setError("إعدادات Supabase غير مكتملة بعد.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
       });
@@ -68,14 +91,12 @@ export default function LoginPage() {
         <h1 className="text-2xl font-extrabold text-white mb-2 tracking-wide">بوابة دخول Nova AI</h1>
         <p className="text-sm text-slate-400 mb-6 leading-relaxed">سجل دخولك للوصول إلى لوحة التحكم ومحرك بناء المواقع الذكي.</p>
 
-        {/* عرض الأخطاء إن وجدت */}
         {error && (
           <div className="mb-4 p-4 bg-red-950/20 border border-red-500/30 text-red-400 rounded-2xl text-xs text-right font-medium">
             {error}
           </div>
         )}
 
-        {/* زر تسجيل الدخول بواسطة Google الخاص بك */}
         <button
           type="button"
           onClick={handleGoogleLogin}
@@ -90,12 +111,10 @@ export default function LoginPage() {
           <span>تسجيل الدخول بواسطة Google</span>
         </button>
 
-        {/* خط فاصل أنيق */}
         <div className="flex items-center my-4 before:flex-1 before:border-t before:border-slate-800/60 after:flex-1 after:border-t after:border-slate-800/60">
           <span className="px-3 text-xs text-slate-500 font-medium">أو عبر البيانات</span>
         </div>
 
-        {/* نموذج تسجيل الدخول بالبريد المتكامل */}
         <form onSubmit={handleEmailLogin} className="space-y-4 text-right">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
