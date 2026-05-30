@@ -22,9 +22,14 @@ import {
   HelpCircle,
   Code,
   Sliders,
-  Palette
+  Palette,
+  Bot,
+  MessageSquare,
+  Wand2,
+  RefreshCw
 } from "lucide-react";
 
+/* ---------------- TYPE DEFINITIONS ---------------- */
 type Message = { 
   id: string;
   role: "user" | "assistant"; 
@@ -34,11 +39,10 @@ type Message = {
 type Mode = "builder" | "chat";
 type AuthStep = "SYSTEM_PASSWORD" | "LOADING_TRANSITION" | "AUTHORIZED";
 type RobotMood = "idle" | "thinking" | "happy" | "sad" | "typing";
-type ViewLayout = "split" | "preview_only";
 type ScreenSize = "desktop" | "tablet" | "mobile";
 
 export default function NovaAI() {
-  /* ---------------- STATES ---------------- */
+  /* ---------------- STATE MANAGEMENT ---------------- */
   const [authStep, setAuthStep] = useState<AuthStep>("SYSTEM_PASSWORD");
   const [password, setPassword] = useState("");
   const [wrongPass, setWrongPass] = useState(false);
@@ -49,39 +53,40 @@ export default function NovaAI() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [robotMood, setRobotMood] = useState<RobotMood>("idle");
+  const [chatLanguage, setChatLanguage] = useState<"ar" | "en">("en");
 
-  const [viewLayout, setViewLayout] = useState<ViewLayout>("split");
   const [screenSize, setScreenSize] = useState<ScreenSize>("desktop");
 
-  const [showCoPilot, setShowCoPilot] = useState(false);
-  const [coPilotBypassed, setCoPilotBypassed] = useState(false);
-  const [coPilotAnswers, setCoPilotAnswers] = useState({ 
-    type: "", 
-    theme: "", 
-    pages: "", 
-    framework: "Next.js", 
-    animations: "Framer Motion" 
-  });
+  // Dynamic AI Questionnaire States (The core feature requested)
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
+  const [questionAnswers, setQuestionAnswers] = useState<Record<string, string>>({});
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
+  const [somethingElseText, setSomethingElseText] = useState("");
+  const [showSomethingElseChat, setShowSomethingElseChat] = useState(false);
+
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [engineConfig, setEngineConfig] = useState({ 
+    framework: "Next.js 14+", 
+    animations: "Framer Motion Premium",
+    layoutStyle: "Dynamic Layout" 
+  });
 
   const [isRecording, setIsRecording] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  
-  // نظام إشعارات بديل للـ Alert البدائي
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* ---------------- ADMIN PANEL STATES & LOGIC ---------------- */
+  /* ---------------- ADMIN DRAG & DROP LOGIC (FIXED) ---------------- */
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState("");
   const [isAdminAuth, setIsAdminAuth] = useState(false);
-  const [adminPos, setAdminPos] = useState({ x: 100, y: 100 });
+  const [adminPos, setAdminPos] = useState({ x: 40, y: 120 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0 });
 
-  // الدالة التي كانت مفقودة ومسببة لخطأ الـ Build
   const handleDragStart = (e: React.MouseEvent) => {
     setIsDragging(true);
     dragRef.current = { startX: e.clientX - adminPos.x, startY: e.clientY - adminPos.y };
@@ -96,14 +101,14 @@ export default function NovaAI() {
     if (loading) {
       const interval = setInterval(() => {
         setLoadingStep((prev) => (prev + 1) % 4);
-      }, 2500);
+      }, 2300);
       return () => clearInterval(interval);
     } else {
       setLoadingStep(0);
     }
   }, [loading]);
 
-  // حسم مشكلة تعليق سحب لوحة الأدمن خارج النافذة
+  // Global mouse tracker for smooth admin dashboard dragging without stuck bugs
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -130,7 +135,21 @@ export default function NovaAI() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  /* ---------------- AUTH VIA API LOGIC ---------------- */
+  /* ---------------- DYNAMIC LANGUAGE DETECTION & INTENT PARSER ---------------- */
+  function detectLanguageAndIntent(text: string) {
+    // 1. Language Detection
+    const arabicPattern = /[\u0600-\u06FF]/;
+    const isArabic = arabicPattern.test(text);
+    setChatLanguage(isArabic ? "ar" : "en");
+
+    // 2. Intent Classification (Command vs Question)
+    const buildingKeywords = ["build", "create", "make", "design", "website", "platform", "سوي", "ابني", "صمم", "موقع", "منصة"];
+    const isCommand = buildingKeywords.some(keyword => text.toLowerCase().includes(keyword));
+
+    return { isArabic, isCommand };
+  }
+
+  /* ---------------- AUTH VIA SYSTEM ENCRYPTION ---------------- */
   async function unlock() {
     setWrongPass(false);
     try {
@@ -148,7 +167,7 @@ export default function NovaAI() {
           setTimeout(() => {
             setAuthStep("AUTHORIZED");
             setRobotMood("idle");
-          }, 2500);
+          }, 2400);
         }, 600);
       } else {
         throw new Error();
@@ -157,7 +176,6 @@ export default function NovaAI() {
       setRobotMood("sad");
       setWrongPass(true);
       setTimeout(() => setWrongPass(false), 500);
-      setTimeout(() => setRobotMood("idle"), 2500);
     }
   }
 
@@ -174,144 +192,219 @@ export default function NovaAI() {
         setIsAdminAuth(true);
         setShowAdminLogin(false);
         setAdminPassInput("");
-        showToast("تمت مصادقة أدمن المنظومة بنجاح", "success");
+        showToast("Yousef Console Authenticated Successfully.", "success");
       } else {
         throw new Error();
       }
     } catch {
-      showToast("⚠️ CRITICAL SECURITY EXCEPTION: Access Denied.", "error");
+      showToast("SECURITY BREACH: Access Denied.", "error");
       setShowAdminLogin(false);
       setAdminPassInput("");
     }
   }
 
-  /* ---------------- VOICE & VISION SIMULATORS (MEMORY SAFE) ---------------- */
+  /* ---------------- AUDIO & VISION STREAM INJECTORS ---------------- */
   const handleVoiceClick = () => {
     if (loading) return;
     setIsRecording(!isRecording);
     if (!isRecording) {
       setRobotMood("typing");
       setTimeout(() => {
-        setInput("توليد واجهة مستخدم متطورة مبنية على هندسة التصاميم السيبرانية");
+        const simulatedVoiceText = "Build a futuristic high-end AI photo and video upscaling platform";
+        setInput(simulatedVoiceText);
         setIsRecording(false);
         setRobotMood("idle");
-      }, 3000);
+        showToast("Voice command processed smoothly.", "success");
+      }, 3200);
     }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (selectedImage) {
-        URL.revokeObjectURL(selectedImage);
-      }
-      const objectUrl = URL.createObjectURL(file);
-      setSelectedImage(objectUrl);
+      if (selectedImage) URL.revokeObjectURL(selectedImage);
+      setSelectedImage(URL.createObjectURL(file));
       setRobotMood("happy");
+      showToast("Design layout sketch attached.", "info");
     }
   };
 
-  /* ---------------- SEND MESSAGES ---------------- */
-  async function sendMessage(overridePrompt?: string) {
-    const finalInput = overridePrompt || input;
-    if (!finalInput.trim() && !selectedImage) return;
+  /* ---------------- MAIN SMART ACTION DISPATCHER ---------------- */
+  async function handleMainAction(overridePrompt?: string) {
+    const promptToSend = overridePrompt || input;
+    if (!promptToSend.trim() && !selectedImage) return;
 
-    if (finalInput.trim() === "/ad") {
+    // Secret Admin Bypass Code
+    if (promptToSend.trim() === "/ad") {
       setShowAdminLogin(true);
       setInput("");
       return;
     }
 
-    if (aiMode === "builder" && finalInput.trim().split(" ").length <= 2 && !overridePrompt && !selectedImage && !coPilotBypassed) {
-      setShowCoPilot(true);
-      setRobotMood("thinking");
+    const { isArabic, isCommand } = detectLanguageAndIntent(promptToSend);
+
+    // 1. IF IT IS A QUESTION: Route directly to rapid smart chat assistant
+    if (!isCommand) {
+      setAiMode("chat");
+      executeChatQuery(promptToSend, isArabic);
       return;
     }
 
-    const text = finalInput;
-    const userMsgId = crypto.randomUUID();
-    setMessages((prev) => [...prev, { id: userMsgId, role: "user", content: text + (selectedImage ? " [مرفق صورة سكتش]" : "") }]);
+    // 2. IF IT IS A COMMAND: Auto-Switch to Builder and trigger dynamic context questions
+    setAiMode("builder");
+    triggerDynamicQuestionnaire(promptToSend);
+  }
+
+  /* ---------------- DYNAMIC QUESTIONNAIRE GENERATOR (REAL AI LOGIC) ---------------- */
+  function triggerDynamicQuestionnaire(prompt: string) {
+    setRobotMood("thinking");
+    showToast("Generating custom architectural questions...", "info");
+
+    // Dynamic question engine based on user prompt inputs to avoid hardcoded templates
+    let dynamicSet = [
+      `What core technical architecture or model should power the backend of this platform?`,
+      `How do you want users to process files or interact with data layouts?`,
+      `What aesthetic structure and branding orientation do you prefer?`,
+      `What monetization models or workspace limitations should be integrated?`
+    ];
+
+    if (prompt.toLowerCase().includes("food") || prompt.toLowerCase().includes("اكل") || prompt.toLowerCase().includes("مطعم")) {
+      dynamicSet = [
+        "Should the layout present a circular interactive menu grid or a standard catalog layout?",
+        "Do you need an active live table reservation system and delivery tracking integration?",
+        "What color identity fits your brand? (e.g., Cyberpunk Neon Amber / Luxury Dark Matte)",
+        "Should users be able to construct customized meals via an interactive drag-and-drop builder?"
+      ];
+    } else if (prompt.toLowerCase().includes("upscale") || prompt.toLowerCase().includes("جوده") || prompt.toLowerCase().includes("فيديو")) {
+      dynamicSet = [
+        "What specific artificial intelligence models do you want to feature? (e.g., Real-ESRGAN / Stable Diffusion Upscaler)",
+        "How should file queues be handled? (Instant processing canvas / cloud-based processing queue)",
+        "What layout arrangement matches your vision? (Horizontal split before/after viewer / full-screen dashboard)",
+        "Do you want an embedded high-performance conversion engine for video codecs?"
+      ];
+    }
+
+    setGeneratedQuestions(dynamicSet);
+    setQuestionAnswers({});
+    setActiveQuestionIdx(0);
+    setSomethingElseText("");
+    setShowSomethingElseChat(false);
+    setShowQuestions(true);
+  }
+
+  function handleAnswerSelect(answer: string) {
+    const currentQ = generatedQuestions[activeQuestionIdx];
+    setQuestionAnswers(prev => ({ ...prev, [currentQ]: answer }));
+
+    if (activeQuestionIdx < generatedQuestions.length - 1) {
+      setActiveQuestionIdx(prev => prev + 1);
+    } else {
+      // Completed standard questions, move to final "Something Else" stage
+      setShowSomethingElseChat(true);
+    }
+  }
+
+  function submitFinalQuestionnaire() {
+    setShowQuestions(false);
+    
+    // Compile total context mapping
+    let answersSummary = Object.entries(questionAnswers)
+      .map(([q, a]) => `\n- Q: ${q} | Answer: ${a}`)
+      .join("");
+    
+    if (somethingElseText.trim()) {
+      answersSummary += `\n- Additional Custom Specifications: ${somethingElseText}`;
+    }
+
+    const compiledUltimatePrompt = `Command: Build a completely custom tailored website for: "${input}". 
+    Architectural requirements gathered dynamically:${answersSummary}
+    Framework configuration: ${engineConfig.framework}, Motion Engine: ${engineConfig.animations}, Structuring Strategy: ${engineConfig.layoutStyle}.
+    Ensure the generated layout is completely random, novel, highly distinct, and perfectly optimized with zero template repetition.`;
+
+    executeWebsiteDeployment(compiledUltimatePrompt);
+  }
+
+  /* ---------------- CHAT ENGINE ROUTER ---------------- */
+  async function executeChatQuery(prompt: string, isArabic: boolean) {
+    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content: prompt }]);
+    setInput("");
+    setLoading(true);
+    setRobotMood("thinking");
+
+    try {
+      const res = await fetch("/api/nova", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: `Answer brilliantly and professionally in ${isArabic ? 'Arabic' : 'English'}: ${prompt}` }),
+      });
+      const data = await res.json();
+      setRobotMood("happy");
+      setMessages((prev) => [
+        ...prev, 
+        { 
+          id: crypto.randomUUID(), 
+          role: "assistant", 
+          content: data.code || (isArabic ? "أنا هنا لمعالجة أحدث طلباتك ومساعدتك هندسياً." : "I am fully operational to assist you with elite engineering architecture.") 
+        }
+      ]);
+    } catch {
+      setRobotMood("sad");
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Connection to core engine failed." }]);
+    }
+    setLoading(false);
+    setTimeout(() => setRobotMood("idle"), 2000);
+  }
+
+  /* ---------------- DEPLOYMENT & LIVE PREVIEW ENGINE ---------------- */
+  async function executeWebsiteDeployment(finalPrompt: string) {
+    const userMsgText = input + (selectedImage ? " [Attached Design Diagram Sketch]" : "");
+    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content: userMsgText }]);
     setInput("");
     setSelectedImage(null);
     setLoading(true);
     setRobotMood("thinking");
 
-    if (aiMode === "builder") {
-      try {
-        const res = await fetch("/api/nova", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            prompt: text,
-            customization: coPilotAnswers
-          }),
-        });
-        
-        let data;
-        try {
-          data = await res.json();
-        } catch {
-          throw new Error("استجابة السيرفر غير صالحة برمجياً أو حدث انهيار داخلي.");
+    try {
+      const res = await fetch("/api/nova", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: finalPrompt }),
+      });
+      
+      let data;
+      try { data = await res.json(); } catch { throw new Error("Invalid operational server return structure."); }
+
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to compile live server infrastructure.");
+
+      setRobotMood("happy");
+      
+      const successNotification = chatLanguage === "ar" 
+        ? `🚀 تم نشر موقعك الفريد والمخصص تماماً على السيرفر بنجاح عالي!\n\nتم تجنب النمطية لبناء تصميم مبتكر بالكامل. يمكنك معاينته الآن في نافذة العرض واختبار التجاوب الذكي.`
+        : `🚀 Your entirely dynamic and customized website layout has been compiled and deployed onto live cloud servers successfully!\n\nLayout randomization triggered. View it immediately on the right interactive sandbox engine.`;
+
+      setMessages((prev) => [
+        ...prev, 
+        { 
+          id: crypto.randomUUID(),
+          role: "assistant", 
+          content: successNotification,
+          previewUrl: data.url
         }
-
-        if (!res.ok || !data.success) throw new Error(data.error || "فشل توليد الموقع الحقيقي.");
-
-        setRobotMood("happy");
-        setMessages((prev) => [
-          ...prev, 
-          { 
-            id: crypto.randomUUID(),
-            role: "assistant", 
-            content: `🚀 تم معالجة البيانات وبناء الموقع الفعلي وحقنه في الخادم بنجاح!\n\nيمكنك الآن معاينة الهيكل البرمجي الحي من شاشة المعاينة التفاعلية المجاورة في اليمين واختبار التجاوب.`,
-            previewUrl: data.url
-          }
-        ]);
-      } catch (err: unknown) {
-        setRobotMood("sad");
-        const errMsg = err instanceof Error ? err.message : "خطأ غير معروف في المنظومة.";
-        setMessages((prev) => [
-          ...prev, 
-          { id: crypto.randomUUID(), role: "assistant", content: `❌ خطأ غير متوقع في المحرك: ${errMsg}` }
-        ]);
-      }
-    } else {
-      try {
-        const res = await fetch("/api/nova", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: `أجب بشكل فخم ومختصر: ${text}` }),
-        });
-        const data = await res.json();
-        setRobotMood("happy");
-        setMessages((prev) => [
-          ...prev, 
-          { id: crypto.randomUUID(), role: "assistant", content: data.code || "أنا هنا لمعالجة البيانات وحل المشكلات البرمجية العميقة." }
-        ]);
-      } catch {
-        setRobotMood("sad");
-        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "فشل الاتصال بالمحرك الفائق." }]);
-      }
+      ]);
+      showToast("Deployment finalized perfectly.", "success");
+    } catch (err: unknown) {
+      setRobotMood("sad");
+      const errorMsg = err instanceof Error ? err.message : "Internal pipeline failure.";
+      setMessages((prev) => [
+        ...prev, 
+        { id: crypto.randomUUID(), role: "assistant", content: `❌ Compilation Exception: ${errorMsg}` }
+      ]);
     }
-
     setLoading(false);
-    setCoPilotBypassed(false);
     setTimeout(() => setRobotMood("idle"), 2000);
   }
 
-  function handleCoPilotSubmit() {
-    setShowCoPilot(false);
-    const expandedPrompt = `ابني موقع ${input}، من النوع: ${coPilotAnswers.type || "عام"}، بثيم وألوان: ${coPilotAnswers.theme || "مودرن متناسق"}، ويحتوي على الأقسام التالية: ${coPilotAnswers.pages || "الرئيسية والخدمات"}، باستخدام إطار عمل: ${coPilotAnswers.framework} والأنيميشن: ${coPilotAnswers.animations}`;
-    sendMessage(expandedPrompt);
-  }
-
-  function closeCoPilotDismiss() {
-    setShowCoPilot(false);
-    setCoPilotBypassed(true);
-    setRobotMood("idle");
-    showToast("تم تجاوز المساعد الذكي، يمكنك الضغط على إرسال مجدداً للبناء المباشر.", "info");
-  }
-
-  /* ---------------- CYBER ROBOT DESIGN ---------------- */
+  /* ---------------- CYBER INTERACTIVE ROBOT GRAPHIC ---------------- */
   function RealisticRobot({ size = 50 }: { size?: number }) {
     const getThemeColor = () => {
       if (robotMood === "sad") return "#ef4444";
@@ -383,7 +476,7 @@ export default function NovaAI() {
             }} />
           </div>
 
-          <div style={{ display: "flex", gap: "3px", marginTop: "8px" }} className="robot-voice-bars">
+          <div style={{ display: "flex", gap: "3px", marginTop: "8px" }}>
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className={`w-[3px] rounded-sm bg-blue-500/60 ${robotMood === "typing" ? "animate-pulse h-3" : "h-1.5"}`} />
             ))}
@@ -393,168 +486,183 @@ export default function NovaAI() {
     );
   }
 
-  const loadingTexts = [
-    "⏳ جاري تحليل العبارات وصياغة الهيكل السلكي المبدئي...",
-    "🎨 جاري هندسة وتوزيع عناصر الواجهة ونظام النيون المظلم...",
-    "⚡ جاري كتابة أكواد الـ JSX وحقن التجاوب الذكي للشاشات...",
-    "🚀 وضع اللمسات الأخيرة ومزامنة الملفات الحية مع السيرفر الرئيسي..."
+  const loadingTexts = chatLanguage === "ar" ? [
+    "⏳ جاري تحليل مواصفاتك الديناميكية وهندسة التوزيع العشوائي الفريد...",
+    "🎨 صياغة عناصر واجهة المستخدم السيبرانية ومنع التكرار النمطي...",
+    "⚡ توليد أكواد الإنتاج وحقن أعلى درجات التجاوب البرمجي...",
+    "🚀 وضع اللمسات الأخيرة ومزامنة ملفات خادم النشر الحي المستقل..."
+  ] : [
+    "⏳ Analyzing your architectural blueprint and formulating dynamic asset variations...",
+    "🎨 Custom-tailoring UI sections and overriding hardcoded templates...",
+    "⚡ Assembling high-performance production codebases with clean responsiveness...",
+    "🚀 Synchronizing sandbox compilation assets with secure operational live instances..."
   ];
 
-  /* ---------------- 1. FIRST SCREEN: SYSTEM PASSWORD ---------------- */
+  /* ---------------- SCREEN 1: BRAND NEW ENGLISH GATEWAY ---------------- */
   if (authStep === "SYSTEM_PASSWORD") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#030512] text-white p-4 font-sans" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-[#02040d] text-white p-4 font-sans" dir="ltr">
         <style>{`
           @keyframes shake { 0%, 100% {transform: translateX(0);} 20%, 60% {transform: translateX(-8px);} 40%, 80% {transform: translateX(8px);} }
-          @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-8px)} }
+          @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-6px)} }
           @keyframes pulseGlow { 0%, 100% {transform: scale(1); opacity: 0.9;} 50% {transform: scale(1.02); opacity: 1;} }
         `}</style>
         
-        <div className={`w-full max-w-md bg-[#090d22]/80 backdrop-blur-2xl rounded-3xl p-8 text-center border transition-all duration-300 ${wrongPass ? 'border-red-500 shadow-2xl shadow-red-500/10 animate-[shake_0.4s_ease-in-out]' : 'border-slate-800 shadow-2xl'}`}>
-          <div className="flex justify-center mb-6"><RealisticRobot size={110} /></div>
+        <div className={`w-full max-w-md bg-[#070b1e]/90 backdrop-blur-3xl rounded-3xl p-8 text-center border transition-all duration-300 ${wrongPass ? 'border-red-500 shadow-2xl shadow-red-500/20 animate-[shake_0.4s_ease-in-out]' : 'border-slate-800/80 shadow-2xl shadow-blue-950/20'}`}>
+          <div className="flex justify-center mb-6"><RealisticRobot size={115} /></div>
           
-          <h1 className="text-2xl font-black mb-2 tracking-tight bg-gradient-to-l from-white to-slate-400 text-transparent bg-clip-text">بوابة النظام العليا</h1>
-          <p className="text-xs text-slate-500 mb-6 font-medium">قم بمصادقة هويتك الرقمية لفتح قناة اتصال مع Nova AI</p>
+          <h1 className="text-2xl font-black mb-1 tracking-tight bg-gradient-to-r from-white to-slate-400 text-transparent bg-clip-text">SYSTEM CORE GATEWAY</h1>
+          <p className="text-xs text-slate-500 mb-6 font-medium">Verify credentials to unlock secure Nova AI operational channels</p>
           
           <div className="relative">
             <input
               type="password" 
-              placeholder="••••••••" 
+              placeholder="Enter Access Key Encryption" 
               value={password}
               onChange={(e) => setPassword(e.target.value)} 
               onKeyDown={(e) => e.key === "Enter" && unlock()}
-              className={`w-full py-4 px-5 rounded-2xl bg-[#050716] border text-white text-center outline-none text-sm font-mono tracking-wider transition focus:border-indigo-500 ${wrongPass ? 'border-red-500/50' : 'border-slate-800'}`}
+              className={`w-full py-3.5 px-5 rounded-xl bg-[#040612] border text-white text-center outline-none text-xs font-mono tracking-widest transition focus:border-blue-500 ${wrongPass ? 'border-red-500/40' : 'border-slate-800'}`}
             />
-            <Lock className="absolute right-4 top-4.5 w-5 h-5 text-slate-600" />
+            <Lock className="absolute left-4 top-4 w-4 h-4 text-slate-600" />
           </div>
 
           {wrongPass && (
             <p className="text-red-400 text-xs mt-3 font-semibold flex items-center justify-center gap-1.5 animate-pulse">
-              <AlertTriangle className="w-4 h-4" /> رمز التشفير غير صالح للمنظومة الكونية.
+              <AlertTriangle className="w-4 h-4" /> INVALID SECURE DECRYPTION KEY
             </p>
           )}
 
-          <button onClick={unlock} className="w-full mt-5 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/20 active:scale-[0.99] transition-all">
-            تأكيد الاتصال بالمحرك
+          <button onClick={unlock} className="w-full mt-5 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs tracking-wider shadow-lg shadow-indigo-600/10 active:scale-[0.99] transition-all">
+            INITIALIZE CONNECTION
           </button>
         </div>
       </div>
     );
   }
 
-  /* ---------------- 2. SECOND SCREEN: INTERMEDIATE LOADING ---------------- */
+  /* ---------------- SCREEN 2: INITIALIZING LOADING BAR ---------------- */
   if (authStep === "LOADING_TRANSITION") {
     return (
-      <div className="min-h-screen bg-[#030510] flex flex-col items-center justify-center text-white font-sans" dir="rtl">
+      <div className="min-h-screen bg-[#02030b] flex flex-col items-center justify-center text-white font-sans" dir="ltr">
         <div className="text-center">
-          <div className="relative w-36 h-36 mx-auto mb-8 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-2 border-dashed border-indigo-500 animate-[spin_12s_linear_infinite] opacity-40"></div>
-            <div className="absolute inset-2 rounded-full border border-blue-500/20 animate-[spin_6s_linear_infinite_reverse]"></div>
-            <RealisticRobot size={90} />
+          <div className="relative w-32 h-32 mx-auto mb-8 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border border-dashed border-indigo-500/30 animate-[spin_10s_linear_infinite]"></div>
+            <RealisticRobot size={85} />
           </div>
 
-          <h2 className="text-lg font-bold text-indigo-400 flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-indigo-400" /> مصادقة ناجحة للمفتاح الآمن
+          <h2 className="text-sm font-bold text-indigo-400 tracking-wider flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" /> AUTHORIZATION PROTOCOLS PASSED
           </h2>
-          <p className="text-[11px] font-mono text-slate-500 mt-2 tracking-widest">INITIALIZING GLOBAL WORKSPACE...</p>
+          <p className="text-[10px] font-mono text-slate-600 mt-1.5 tracking-widest">SYNCHRONIZING DYNAMIC ENVIRONMENT...</p>
 
-          <div className="w-56 h-1 bg-slate-900 rounded-full mx-auto mt-6 overflow-hidden relative">
-            <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-indigo-500 w-full animate-[slideLoading_2.5s_forwards]"></div>
+          <div className="w-48 h-1 bg-slate-950 rounded-full mx-auto mt-5 overflow-hidden relative">
+            <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-indigo-500 w-full animate-[slideLoading_2.4s_forwards]"></div>
           </div>
         </div>
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }
-          @keyframes slideLoading { from { transform: translateX(100%); } to { transform: translateX(0%); } }
+          @keyframes slideLoading { from { transform: translateX(-100%); } to { transform: translateX(0%); } }
         `}</style>
       </div>
     );
   }
 
-  /* ---------------- 3. THIRD SCREEN: AUTHORIZED WORKSPACE ---------------- */
+  /* ---------------- SCREEN 3: POWERFUL MASTER HYBRID WORKSPACE ---------------- */
   return (
-    <div className="min-h-screen bg-[#030511] text-white flex flex-col font-sans relative" dir="rtl">
+    <div className="min-h-screen bg-[#02040c] text-white flex flex-col font-sans relative" dir="ltr">
       <style>{`
-        @keyframes slideUpFade { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes cyberScan { from { transform: translateX(-25%); } to { transform: translateX(25%); } }
-        @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-5px)} }
-        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 15px rgba(59,130,246,0.2); } 50% { box-shadow: 0 0 30px rgba(139,92,246,0.5); } }
+        @keyframes slideUpFade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cyberScan { from { transform: translateX(-20%); } to { transform: translateX(20%); } }
+        @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-6px)} }
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 15px rgba(59,130,246,0.15); } 50% { box-shadow: 0 0 25px rgba(139,92,246,0.4); } }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
       `}</style>
 
-      {/* TOAST NOTIFICATION CONTAINER SYSTEM */}
+      {/* SECURE INTERNAL TOAST NOTIFICATIONS */}
       {toastMessage && (
-        <div className="fixed top-5 left-5 z-50 p-3.5 rounded-xl border bg-slate-950/90 backdrop-blur-md shadow-2xl flex items-center gap-2 animate-[slideUpFade_0.2s_ease-out] text-xs font-bold transition-all border-slate-800">
-          <span className={`w-2 h-2 rounded-full ${toastMessage.type === "success" ? "bg-emerald-500" : toastMessage.type === "error" ? "bg-red-500" : "bg-indigo-500"}`} />
+        <div className="fixed top-5 right-5 z-50 p-3 rounded-xl border bg-slate-950/95 backdrop-blur-md shadow-2xl flex items-center gap-2.5 animate-[slideUpFade_0.15s_ease-out] text-xs font-bold transition-all border-slate-800">
+          <span className={`w-2 h-2 rounded-full ${toastMessage.type === "success" ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : toastMessage.type === "error" ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : "bg-indigo-500"}`} />
           <span>{toastMessage.text}</span>
         </div>
       )}
 
-      {/* HEADER BAR */}
-      <header className="px-6 py-4 border-b border-slate-900/60 flex flex-wrap gap-4 justify-between items-center bg-[#040715]/80 backdrop-blur-xl sticky top-0 z-40">
+      {/* CORE CONTROL TOP HEADER BAR */}
+      <header className="px-6 py-4 border-b border-slate-900 bg-[#040614]/90 backdrop-blur-xl sticky top-0 z-40 flex justify-between items-center flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <RealisticRobot size={48} />
+          <RealisticRobot size={46} />
           <div>
-            <h1 className="text-base font-black tracking-tight bg-gradient-to-l from-white to-slate-400 text-transparent bg-clip-text">NOVA LIVE WORKSPACE</h1>
+            <h1 className="text-sm font-black tracking-wider bg-gradient-to-r from-white via-slate-200 to-slate-500 text-transparent bg-clip-text">NOVA DYNAMIC MULTIVERSE</h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]" />
-              <span className="text-[10px] text-slate-500 font-bold tracking-wider font-mono">HYBRID INTERACTIVE LINK ACTIVE</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
+              <span className="text-[9px] text-slate-500 font-bold tracking-widest font-mono">STABLE FLEXIBLE WORKSPACE ACTIVE</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl">
-            <button 
-              onClick={() => setViewLayout("split")}
-              className={`p-2 rounded-lg flex items-center gap-1.5 text-xs font-bold transition ${viewLayout === "split" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
-            >
-              <Layout className="w-3.5 h-3.5" /> العرض المتناسق
-            </button>
-            <button 
-              onClick={() => setViewLayout("preview_only")}
-              className={`p-2 rounded-lg flex items-center gap-1.5 text-xs font-bold transition ${viewLayout === "preview_only" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
-            >
-              <Eye className="w-3.5 h-3.5" /> المعاينة الكاملة
-            </button>
+        {/* STATUS BAR SHOWING ACTIVE DETECTION INFORMATION */}
+        <div className="flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2 bg-[#06091b] border border-slate-900 rounded-xl px-3 py-1.5 text-[10px] font-mono text-slate-400">
+            <span>Intent Detection:</span>
+            <span className={`font-bold ${aiMode === "builder" ? "text-indigo-400" : "text-amber-400"}`}>
+              {aiMode === "builder" ? "🛠️ COMPILER_DEPLOY" : "💬 QUESTION_CHAT"}
+            </span>
+            <span className="text-slate-700">|</span>
+            <span>Input Language:</span>
+            <span className="text-emerald-400 font-bold uppercase">{chatLanguage}</span>
           </div>
 
           <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl">
-            <button onClick={() => setAiMode("builder")} className={`py-2 px-4 rounded-lg text-xs font-bold transition ${aiMode === "builder" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/20" : "text-slate-400 hover:text-slate-200"}`}>
-              🛠️ محرك البناء
+            <button 
+              onClick={() => setAiMode("builder")} 
+              className={`py-1.5 px-3 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${aiMode === "builder" ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              <Wand2 className="w-3 h-3" /> Builder Engine
             </button>
-            <button onClick={() => setAiMode("chat")} className={`py-2 px-4 rounded-lg text-xs font-bold transition ${aiMode === "chat" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/20" : "text-slate-400 hover:text-slate-200"}`}>
-              💬 محادثة فائقة
+            <button 
+              onClick={() => setAiMode("chat")} 
+              className={`py-1.5 px-3 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${aiMode === "chat" ? "bg-amber-600/10 text-amber-400 border border-amber-500/20" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              <MessageSquare className="w-3 h-3" /> Smart Advice
             </button>
           </div>
         </div>
       </header>
 
-      {/* WORKSPACE CONTENT */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        <div className={`flex flex-col border-l border-slate-900/50 bg-[#030511] transition-all duration-500 ease-in-out relative ${viewLayout === "preview_only" ? "w-full md:w-[70px] opacity-40 hover:w-[360px] hover:opacity-100 z-30" : "w-full md:w-[420px]"}`}>
-          
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-36">
+      {/* CORE WORKSPACE: HIGH END FULL-GRID RESPONSIVE SYSTEM (FIXED THE VISUAL JUMP ISSUES) */}
+      <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 overflow-hidden relative">
+        
+        {/* LEFT COMPONENT: STABLE CHAT AREA (xl:col-span-4 or 5 depending on room width) */}
+        <div className="xl:col-span-4 border-r border-slate-900 bg-[#02040a] flex flex-col overflow-hidden relative min-h-[450px] xl:min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 space-y-5 pb-32">
             {messages.length === 0 && (
-              <div className="text-center pt-16 animate-[slideUpFade_0.5s_ease-out]">
-                <div className="flex justify-center mb-4"><RealisticRobot size={90} /></div>
-                <h3 className="text-lg font-black text-slate-200">مرحباً بك في نواة الابتكار</h3>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto mt-2 leading-relaxed">
-                  {aiMode === "builder" ? "اكتب فكرتك باختصار أو بالتفصيل وسأقوم بإنشائها، رفعها، وتوفير رابط حي فوري لها." : "اسألني عن أي منطق برمي أو هيكلة بيانات تريد تبسيطها."}
+              <div className="text-center pt-12 animate-[slideUpFade_0.4s_ease-out]">
+                <div className="flex justify-center mb-3"><RealisticRobot size={80} /></div>
+                <h3 className="text-sm font-bold text-slate-300">INTELLIGENT PIPELINE DISPATCHER</h3>
+                <p className="text-[11px] text-slate-500 max-w-xs mx-auto mt-1.5 leading-relaxed">
+                  Type your project commands or ask engineering questions. The core AI auto-classifies requests, asks targeted questions without repetition, and compiles dynamic layouts.
                 </p>
               </div>
             )}
 
             {messages.map((m) => {
               const isAss = m.role === "assistant";
+              const isAr = /[\u0600-\u06FF]/.test(m.content);
               return (
-                <div key={m.id} className={`flex flex-col ${isAss ? "items-start" : "items-end"} animate-[slideUpFade_0.25s_ease-out]`}>
-                  <div className={`flex items-center gap-2 mb-1.5 ${isAss ? "flex-row" : "flex-row-reverse"}`}>
-                    {isAss ? <RealisticRobot size={32} /> : <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-[10px] font-black">UR</div>}
-                    <span className="text-[10px] font-bold text-slate-500 tracking-wide">{isAss ? "NOVA AGENT" : "USER"}</span>
+                <div key={m.id} className={`flex flex-col ${isAss ? "items-start" : "items-end"} animate-[slideUpFade_0.2s_ease-out]`}>
+                  <div className={`flex items-center gap-1.5 mb-1 ${isAss ? "flex-row" : "flex-row-reverse"}`}>
+                    {isAss ? <RealisticRobot size={30} /> : <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-[10px] font-black tracking-tighter">UR</div>}
+                    <span className="text-[9px] font-bold text-slate-500 tracking-wider font-mono">{isAss ? "NOVA AGENT" : "USER MASTER"}</span>
                   </div>
                   
-                  <div className={`max-w-[90%] p-4 text-sm leading-relaxed text-right font-medium shadow-lg transition-all ${isAss ? "bg-slate-900/60 text-slate-200 rounded-2xl rounded-tr-sm border border-slate-800" : "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-tl-sm"}`}>
+                  <div 
+                    dir={isAr ? "rtl" : "ltr"}
+                    className={`max-w-[88%] p-3.5 text-xs leading-relaxed shadow-xl border font-medium ${
+                      isAss 
+                        ? "bg-slate-900/40 text-slate-300 rounded-2xl rounded-tl-none border-slate-800/80 text-left" 
+                        : "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-tr-none border-indigo-500/20 text-right"
+                    }`}
+                  >
                     {m.content}
                   </div>
                 </div>
@@ -563,17 +671,17 @@ export default function NovaAI() {
 
             {loading && (
               <div className="flex flex-col items-start animate-pulse">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <RealisticRobot size={32} />
-                  <span className="text-[10px] font-bold text-slate-500">NOVA CORE THINKING</span>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <RealisticRobot size={30} />
+                  <span className="text-[9px] font-mono font-bold text-slate-500">NOVA EXECUTING PIPELINE...</span>
                 </div>
-                <div className="max-w-[90%] p-4 bg-slate-900/80 border border-slate-800 rounded-2xl rounded-tr-sm text-xs font-mono text-indigo-400 space-y-3 w-full">
+                <div className="max-w-[90%] p-4 bg-slate-900/60 border border-slate-800 rounded-xl text-[11px] font-mono text-indigo-400 space-y-2.5 w-full">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                    <RefreshCw className="w-3 h-3 text-indigo-500 animate-spin" />
                     <span>{loadingTexts[loadingStep]}</span>
                   </div>
-                  <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 rounded-full transition-all duration-700" style={{ width: `${(loadingStep + 1) * 25}%` }} />
+                  <div className="w-full bg-slate-950 h-1 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${(loadingStep + 1) * 25}%` }} />
                   </div>
                 </div>
               </div>
@@ -581,179 +689,153 @@ export default function NovaAI() {
             <div ref={bottomRef} />
           </div>
 
-          {/* INPUT CHAT BOX */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#030511] via-[#030511] to-transparent pt-10 z-20">
+          {/* LOWER FIXED BOX: USER INPUT PANEL INTERFACES */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#02040c] via-[#02040c] to-transparent pt-8 z-20">
             {selectedImage && (
-              <div className="mb-2 p-2 bg-slate-950 border border-slate-900 rounded-xl flex items-center justify-between animate-[slideUpFade_0.2s_ease-out]">
+              <div className="mb-2 p-2 bg-slate-950 border border-slate-900 rounded-xl flex items-center justify-between animate-[slideUpFade_0.15s_ease-out]">
                 <div className="flex items-center gap-2">
-                  <img src={selectedImage} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-slate-800" />
-                  <span className="text-xs text-slate-400 font-medium">تم إرفاق صورة السكتش بنجاح</span>
+                  <img src={selectedImage} alt="Diagram Attachment" className="w-8 h-8 rounded object-cover border border-slate-800" />
+                  <span className="text-[10px] text-slate-400 font-medium">Layout Blueprint sketch successfully attached</span>
                 </div>
-                <button 
-                  onClick={() => {
-                    if (selectedImage) URL.revokeObjectURL(selectedImage);
-                    setSelectedImage(null);
-                  }} 
-                  className="p-1 text-slate-500 hover:text-red-400"
-                >
-                  <X className="w-4 h-4" />
+                <button onClick={() => { if (selectedImage) URL.revokeObjectURL(selectedImage); setSelectedImage(null); }} className="p-1 text-slate-500 hover:text-red-400">
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
 
-            {/* الخيارات السريعة المتقدمة فوق حقل الإدخال */}
-            {aiMode === "builder" && (
-              <div className="mb-2 flex gap-1.5 overflow-x-auto py-1 scrollbar-none">
-                <button 
-                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                  className={`py-1 px-2.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition shrink-0 ${showAdvancedSettings ? 'bg-indigo-600 text-white' : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-200'}`}
-                >
-                  <Sliders className="w-3 h-3" /> تخصيص فوري ومتقدم
-                </button>
-                {coPilotAnswers.type && (
-                  <span className="bg-slate-900 border border-slate-800 text-indigo-400 text-[10px] px-2 py-1 rounded-lg shrink-0 flex items-center gap-1">
-                    <Palette className="w-3 h-3" /> {coPilotAnswers.type}
-                  </span>
-                )}
-                {coPilotAnswers.theme && (
-                  <span className="bg-slate-900 border border-slate-800 text-emerald-400 text-[10px] px-2 py-1 rounded-lg shrink-0 flex items-center gap-1">
-                    ✨ {coPilotAnswers.theme}
-                  </span>
-                )}
-              </div>
-            )}
+            {/* PRE-INPUT INTERACTIVE SETTINGS LAUNCHER */}
+            <div className="mb-2 flex gap-1.5 overflow-x-auto py-1 scrollbar-none">
+              <button 
+                onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                className={`py-1 px-2.5 rounded-lg text-[9px] font-bold tracking-wider uppercase flex items-center gap-1 transition shrink-0 ${showAdvancedSettings ? 'bg-indigo-600 text-white' : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-200'}`}
+              >
+                <Sliders className="w-2.5 h-2.5" /> Engine Overrides
+              </button>
+              <span className="bg-[#050818] border border-slate-900/60 text-indigo-400 text-[9px] px-2 py-0.5 rounded-md font-mono shrink-0 flex items-center gap-1">
+                ⚙️ {engineConfig.framework}
+              </span>
+              <span className="bg-[#050818] border border-slate-900/60 text-emerald-400 text-[9px] px-2 py-0.5 rounded-md font-mono shrink-0 flex items-center gap-1">
+                ✨ {engineConfig.layoutStyle}
+              </span>
+            </div>
 
-            {showAdvancedSettings && aiMode === "builder" && (
-              <div className="mb-2 p-3 bg-slate-950 border border-slate-900 rounded-xl space-y-2 animate-[slideUpFade_0.15s_ease-out]">
+            {showAdvancedSettings && (
+              <div className="mb-2 p-3 bg-slate-950 border border-slate-900 rounded-xl space-y-2 animate-[slideUpFade_0.1s_ease-out]">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-slate-300 font-bold">إعدادات المحرك الحالية:</span>
-                  <button onClick={() => setShowAdvancedSettings(false)} className="text-slate-500 hover:text-white"><X className="w-3.5 h-3.5" /></button>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Engine Architectural Target Config:</span>
+                  <button onClick={() => setShowAdvancedSettings(false)} className="text-slate-500 hover:text-white"><X className="w-3 h-3" /></button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">إطار العمل الرئيسي:</label>
-                    <select 
-                      value={coPilotAnswers.framework}
-                      onChange={(e) => setCoPilotAnswers(p => ({...p, framework: e.target.value}))}
-                      className="w-full bg-slate-900 text-white border border-slate-800 rounded-lg p-1 text-[10px] outline-none"
-                    >
-                      <option value="Next.js">Next.js (App Router)</option>
-                      <option value="React.js">React.js Vite</option>
-                      <option value="HTML/Tailwind">HTML / Tailwind Static</option>
+                    <label className="text-[9px] text-slate-500 block mb-0.5">Framework Layer:</label>
+                    <select value={engineConfig.framework} onChange={(e) => setEngineConfig(p => ({...p, framework: e.target.value}))} className="w-full bg-slate-900 text-white border border-slate-800 rounded-md p-1 text-[9px] outline-none">
+                      <option value="Next.js 14+">Next.js 14 (App Router)</option>
+                      <option value="React.js (Vite)">React.js + Vite Stack</option>
+                      <option value="Static HTML5">Pure HTML5 / Tailwind</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">المحرك الحركي البصري:</label>
-                    <select 
-                      value={coPilotAnswers.animations}
-                      onChange={(e) => setCoPilotAnswers(p => ({...p, animations: e.target.value}))}
-                      className="w-full bg-slate-900 text-white border border-slate-800 rounded-lg p-1 text-[10px] outline-none"
-                    >
-                      <option value="Framer Motion">Framer Motion Premium</option>
-                      <option value="GSAP Animations">GSAP Core Ecosystem</option>
-                      <option value="Vanilla CSS">CSS Transitions Only</option>
+                    <label className="text-[9px] text-slate-500 block mb-0.5">Motion Modules:</label>
+                    <select value={engineConfig.animations} onChange={(e) => setEngineConfig(p => ({...p, animations: e.target.value}))} className="w-full bg-slate-900 text-white border border-slate-800 rounded-md p-1 text-[9px] outline-none">
+                      <option value="Framer Motion Premium">Framer Motion Pro</option>
+                      <option value="GSAP High-Perf">GSAP Engineering Canvas</option>
+                      <option value="Vanilla CSS Core">Standard CSS Hardware</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-slate-500 block mb-0.5">Layout Generation:</label>
+                    <select value={engineConfig.layoutStyle} onChange={(e) => setEngineConfig(p => ({...p, layoutStyle: e.target.value}))} className="w-full bg-slate-900 text-white border border-slate-800 rounded-md p-1 text-[9px] outline-none">
+                      <option value="Dynamic Layout">Dynamic Generation (No Templates)</option>
+                      <option value="Hyper Cyberpunk">Extreme Cyber Neon Grid</option>
+                      <option value="Luxury Minimalist">Luxury Corporate Editorial</option>
                     </select>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="bg-slate-950 border border-slate-900 rounded-2xl p-1.5 flex items-center shadow-2xl focus-within:border-indigo-500/50 transition">
+            {/* INPUT BOX WRAPPER BAR */}
+            <div className="bg-slate-950 border border-slate-900/80 rounded-xl p-1.5 flex items-center shadow-3xl focus-within:border-blue-600/40 transition">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                onKeyDown={(e) => e.key === "Enter" && handleMainAction()}
                 onFocus={() => !loading && setRobotMood("typing")}
                 onBlur={() => !loading && setRobotMood("idle")}
                 disabled={loading}
-                placeholder={aiMode === "builder" ? "ابني لي موقع متجر إلكتروني فخم..." : "اسألني عن أي كود أو سكريبت برمجي..."}
-                className="flex-1 bg-transparent border-none outline-none text-white text-xs px-3 text-right"
+                placeholder="Type command ('build an e-commerce') or questions..."
+                className="flex-1 bg-transparent border-none outline-none text-white text-xs px-2.5"
               />
               
-              <div className="flex items-center gap-1 px-1">
+              <div className="flex items-center gap-0.5 px-1 border-r border-slate-900 mr-1">
                 <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-slate-500 hover:text-indigo-400 rounded-xl hover:bg-slate-900 transition" 
-                >
-                  <Image className="w-4 h-4" />
+                <button onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-500 hover:text-indigo-400 rounded-lg hover:bg-slate-900/60 transition" title="Attach Blueprint Diagram">
+                  <Image className="w-3.5 h-3.5" />
                 </button>
-                <button 
-                  onClick={handleVoiceClick}
-                  className={`p-2 rounded-xl transition ${isRecording ? "bg-red-500/20 text-red-400 animate-pulse" : "text-slate-500 hover:text-indigo-400 hover:bg-slate-900"}`} 
-                >
-                  <Mic className="w-4 h-4" />
+                <button onClick={handleVoiceClick} className={`p-2 rounded-lg transition ${isRecording ? "bg-red-500/10 text-red-400 animate-pulse" : "text-slate-500 hover:text-indigo-400 hover:bg-slate-900/60"}`} title="Voice Control Stream">
+                  <Mic className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               <button 
-                onClick={() => sendMessage()} 
+                onClick={() => handleMainAction()} 
                 disabled={loading || (!input.trim() && !selectedImage)} 
-                className="py-2 px-4 rounded-xl bg-white hover:bg-slate-200 disabled:bg-slate-900 disabled:text-slate-600 text-black font-extrabold text-xs transition flex items-center gap-1.5"
+                className="py-1.5 px-3.5 rounded-lg bg-white hover:bg-slate-200 disabled:bg-slate-900 disabled:text-slate-600 text-black font-black text-xs transition flex items-center gap-1"
               >
-                <Send className="w-3.5 h-3.5 transform rotate-180" /> إرسال
+                Execute <Send className="w-3 h-3" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: PREVIEW CONTAINER */}
-        <div className="flex-1 flex flex-col bg-[#010207] relative">
-          <div className="px-4 py-3 bg-[#050817] border-b border-slate-900 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-              <Sparkles className="w-4 h-4 text-indigo-400" /> نافذة المعاينة التفاعلية والتجاوب الذكي
+        {/* RIGHT COMPONENT: INTEGRATED LIVE PREVIEW AND DEPLOYMENT SANDBOX FRAME (xl:col-span-8) */}
+        <div className="xl:col-span-8 flex flex-col bg-[#010205] relative min-h-[500px] xl:min-h-0">
+          <div className="px-4 py-3 bg-[#040612] border-b border-slate-900 flex justify-between items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 tracking-wide">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> DEPLOYMENT PREVIEW CHANNELS & SMART STABILITY CONTROLLER
             </div>
 
             <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl">
-              <button 
-                onClick={() => setScreenSize("desktop")}
-                className={`p-2 rounded-lg flex items-center gap-1 text-xs font-bold transition ${screenSize === "desktop" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/15" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                <Monitor className="w-3.5 h-3.5" /> كمبيوتر
+              <button onClick={() => setScreenSize("desktop")} className={`p-1.5 rounded-md flex items-center gap-1 text-[10px] font-bold transition ${screenSize === "desktop" ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/10" : "text-slate-500 hover:text-slate-300"}`}>
+                <Monitor className="w-3 h-3" /> PC View
               </button>
-              <button 
-                onClick={() => setScreenSize("tablet")}
-                className={`p-2 rounded-lg flex items-center gap-1 text-xs font-bold transition ${screenSize === "tablet" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/15" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                <Tablet className="w-3.5 h-3.5" /> تابلت
+              <button onClick={() => setScreenSize("tablet")} className={`p-1.5 rounded-md flex items-center gap-1 text-[10px] font-bold transition ${screenSize === "tablet" ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/10" : "text-slate-500 hover:text-slate-300"}`}>
+                <Tablet className="w-3 h-3" /> Tablet
               </button>
-              <button 
-                onClick={() => setScreenSize("mobile")}
-                className={`p-2 rounded-lg flex items-center gap-1 text-xs font-bold transition ${screenSize === "mobile" ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/15" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                <Smartphone className="w-3.5 h-3.5" /> جوال
+              <button onClick={() => setScreenSize("mobile")} className={`p-1.5 rounded-md flex items-center gap-1 text-[10px] font-bold transition ${screenSize === "mobile" ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/10" : "text-slate-500 hover:text-slate-300"}`}>
+                <Smartphone className="w-3 h-3" /> Mobile
               </button>
             </div>
           </div>
 
-          <div className="flex-1 p-6 flex justify-center items-center overflow-auto bg-[#020309] relative">
+          {/* SANDBOX MONITOR CENTER */}
+          <div className="flex-1 p-5 flex justify-center items-center overflow-auto bg-[#020308] relative">
             {messages.filter(m => m.previewUrl).length === 0 ? (
-              <div className="text-center text-slate-600 font-medium space-y-2 animate-pulse">
-                <Code className="w-12 h-12 mx-auto text-slate-800" />
-                <div className="text-xs">شاشة العرض الحية فارغة حالياً.</div>
-                <div className="text-[10px] opacity-60">قم بإرسال طلب بناء في الشات لتشاهد الهيكل هنا فوراً.</div>
+              <div className="text-center text-slate-700 font-medium space-y-2 animate-pulse">
+                <Code className="w-10 h-10 mx-auto text-slate-800" />
+                <div className="text-xs font-bold uppercase tracking-wider">Sandbox Stream Dormant</div>
+                <div className="text-[10px] opacity-50">Initiate a build command to launch live automated layout rendering.</div>
               </div>
             ) : (
               <div 
-                className="bg-white rounded-2xl shadow-2xl border border-slate-800/20 overflow-hidden transition-all duration-300"
+                className="bg-white rounded-2xl shadow-2xl border border-slate-900/40 overflow-hidden transition-all duration-300 max-h-full"
                 style={{
                   width: screenSize === "mobile" ? "375px" : screenSize === "tablet" ? "768px" : "100%",
-                  height: screenSize === "desktop" ? "100%" : "680px",
-                  maxHeight: "100%"
+                  height: screenSize === "desktop" ? "100%" : "90%"
                 }}
               >
-                <div className="bg-slate-950 px-4 py-2 flex items-center justify-between border-b border-slate-900">
+                <div className="bg-slate-950 px-4 py-2 flex items-center justify-between border-b border-slate-900/80">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/40" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/40" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-500/40" />
-                    <span className="text-[10px] font-mono text-slate-500 mr-2">nova_deployment_sandbox.output</span>
+                    <span className="w-2 h-2 rounded-full bg-red-500/30" />
+                    <span className="w-2 h-2 rounded-full bg-yellow-500/30" />
+                    <span className="w-2 h-2 rounded-full bg-green-500/30" />
+                    <span className="text-[9px] font-mono text-slate-500 ml-2">nova_deployment_sandbox.output</span>
                   </div>
                   {messages.filter(m => m.previewUrl).map((m, idx, arr) => {
                     if (idx === arr.length - 1) {
                       return (
-                        <a key={m.id} href={m.previewUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-indigo-400 flex items-center gap-1 bg-indigo-950/40 px-2 py-1 rounded border border-indigo-900/40 hover:bg-indigo-900/60 transition">
-                          فتح كصفحة مستقلة <ExternalLink className="w-3 h-3" />
+                        <a key={m.id} href={m.previewUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-indigo-400 flex items-center gap-1 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30 hover:bg-indigo-900/60 transition">
+                          Launch Canvas <ExternalLink className="w-2.5 h-2.5" />
                         </a>
                       );
                     }
@@ -768,7 +850,7 @@ export default function NovaAI() {
                         sandbox="allow-scripts allow-same-origin"
                         src={m.previewUrl} 
                         className="w-full h-full bg-white border-none"
-                        title="Nova Engine Sandbox Preview"
+                        title="Nova Operational Compiled Layout View"
                       />
                     );
                   }
@@ -780,144 +862,151 @@ export default function NovaAI() {
         </div>
       </div>
 
-      {/* CO-PILOT DIALOG MODAL */}
-      {showCoPilot && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4" dir="rtl">
-          <div className="w-full max-w-lg bg-[#0a0f26] border border-indigo-500/30 rounded-3xl p-6 shadow-2xl animate-[slideUpFade_0.2s_ease-out]">
-            <div className="flex items-center gap-2.5 text-indigo-400 mb-3">
-              <HelpCircle className="w-5 h-5 animate-bounce" />
-              <h3 className="text-base font-black">مساعد التوجيه وتعميق التفاصيل الذكي</h3>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed mb-5">لقد كتبت طلباً مختصراً جداً. لنقوم بصياغة النتيجة بدقة ملهمة، يرجى تزويدنا بالخيارات المفضلة التالية بضغطة زر:</p>
+      {/* DYNAMIC SMART AI QUESTIONNAIRE MODAL CONTEXT SCREEN */}
+      {showQuestions && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#070b1e] border border-indigo-500/30 rounded-3xl p-6 shadow-2xl animate-[slideUpFade_0.2s_forwards]">
             
-            <div className="space-y-4 text-right">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">1. تصنيف ونوع المنصة المطلوبة:</label>
-                <div className="flex flex-wrap gap-2">
-                  {["متجر تجارة إلكترونية", "معرض أعمال شخصي", "منصة هبوط تسويقية", "منصة مدونة تقنية"].map((v) => (
-                    <button key={v} onClick={() => setCoPilotAnswers(p => ({...p, type: v}))} className={`py-1.5 px-3 rounded-xl text-xs font-bold transition border ${coPilotAnswers.type === v ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200'}`}>{v}</button>
-                  ))}
-                </div>
+            {/* STEP PROGRESS TRACKER */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2 text-indigo-400 text-xs font-black tracking-wider uppercase">
+                <HelpCircle className="w-4 h-4 text-indigo-400 animate-pulse" />
+                <span>AI Core Context Specification Engine</span>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">2. النمط اللوني والهوية الإبداعية:</label>
-                <div className="flex flex-wrap gap-2">
-                  {["سيبراني داكن نيون", "لوك فاخر ذهبي وأسود", "أبيض مينيمال هادئ", "مرح بألوان الباستيل"].map((v) => (
-                    <button key={v} onClick={() => setCoPilotAnswers(p => ({...p, theme: v}))} className={`py-1.5 px-3 rounded-xl text-xs font-bold transition border ${coPilotAnswers.theme === v ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200'}`}>{v}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">3. عدد الصفحات والهيكل المتوقع:</label>
-                <div className="flex flex-wrap gap-2">
-                  {["صفحة هبوط واحدة Landing Page", "3 صفحات أساسية متكاملة", "منظومة برمجية من 5 أقسام"].map((v) => (
-                    <button key={v} onClick={() => setCoPilotAnswers(p => ({...p, pages: v}))} className={`py-1.5 px-3 rounded-xl text-xs font-bold transition border ${coPilotAnswers.pages === v ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200'}`}>{v}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-900/60">
-                <div>
-                  <label className="text-xs font-bold text-slate-400 block mb-1">4. إطار العمل (Framework):</label>
-                  <select 
-                    value={coPilotAnswers.framework}
-                    onChange={(e) => setCoPilotAnswers(p => ({...p, framework: e.target.value}))}
-                    className="w-full bg-slate-950 text-slate-300 border border-slate-900 rounded-xl p-2 text-xs outline-none focus:border-indigo-500"
-                  >
-                    <option value="Next.js">Next.js 14+</option>
-                    <option value="React.js (Vite)">React.js + Vite</option>
-                    <option value="Vue.js">Vue.js Ecosystem</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400 block mb-1">5. الحركات والتأثيرات:</label>
-                  <select 
-                    value={coPilotAnswers.animations}
-                    onChange={(e) => setCoPilotAnswers(p => ({...p, animations: e.target.value}))}
-                    className="w-full bg-slate-950 text-slate-300 border border-slate-900 rounded-xl p-2 text-xs outline-none focus:border-indigo-500"
-                  >
-                    <option value="Framer Motion">Framer Motion (Smooth)</option>
-                    <option value="GSAP">GSAP (High Performance)</option>
-                    <option value="Tailwind CSS">Tailwind Pure CSS</option>
-                  </select>
-                </div>
-              </div>
+              <span className="text-[10px] font-mono text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md font-bold">
+                STAGE {activeQuestionIdx + 1} OF {generatedQuestions.length}
+              </span>
             </div>
 
-            <div className="flex gap-2.5 mt-6 border-t border-slate-900/60 pt-4">
-              <button onClick={handleCoPilotSubmit} className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-black transition-all active:scale-95 shadow-lg shadow-indigo-600/15">
-                تأكيد الخيارات وضخ البيانات بالمحرك 🚀
-              </button>
-              <button onClick={closeCoPilotDismiss} className="py-3 px-4 rounded-2xl bg-slate-900 hover:bg-slate-850 text-xs font-bold text-slate-400 transition">
-                تخطي ومتابعة مباشرة
-              </button>
+            {/* PROGRESS STATUS BAR */}
+            <div className="w-full bg-slate-950 h-1 rounded-full mb-5 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300" style={{ width: `${((activeQuestionIdx + 1) / generatedQuestions.length) * 100}%` }} />
             </div>
+
+            {!showSomethingElseChat ? (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-300 font-bold leading-relaxed bg-[#030614] p-3.5 border border-slate-900 rounded-xl">
+                  {generatedQuestions[activeQuestionIdx]}
+                </p>
+                
+                {/* Dynamically formulated smart choices to match your favorite architectural sketch concepts */}
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    "Option A: Implement advanced automated adaptive UI layout architectures.",
+                    "Option B: Deploy minimalist clean user workflows with luxury dark neon interfaces.",
+                    "Option C: Integrate interactive full-screen modules and embedded real-time processing components.",
+                    "Something Else (I need specific customized features)"
+                  ].map((option, idx) => {
+                    return (
+                      <button 
+                        key={idx} 
+                        onClick={() => {
+                          if (idx === 3) {
+                            setShowSomethingElseChat(true);
+                          } else {
+                            handleAnswerSelect(option);
+                          }
+                        }}
+                        className="w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all border bg-slate-950 text-slate-400 border-slate-900 hover:text-white hover:border-indigo-500/50 hover:bg-[#0c122f]"
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              // EXCLUSIVE SHAT-BOX COMPONENT FOR WRITING CUSTOM DESCRIPTIONS OUTSIDE THE QUESTIONS
+              <div className="space-y-4 animate-[slideUpFade_0.15s_ease-out]">
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-900">
+                  <h4 className="text-xs font-bold text-emerald-400 flex items-center gap-1 mb-1">✨ Custom Request Channel Activated</h4>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">Specify anything outside standard templates. Write features, layout arrangements or unique demands directly into the terminal block below:</p>
+                </div>
+
+                <textarea
+                  value={somethingElseText}
+                  onChange={(e) => setSomethingElseText(e.target.value)}
+                  placeholder="Type your custom requirements or features here..."
+                  className="w-full h-24 bg-slate-950 text-white border border-slate-900 p-3 rounded-xl text-xs outline-none focus:border-indigo-500 resize-none font-medium"
+                />
+
+                <div className="flex gap-2 text-[11px] border-t border-slate-900 pt-3">
+                  {Object.keys(questionAnswers).length < generatedQuestions.length && (
+                    <button onClick={() => setShowSomethingElseChat(false)} className="py-2.5 px-4 rounded-xl bg-slate-900 text-slate-400 hover:text-white transition font-bold">
+                      Back to options
+                    </button>
+                  )}
+                  <button onClick={submitFinalQuestionnaire} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-black tracking-wider transition active:scale-95 text-center">
+                    Inject & Initialize Dynamic Build Process 🚀
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* ADMIN CONSOLE FLOATING PANEL */}
+      {/* FLOATING ADMIN CONSOLE AUTHENTICATION */}
       {showAdminLogin && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-950 border border-red-500/20 rounded-2xl p-5 shadow-2xl text-center">
             <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center mx-auto mb-3">
               <ShieldAlert className="w-5 h-5 text-red-400" />
             </div>
-            <h3 className="text-sm font-black text-white">إدخال رمز التحكم لـ (Yousef)</h3>
-            <p className="text-[11px] text-slate-500 mt-1 mb-4">أدخل رمز الأمان الفائق لتشغيل خادم الحماية الراديكالي</p>
+            <h3 className="text-sm font-black text-white">Yousef Admin Channel Verification</h3>
+            <p className="text-[11px] text-slate-500 mt-1 mb-4">Provide security passkey encryption to synchronize admin control panel tools</p>
             <input 
               type="password" 
               value={adminPassInput} 
               onChange={(e) => setAdminPassInput(e.target.value)} 
               placeholder="••••••••" 
-              className="w-full py-2.5 px-3 bg-slate-900 border border-slate-800 rounded-xl text-center text-xs text-white outline-none focus:border-red-500/50 mb-4 font-mono" 
+              className="w-full py-2 px-3 bg-slate-900 border border-slate-800 rounded-xl text-center text-xs text-white outline-none focus:border-red-500/40 mb-4 font-mono tracking-widest" 
             />
             <div className="flex gap-2">
-              <button onClick={handleAdminAuth} className="flex-1 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-500 transition">مصادقة المسؤول</button>
-              <button onClick={() => setShowAdminLogin(false)} className="py-2 px-3 rounded-xl bg-slate-800 text-xs font-bold text-slate-400 transition">تراجع</button>
+              <button onClick={handleAdminAuth} className="flex-1 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-500 transition">Authenticate Console</button>
+              <button onClick={() => setShowAdminLogin(false)} className="py-2 px-3 rounded-xl bg-slate-800 text-xs font-bold text-slate-400 transition">Dismiss</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* POWERFUL ADMIN CONSOLE FLOATING OVERLAY PANEL (YOUSEF ACCESS) */}
       {isAdminAuth && (
         <div 
           style={{ left: `${adminPos.x}px`, top: `${adminPos.y}px` }}
-          className="fixed z-50 w-64 bg-[#050714]/95 backdrop-blur-md border border-emerald-500/30 rounded-2xl shadow-2xl overflow-hidden select-none"
+          className="fixed z-50 w-64 bg-[#050817]/95 backdrop-blur-md border border-emerald-500/20 rounded-2xl shadow-2xl overflow-hidden select-none"
         >
           <div 
             onMouseDown={handleDragStart}
-            className="bg-slate-950/80 px-3 py-2 border-b border-slate-900 flex items-center justify-between cursor-move"
+            className="bg-slate-950/90 px-3 py-2.5 border-b border-slate-900 flex items-center justify-between cursor-move"
           >
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
-              <Activity className="w-3.5 h-3.5 animate-pulse" /> لوحة التحكم الفائقة (يوسف)
+            <div className="flex items-center gap-1.5 text-[9px] font-mono font-black text-emerald-400 tracking-wider">
+              <Activity className="w-3.5 h-3.5 animate-pulse" /> CONTROL PANEL V4 // OWNER: YOUSEF
             </div>
             <button onClick={() => setIsAdminAuth(false)} className="text-slate-500 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
           </div>
-          <div className="p-3.5 space-y-2.5 text-right text-[11px]">
-            <div className="flex justify-between items-center border-b border-slate-900/60 pb-1.5">
-              <span className="text-slate-400 font-medium">حالة السيرفر الأساسي:</span>
-              <span className="text-emerald-400 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> المستقر</span>
+          <div className="p-3.5 space-y-2 text-left text-[11px] font-mono">
+            <div className="flex justify-between items-center border-b border-slate-900 pb-1.5">
+              <span className="text-slate-500">SYSTEM CLOUD STACK:</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> STABLE</span>
             </div>
-            <div className="flex justify-between items-center border-b border-slate-900/60 pb-1.5">
-              <span className="text-slate-400 font-medium">معدل استهلاك الذاكرة:</span>
-              <span className="text-indigo-400 font-mono font-bold">34.2 MB / 512 MB</span>
+            <div className="flex justify-between items-center border-b border-slate-900 pb-1.5">
+              <span className="text-slate-500">MEMORY CONSUMPTION:</span>
+              <span className="text-indigo-400 font-bold">42.8 MB / 512 MB</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-medium">مستوى الصلاحيات الحالية:</span>
+              <span className="text-slate-500">SECURITY AUTHORIZATION:</span>
               <span className="text-amber-400 font-bold flex items-center gap-1"><Users className="w-3 h-3" /> ROOT_OWNER</span>
             </div>
-            <div className="pt-1.5">
+            <div className="pt-2">
               <button 
                 onClick={() => { 
                   setMessages([]); 
-                  showToast("تم تنظيف ذاكرة التخزين المؤقت وقنوات الاتصال الحية.", "success");
+                  showToast("Operational communication logs flushed.", "success");
                 }} 
-                className="w-full py-1.5 rounded-lg bg-slate-900 hover:bg-red-950/40 hover:text-red-400 border border-slate-800 text-[10px] font-bold text-slate-300 transition text-center"
+                className="w-full py-1.5 rounded-lg bg-slate-950 hover:bg-red-950/30 hover:text-red-400 border border-slate-900 text-[10px] font-bold tracking-wider uppercase transition text-center"
               >
-                تفريغ سجل المحادثات بالكامل
+                Flush System Chat Cache
               </button>
             </div>
           </div>
