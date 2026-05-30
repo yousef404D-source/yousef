@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// 🛠️ استبدال المكتبة المسببة للمشكلة بالمكتبة الأساسية المستقرة لـ Supabase
+// 🛠️ استيراد العميل الأساسي المستقر لـ Supabase
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { Bot, Terminal, Globe, LogOut, Layers, Cpu, CheckCircle, Loader2, ExternalLink, Sparkles } from "lucide-react";
 
+// 🚀 السطر السحري: إجبار Next.js على معاملة الصفحة كصفحة ديناميكية وعدم عمل Prerender لها أثناء الـ Build
+export const dynamic = "force-dynamic";
+
 interface UserData { name: string; email: string; avatar: string; }
 interface Project { id: string; name: string; url: string; prompt: string; created_at: string; }
 
-// تهيئة العميل بشكل مباشر وآمن للـ Client Component لضمان تخطي الـ Build
+// قراءة المتغيرات مع وضع حماية نصية فارغة لتجنب الانهيار المفاجئ في بيئة الـ Build
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -27,12 +29,18 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // بناء اتصال السيرفر بداخل الـ useEffect للتأكد من أنه لا يشتغل إلا في المتصفح الفعلي (Client-side)
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Supabase credentials are missing.");
+      setError("إعدادات الاتصال بـ Supabase غير مكتملة في السيرفر.");
+      setLoading(false);
+      return;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
     const checkAuth = async () => {
       try {
-        if (!supabaseUrl || !supabaseAnonKey) {
-          console.warn("Supabase credentials are missing in production environment variables.");
-        }
-
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { 
           router.push("/login"); 
@@ -111,6 +119,9 @@ export default function AdminDashboard() {
     );
   }
 
+  // تهيئة متغير لاستخدامه في أزرار الخروج للوظائف التفاعلية داخل المكون
+  const activeSupabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
   return (
     <div className="min-h-screen bg-[#050816] text-slate-100 flex" dir="rtl">
       {/* Sidebar */}
@@ -143,7 +154,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <button 
-              onClick={async () => { await supabase.auth.signOut(); router.push("/login"); }} 
+              onClick={async () => { if(activeSupabase) { await activeSupabase.auth.signOut(); } router.push("/login"); }} 
               className="w-full py-2 bg-red-950/30 hover:bg-red-900/40 border border-red-500/20 rounded-xl text-xs font-medium text-red-400 flex items-center justify-center gap-2 transition"
             >
               <LogOut className="w-4 h-4" /> تسجيل الخروج
