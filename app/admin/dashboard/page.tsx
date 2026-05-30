@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"; 
+// 🛠️ استبدال المكتبة المسببة للمشكلة بالمكتبة الأساسية المستقرة لـ Supabase
+import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { Bot, Terminal, Globe, LogOut, Layers, Cpu, CheckCircle, Loader2, ExternalLink, Sparkles } from "lucide-react";
 
 interface UserData { name: string; email: string; avatar: string; }
 interface Project { id: string; name: string; url: string; prompt: string; created_at: string; }
 
+// تهيئة العميل بشكل مباشر وآمن للـ Client Component لضمان تخطي الـ Build
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 export default function AdminDashboard() {
-  const supabase = createClientComponentClient();
   const router = useRouter();
 
   const [user, setUser] = useState<UserData | null>(null);
@@ -24,6 +29,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        if (!supabaseUrl || !supabaseAnonKey) {
+          console.warn("Supabase credentials are missing in production environment variables.");
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { 
           router.push("/login"); 
@@ -54,7 +63,7 @@ export default function AdminDashboard() {
       }
     };
     checkAuth();
-  }, [router, supabase]);
+  }, [router]);
 
   const handleGenerateWebsite = async (e: React.FormEvent) => {
     e.preventDefault();
