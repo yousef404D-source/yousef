@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// 🛠️ تم التحديث هنا لاستدعاء الموديل المتوافق الذي يمنع خطأ الـ Build تماماً
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"; 
 import { useRouter } from "next/navigation";
 import { Bot, Terminal, Globe, LogOut, Layers, Cpu, CheckCircle, Loader2, ExternalLink, Sparkles } from "lucide-react";
@@ -10,7 +9,6 @@ interface UserData { name: string; email: string; avatar: string; }
 interface Project { id: string; name: string; url: string; prompt: string; created_at: string; }
 
 export default function AdminDashboard() {
-  // تهيئة اتصال Supabase الآمن
   const supabase = createClientComponentClient();
   const router = useRouter();
 
@@ -67,7 +65,6 @@ export default function AdminDashboard() {
     setGeneratedUrl(null);
 
     try {
-      // 🚀 تم تعديل المسار هنا ليتصل بمحركنا الأسطوري الحقيقي الفعال /api/nova
       const res = await fetch("/api/nova", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,7 +74,6 @@ export default function AdminDashboard() {
 
       if (!res.ok || !data.success) throw new Error(data.error || "فشل توليد الموقع الحقيقي");
 
-      // استقبال الرابط المشفر الحي وتحديث الواجهة
       setGeneratedUrl(data.url);
       setProjects([
         { 
@@ -92,7 +88,7 @@ export default function AdminDashboard() {
       setPrompt("");
     } catch (err: any) {
       setError(err.message);
-    } finaly {
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -209,47 +205,4 @@ export default function AdminDashboard() {
                 
                 <a href={generatedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 bg-[#050816] border border-slate-800 rounded-2xl text-xs font-mono text-indigo-400 hover:border-indigo-500/40 transition">
                   <span className="truncate pl-4">{generatedUrl.substring(0, 60)}...</span>
-                  <ExternalLink className="w-4 h-4 flex-shrink-0" />
-                </a>
-
-                {/* 📺 شاشة المعاينة الفورية الحية داخل لوحة التحكم لتبهر بها الجميع! */}
-                <div className="rounded-2xl overflow-hidden border border-slate-800 bg-white">
-                  <iframe src={generatedUrl} className="w-full h-[400px] border-none" title="Live Preview" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="lg:col-span-5 space-y-6">
-            <div className="bg-[#0a0f24] border border-slate-800/80 rounded-3xl p-6">
-              <h3 className="text-sm font-bold text-white mb-6 pb-2 border-b border-slate-800/60 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-slate-400" /> المواقع الحية المنتجة ({projects.length})
-              </h3>
-              {projects.length === 0 ? (
-                <div className="text-center py-12 bg-[#050816] rounded-2xl border border-dashed border-slate-800/80">
-                  <Globe className="w-8 h-8 text-slate-700 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500">لم يتم إنشاء أي مواقع حية بعد.</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[410px] overflow-y-auto">
-                  {projects.map((proj) => (
-                    <div key={proj.id} className="p-4 bg-[#050816] border border-slate-800 rounded-2xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white truncate max-w-[150px] font-mono">{proj.name}</span>
-                        <span className="text-[10px] text-slate-500">{proj.created_at}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 line-clamp-1 italic">"{proj.prompt}"</p>
-                      <a href={proj.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-indigo-400 hover:underline">
-                        معاينة الموقع الحركي <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+                  <ExternalLink className="w-4 h-4 flex
