@@ -1,20 +1,59 @@
-// المسار: app/login/page.tsx
 "use client";
 
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Cpu, Sparkles } from "lucide-react";
+import { useState } from "react";
+// 🛠️ التحديث الجذري: استخدام العميل الأساسي والمستقر لمنع خطأ الـ Build نهائياً
+import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { Cpu, Sparkles, Loader2, Lock, Mail } from "lucide-react";
+
+// تهيئة عميل Supabase المستقر والآمن للـ Client Components
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
-  const supabase = createClientComponentClient();
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // 1. منطق تسجيل الدخول عبر Google (من كودك القديم)
   const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        // سيتم توجيه المستخدم تلقائياً للوحة التحكم بعد نجاح تسجيل الدخول
-        redirectTo: `${window.location.origin}/admin/dashboard`,
-      },
-    });
+    setError(null);
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/admin/dashboard`,
+        },
+      });
+    } catch (err: any) {
+      setError(err.message || "فشل الاتصال بـ Google");
+    }
+  };
+
+  // 2. منطق تسجيل الدخول عبر البريد وكلمة المرور
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+
+      router.push("/admin/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "فشل تسجيل الدخول، يرجى التحقق من البيانات.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,11 +66,20 @@ export default function LoginPage() {
         </div>
 
         <h1 className="text-2xl font-extrabold text-white mb-2 tracking-wide">بوابة دخول Nova AI</h1>
-        <p className="text-sm text-slate-400 mb-8 leading-relaxed">سجل دخولك آلياً للوصول إلى لوحة التحكم ومحرك بناء المواقع الذكي.</p>
+        <p className="text-sm text-slate-400 mb-6 leading-relaxed">سجل دخولك للوصول إلى لوحة التحكم ومحرك بناء المواقع الذكي.</p>
 
+        {/* عرض الأخطاء إن وجدت */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-950/20 border border-red-500/30 text-red-400 rounded-2xl text-xs text-right font-medium">
+            {error}
+          </div>
+        )}
+
+        {/* زر تسجيل الدخول بواسطة Google الخاص بك */}
         <button
+          type="button"
           onClick={handleGoogleLogin}
-          className="w-full py-4 px-6 bg-white hover:bg-slate-100 text-slate-900 font-bold rounded-2xl shadow-lg transition-all duration-200 flex items-center justify-center gap-3 group text-sm"
+          className="w-full py-4 px-6 bg-white hover:bg-slate-100 text-slate-900 font-bold rounded-2xl shadow-lg transition-all duration-200 flex items-center justify-center gap-3 group text-sm mb-6"
         >
           <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
             <path fill="#EA4335" d="M12 5.04c1.64 0 3.12.56 4.28 1.67l3.2-3.2C17.52 1.58 14.96 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.86 3c.9-2.7 3.4-4.46 6.64-4.46z"/>
@@ -42,8 +90,58 @@ export default function LoginPage() {
           <span>تسجيل الدخول بواسطة Google</span>
         </button>
 
-        <div className="mt-8 pt-6 border-t border-slate-800/60 inline-flex items-center gap-2 text-[11px] text-indigo-400 font-mono">
-          <Sparkles className="w-3.5 h-3.5" /> SECURE OAUTH 2.0 PROTOCOL
+        {/* خط فاصل أنيق */}
+        <div className="flex items-center my-4 before:flex-1 before:border-t before:border-slate-800/60 after:flex-1 after:border-t after:border-slate-800/60">
+          <span className="px-3 text-xs text-slate-500 font-medium">أو عبر البيانات</span>
+        </div>
+
+        {/* نموذج تسجيل الدخول بالبريد المتكامل */}
+        <form onSubmit={handleEmailLogin} className="space-y-4 text-right">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 opacity-60" /> البريد الإلكتروني
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@nova.ai"
+              required
+              disabled={loading}
+              className="w-full bg-[#050816] border border-slate-800 focus:border-indigo-500/60 rounded-2xl p-4 text-sm text-white placeholder-slate-600 focus:outline-none transition disabled:opacity-50 text-left"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <Lock className="w-3.5 h-3.5 opacity-60" /> كلمة المرور
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={loading}
+              className="w-full bg-[#050816] border border-slate-800 focus:border-indigo-500/60 rounded-2xl p-4 text-sm text-white placeholder-slate-600 focus:outline-none transition disabled:opacity-50 text-left"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2 text-sm"
+          >
+            {loading ? (
+              <><Loader2 className="w-5 h-5 animate-spin" /> <span>جاري المصادقة...</span></>
+            ) : (
+              <span>تسجيل الدخول بالبريد</span>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 pt-6 border-t border-slate-800/60 inline-flex items-center gap-2 text-[11px] text-indigo-400 font-mono justify-center w-full">
+          <Sparkles className="w-3.5 h-3.5" /> SECURE OAUTH & HYBRID PROTOCOL
         </div>
       </div>
     </div>
