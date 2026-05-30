@@ -1,5 +1,4 @@
-// المسار: app/api/deploy/route.ts
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import OpenAI from "openai";
 import axios from "axios";
@@ -12,9 +11,31 @@ export async function POST(req: Request) {
   try {
     console.log("🚀 NOVA AI STARTED");
 
-    /* ---------------- 🔒 SUPABASE ADMIN CHECK ---------------- */
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    /* ---------------- 🔒 SUPABASE ADMIN CHECK (UPDATED) ---------------- */
+    // جلب ملفات تعريف الارتباط بشكل متوافق مع خوادم Next.js الحديثة
+    const cookieStore = await cookies();
+    
+    // بناء اتصال السيرفر المحدث والمتوافق لمنع أخطاء الـ Compiler
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // يمكن تجاهل هذا الخطأ بأمان إذا تم استدعاء التابع من داخل مكوّن خادم (Server Component)
+            }
+          },
+        },
+      }
+    );
 
     // 1. التحقق من وجود جلسة مستخدم نشطة
     const { data: { session } } = await supabase.auth.getSession();
@@ -25,7 +46,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. فحص رتبة المسؤول الفردية لحماية الموارد المادية والسيرفر
+    // 2. فحص رتبة المسؤول لحماية الموارد المادية والسيرفر
     const { data: userRole, error: roleError } = await supabase
       .from("user_roles")
       .select("role")
