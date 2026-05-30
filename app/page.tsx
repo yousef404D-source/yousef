@@ -73,7 +73,7 @@ export default function NovaAI() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* ---------------- ADMIN PANEL STATES ---------------- */
+  /* ---------------- ADMIN PANEL STATES & LOGIC ---------------- */
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState("");
   const [isAdminAuth, setIsAdminAuth] = useState(false);
@@ -81,7 +81,13 @@ export default function NovaAI() {
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0 });
 
-  /* ---------------- EFFECTS & DRAG LOGIC ---------------- */
+  // الدالة التي كانت مفقودة ومسببة لخطأ الـ Build
+  const handleDragStart = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    dragRef.current = { startX: e.clientX - adminPos.x, startY: e.clientY - adminPos.y };
+  };
+
+  /* ---------------- EFFECTS ---------------- */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
@@ -199,7 +205,6 @@ export default function NovaAI() {
       if (selectedImage) {
         URL.revokeObjectURL(selectedImage);
       }
-      // استخدامObjectURL فائق السرعة والموفر للذاكرة بدلاً من Base64 المتعب للرّام
       const objectUrl = URL.createObjectURL(file);
       setSelectedImage(objectUrl);
       setRobotMood("happy");
@@ -217,7 +222,6 @@ export default function NovaAI() {
       return;
     }
 
-    // حل مشكلة تكرار الـ CoPilot اللانهائي إذا ألغاه المستخدم عمداً
     if (aiMode === "builder" && finalInput.trim().split(" ").length <= 2 && !overridePrompt && !selectedImage && !coPilotBypassed) {
       setShowCoPilot(true);
       setRobotMood("thinking");
@@ -290,7 +294,7 @@ export default function NovaAI() {
     }
 
     setLoading(false);
-    setCoPilotBypassed(false); // إعادة التعيين للاستخدام القادم
+    setCoPilotBypassed(false);
     setTimeout(() => setRobotMood("idle"), 2000);
   }
 
@@ -379,7 +383,6 @@ export default function NovaAI() {
             }} />
           </div>
 
-          {/* حل مشكلة تشتيت المعالج بـ Math.random عبر أنيميشن CSS نقي وثابت للمظهر السيبراني */}
           <div style={{ display: "flex", gap: "3px", marginTop: "8px" }} className="robot-voice-bars">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className={`w-[3px] rounded-sm bg-blue-500/60 ${robotMood === "typing" ? "animate-pulse h-3" : "h-1.5"}`} />
