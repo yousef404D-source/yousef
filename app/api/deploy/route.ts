@@ -1,402 +1,118 @@
+// المسار: app/api/deploy/route.ts
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import OpenAI from "openai";
-
 import axios from "axios";
 
 const openai = new OpenAI({
-  apiKey:
-    process.env.OPENAI_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
-export async function POST(
-  req: Request
-) {
+export async function POST(req: Request) {
   try {
-    console.log(
-      "🚀 NOVA AI STARTED"
-    );
+    console.log("🚀 NOVA AI STARTED");
 
-    const { prompt } =
-      await req.json();
+    /* ---------------- 🔒 SUPABASE ADMIN CHECK ---------------- */
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    if (!prompt) {
+    // 1. التحقق من وجود جلسة مستخدم نشطة
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       return Response.json(
-        {
-          success: false,
-          error:
-            "Prompt is required",
-        },
-        {
-          status: 400,
-        }
+        { success: false, error: "Unauthorized. Please sign in." },
+        { status: 401 }
       );
     }
 
-    console.log(
-      "📤 USER PROMPT:",
-      prompt
-    );
+    // 2. فحص رتبة المسؤول الفردية لحماية الموارد المادية والسيرفر
+    const { data: userRole, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (roleError || !userRole || userRole.role !== "admin") {
+      return Response.json(
+        { success: false, error: "Access denied. Admins only." },
+        { status: 403 }
+      );
+    }
+
+    /* -------------------------------------------------------- */
+
+    const { prompt } = await req.json();
+    if (!prompt) {
+      return Response.json({ success: false, error: "Prompt is required" }, { status: 400 });
+    }
 
     /* ---------------- AI WEBSITE GENERATION ---------------- */
-
-    const completion =
-      await openai.chat.completions.create({
-        model: "gpt-4o",
-
-        temperature: 1,
-
-        max_tokens: 2500,
-
-        messages: [
-          {
-            role: "system",
-
-            content: `
-You are Nova AI.
-
-You are the BEST AI website builder.
-
-Your job:
-Generate a COMPLETE premium website based EXACTLY on the user's request.
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: 1,
+      max_tokens: 2500,
+      messages: [
+        {
+          role: "system",
+          content: `
+You are Nova AI. You are the BEST AI website builder.
+Your job: Generate a COMPLETE premium website based EXACTLY on the user's request.
 
 IMPORTANT RULES:
-
-- Return ONLY JSX
-- No markdown
-- No explanations
-- No comments
-- No imports
-- No export default
-- No code block
-- No html/body/head tags
-
-VERY IMPORTANT:
-The website MUST match the user's idea.
-
-Examples:
-
-Restaurant:
-- food sections
-- menu cards
-- chef section
-- delivery UI
-
-Gym:
-- workout sections
-- trainers
-- dark powerful style
-
-AI startup:
-- futuristic
-- glowing UI
-- gradients
-- animated cards
-
-Clothing store:
-- product cards
-- fashion hero
-- shopping UI
-
-Always include:
-- navbar
-- hero section
-- features
-- cards
-- buttons
-- footer
-- animations
-- gradients
-- shadows
-- responsive layout
-- premium modern design
-
-STYLE:
-- futuristic
-- premium
-- extremely beautiful
-- modern
-- realistic
-- advanced UI
-
-Use ONLY inline styles.
-
-IMPORTANT:
-The JSX MUST work directly inside:
-
-<div>{HERE}</div>
-
-NEVER break JSX syntax.
+- Return ONLY JSX (No markdown, no explanations, no comments, no imports, no export default, no html/body/head tags)
+- Always include: navbar, hero section, features, cards, buttons, footer, animations, gradients, shadows, responsive layout.
+- STYLE: futuristic, premium, advanced UI. Use ONLY inline styles.
+- IMPORTANT: The JSX MUST work directly inside <div>{HERE}</div> without breaking syntax.
 `,
-          },
+        },
+        { role: "user", content: prompt },
+      ],
+    });
 
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      });
+    const jsx = completion.choices[0].message.content || "";
 
-    const jsx =
-      completion.choices[0]
-        .message.content || "";
-
-    console.log(
-      "🧠 AI JSX GENERATED"
-    );
-
-    /* ---------------- PROJECT NAME ---------------- */
-
-    const projectName =
-      "nova-ai-" +
-      crypto
-        .randomUUID()
-        .slice(0, 8);
-
-    console.log(
-      "📁 PROJECT:",
-      projectName
-    );
-
-    /* ---------------- PAGE ---------------- */
-
-    const pageCode = `
-export default function Page() {
-  return (
-    <div
-      style={{
-        background:"#050816",
-        minHeight:"100vh",
-        color:"white",
-        overflowX:"hidden",
-        fontFamily:"Arial"
-      }}
-    >
-      ${jsx}
-    </div>
-  );
-}
-`;
-
-    /* ---------------- LAYOUT ---------------- */
-
-    const layoutCode = `
-export const metadata = {
-  title: "Nova AI",
-};
-
-export default function RootLayout({
-  children,
-}:{
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en">
-      <body
-        style={{
-          margin:0,
-          padding:0,
-          background:"#050816",
-          color:"white",
-          fontFamily:"Arial"
-        }}
-      >
-        {children}
-      </body>
-    </html>
-  );
-}
-`;
-
-    /* ---------------- PACKAGE.JSON ---------------- */
-
-    const packageJson = {
-      name: projectName,
-
-      private: true,
-
-      scripts: {
-        dev: "next dev",
-
-        build: "next build",
-
-        start: "next start",
-      },
-
-      dependencies: {
-        next: "15.3.5",
-
-        react: "^19.0.0",
-
-        "react-dom": "^19.0.0",
-      },
-    };
-
-    /* ---------------- FILES ---------------- */
+    /* ---------------- STRUCTURING FILES FOR VERCEL ---------------- */
+    const projectName = "nova-ai-" + crypto.randomUUID().slice(0, 8);
+    
+    const pageCode = `export default function Page() { return ( <div style={{ background:"#050816", minHeight:"100vh", color:"white", overflowX:"hidden", fontFamily:"Arial" }}> ${jsx} </div> ); }`;
+    const layoutCode = `export const metadata = { title: "Nova AI Generated" }; export default function RootLayout({ children }: { children: React.ReactNode }) { return ( <html lang="en"><body style={{ margin:0, padding:0, background:"#050816" }}>{children}</body></html> ); }`;
 
     const files = [
-      {
-        file: "app/page.tsx",
-
-        data: pageCode,
-      },
-
-      {
-        file: "app/layout.tsx",
-
-        data: layoutCode,
-      },
-
+      { file: "app/page.tsx", data: pageCode },
+      { file: "app/layout.tsx", data: layoutCode },
       {
         file: "package.json",
-
-        data: JSON.stringify(
-          packageJson,
-          null,
-          2
-        ),
+        data: JSON.stringify({
+          name: projectName,
+          private: true,
+          scripts: { dev: "next dev", build: "next build", start: "next start" },
+          dependencies: { next: "15.3.5", react: "^19.0.0", "react-dom": "^19.0.0" },
+        }),
       },
-
       {
         file: "tsconfig.json",
-
-        data: JSON.stringify(
-          {
-            compilerOptions: {
-              target: "ES6",
-
-              lib: [
-                "dom",
-                "dom.iterable",
-                "esnext",
-              ],
-
-              allowJs: true,
-
-              skipLibCheck: true,
-
-              strict: false,
-
-              noEmit: true,
-
-              esModuleInterop: true,
-
-              module: "esnext",
-
-              moduleResolution:
-                "bundler",
-
-              resolveJsonModule: true,
-
-              isolatedModules: true,
-
-              jsx: "preserve",
-
-              incremental: true,
-            },
-
-            include: [
-              "next-env.d.ts",
-              "**/*.ts",
-              "**/*.tsx",
-            ],
-
-            exclude: [
-              "node_modules",
-            ],
-          },
-          null,
-          2
-        ),
+        data: JSON.stringify({
+          compilerOptions: { target: "ES6", lib: ["dom", "dom.iterable", "esnext"], allowJs: true, skipLibCheck: true, strict: false, noEmit: true, esModuleInterop: true, module: "esnext", moduleResolution: "bundler", resolveJsonModule: true, isolatedModules: true, jsx: "preserve" },
+          include: ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+        }),
       },
-
-      {
-        file: "next.config.mjs",
-
-        data: `
-const nextConfig = {};
-
-export default nextConfig;
-`,
-      },
-
-      {
-        file: "next-env.d.ts",
-
-        data: `
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-`,
-      },
+      { file: "next.config.mjs", data: "const nextConfig = {}; export default nextConfig;" },
+      { file: "next-env.d.ts", data: "/// <reference types=\"next\" />" },
     ];
 
-    console.log(
-      "📦 FILES READY"
+    /* ---------------- VERCEL API DEPLOYMENT ---------------- */
+    const response = await axios.post(
+      "https://api.vercel.com/v13/deployments",
+      { name: projectName, files, projectSettings: { framework: "nextjs" } },
+      { headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } }
     );
 
-    /* ---------------- DEPLOY TO VERCEL ---------------- */
+    return Response.json({ success: true, url: "https://" + response.data.url });
 
-    const response =
-      await axios.post(
-        "https://api.vercel.com/v13/deployments",
-
-        {
-          name: projectName,
-
-          files,
-
-          projectSettings: {
-            framework:
-              "nextjs",
-          },
-        },
-
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
-          },
-        }
-      );
-
-    console.log(
-      "✅ DEPLOY SUCCESS"
-    );
-
-    const url =
-      "https://" +
-      response.data.url;
-
-    console.log(
-      "🌍 URL:",
-      url
-    );
-
-    return Response.json({
-      success: true,
-
-      url,
-    });
   } catch (error: any) {
-    console.log(
-      "❌ DEPLOY ERROR:"
-    );
-
-    console.log(
-      error?.response?.data ||
-        error.message
-    );
-
     return Response.json(
-      {
-        success: false,
-
-        error:
-          error?.response?.data ||
-          error.message ||
-          "Unknown Error",
-      },
-
-      {
-        status: 500,
-      }
+      { success: false, error: error?.response?.data || error.message || "Server Error" },
+      { status: 500 }
     );
   }
 }

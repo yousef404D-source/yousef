@@ -1,11 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-// import { supabase } from "@/utils/supabaseClient"; // قم بإلغاء التعليق عند ربط Supabase
+import { 
+  Send, 
+  Lock, 
+  ShieldAlert, 
+  Users, 
+  Activity, 
+  X,
+  Zap,
+  CheckCircle2,
+  AlertTriangle,
+  Globe,
+  ExternalLink
+} from "lucide-react";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { 
+  role: "user" | "assistant"; 
+  content: string; 
+  previewUrl?: string; // لإضافة رابط الموقع الحي داخل الرسالة
+};
 type Mode = "builder" | "chat";
-type AuthStep = "SYSTEM_PASSWORD" | "AUTHORIZED";
+type AuthStep = "SYSTEM_PASSWORD" | "LOADING_TRANSITION" | "AUTHORIZED";
+type RobotMood = "idle" | "thinking" | "happy" | "sad" | "typing";
 
 export default function NovaAI() {
   /* ---------------- STATES ---------------- */
@@ -17,7 +34,7 @@ export default function NovaAI() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [robotMood, setRobotMood] = useState<"idle" | "thinking" | "happy" | "sad" | "typing">("idle");
+  const [robotMood, setRobotMood] = useState<RobotMood>("idle");
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -25,11 +42,11 @@ export default function NovaAI() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState("");
   const [isAdminAuth, setIsAdminAuth] = useState(false);
-  const [adminPos, setAdminPos] = useState({ x: 50, y: 50 });
+  const [adminPos, setAdminPos] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0 });
 
-  /* ---------------- SCROLL & EFFECTS ---------------- */
+  /* ---------------- SCROLL EFFECT ---------------- */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -39,29 +56,41 @@ export default function NovaAI() {
     setIsDragging(true);
     dragRef.current = { startX: e.clientX - adminPos.x, startY: e.clientY - adminPos.y };
   };
+  
   const handleDragMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
     setAdminPos({ x: e.clientX - dragRef.current.startX, y: e.clientY - dragRef.current.startY });
   };
+  
   const handleDragEnd = () => setIsDragging(false);
 
-  /* ---------------- AUTH LOGIC ---------------- */
+  /* ---------------- AUTH LOGIC WITH SYSTEM ANIMATION ---------------- */
   async function unlock() {
     setWrongPass(false);
-    if (password === "123") { // استبدل 123 بالباسورد الحقيقي أو بالـ API
+    if (password === "123") {
       setRobotMood("happy");
+      setWrongPass(false);
+      
+      // الانتقال إلى مرحلة أنيميشن التحميل السيبراني قبل فتح الشات
       setTimeout(() => {
-        setAuthStep("AUTHORIZED");
-        setRobotMood("idle");
-      }, 1000);
+        setAuthStep("LOADING_TRANSITION");
+        
+        // بعد انتهاء أنيميشن التحميل نفتح الشات الفعلي
+        setTimeout(() => {
+          setAuthStep("AUTHORIZED");
+          setRobotMood("idle");
+        }, 2200);
+      }, 800);
+
     } else {
       setRobotMood("sad");
       setWrongPass(true);
+      setTimeout(() => setWrongPass(false), 500); // إيقاف الهز
       setTimeout(() => setRobotMood("idle"), 2500);
     }
   }
 
-  /* ---------------- SEND MESSAGES ---------------- */
+  /* ---------------- SEND MESSAGES (REAL API CONNECTION) ---------------- */
   async function sendMessage() {
     if (!input.trim()) return;
 
@@ -79,17 +108,56 @@ export default function NovaAI() {
     setRobotMood("thinking");
 
     if (aiMode === "builder") {
-      const loadingSteps = ["Analyzing architecture...", "Compiling React Components...", "Deploying via Nova Engine..."];
-      for (const step of loadingSteps) {
-        setMessages((prev) => [...prev, { role: "assistant", content: step }]);
-        await new Promise((r) => setTimeout(r, 1200));
+      try {
+        // الاتصال الفعلي بالـ API الموجود في مشروعك بمسار app/api/nova/route.ts
+        const res = await fetch("/api/nova", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: text }),
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "فشل توليد الموقع الحقيقي.");
+        }
+
+        setRobotMood("happy");
+        setMessages((prev) => [
+          ...prev, 
+          { 
+            role: "assistant", 
+            content: `✅ تم بناء وتوليد الموقع الفعلي بنجاح طبقاً لأعلى معايير الـ UI/UX المستقبلية!\n\nيمكنك الآن استعراض موقعك والتفاعل معه بالكامل بالأسفل أو فتحه في صفحة مستقلة.`,
+            previewUrl: data.url // تخزين الرابط الحي للـ iframe والزر
+          }
+        ]);
+
+      } catch (err: any) {
+        setRobotMood("sad");
+        setMessages((prev) => [
+          ...prev, 
+          { role: "assistant", content: `❌ خطأ في محرك Nova الفعلي: ${err.message}` }
+        ]);
       }
-      setRobotMood("happy");
-      setMessages((prev) => [...prev, { role: "assistant", content: "✅ Website successfully deployed!\n\n🌍 https://nova-ai.live/your-site" }]);
     } else {
-      await new Promise((r) => setTimeout(r, 1500));
-      setRobotMood("happy");
-      setMessages((prev) => [...prev, { role: "assistant", content: "I am Nova AI, a highly advanced artificial intelligence. I can answer any question or help you build complex systems. How can I assist you further?" }]);
+      // وضع الشات العادي (المحادثة الفائقة الدقيقة)
+      try {
+        const res = await fetch("/api/nova", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: `أجب على السؤال التالي بشكل فخم وذكي ومختصر جداً: ${text}` }),
+        });
+        const data = await res.json();
+        
+        setRobotMood("happy");
+        setMessages((prev) => [
+          ...prev, 
+          { role: "assistant", content: data.code || "أنا هنا لخدمتك ومعالجة كافة البيانات بذكاء." }
+        ]);
+      } catch (e) {
+        setRobotMood("sad");
+        setMessages((prev) => [...prev, { role: "assistant", content: "عذراً، حدثت مشكلة في الاتصال بالمحرك." }]);
+      }
     }
 
     setLoading(false);
@@ -106,13 +174,30 @@ export default function NovaAI() {
       setShowAdminLogin(false);
       setAdminPassInput("");
     } else {
-      alert("Unauthorized access detected.");
+      alert("⚠️ CRITICAL ERROR: Unauthorized access attempt recorded.");
       setShowAdminLogin(false);
+      setAdminPassInput("");
     }
   }
 
   /* ---------------- REALISTIC ROBOT COMPONENT ---------------- */
   function RealisticRobot({ size = 50 }: { size?: number }) {
+    const getGlowStyle = () => {
+      if (robotMood === "sad") return "0 0 35px #ef4444, inset 0 0 15px #000"; 
+      if (robotMood === "happy") return "0 0 35px #10b981, inset 0 0 15px #000"; 
+      if (robotMood === "thinking") return "0 0 40px #a855f7, inset 0 0 15px #000"; 
+      if (robotMood === "typing") return "0 0 30px #f59e0b, inset 0 0 15px #000"; 
+      return "0 0 30px #3b82f6, inset 0 0 15px #000"; 
+    };
+
+    const getEyeColor = () => {
+      if (robotMood === "sad") return "#ef4444";
+      if (robotMood === "happy") return "#10b981";
+      if (robotMood === "thinking") return "#a855f7";
+      if (robotMood === "typing") return "#f59e0b";
+      return "#3b82f6";
+    };
+
     return (
       <div
         style={{
@@ -121,217 +206,332 @@ export default function NovaAI() {
           borderRadius: "50%",
           position: "relative",
           background: "linear-gradient(145deg, #0f172a, #020617)",
-          boxShadow: robotMood === "sad" ? "0 0 20px rgba(220, 38, 38, 0.4), inset 0 0 10px #000" :
-                     robotMood === "happy" ? "0 0 25px rgba(16, 185, 129, 0.5), inset 0 0 10px #000" :
-                     "0 0 20px rgba(59, 130, 246, 0.4), inset 0 0 10px #000",
-          border: "2px solid rgba(255,255,255,0.05)",
+          boxShadow: getGlowStyle(),
+          border: `2px solid ${getEyeColor()}40`,
           overflow: "hidden",
-          transition: "all 0.5s ease",
-          animation: robotMood === "thinking" ? "pulseGlow 1.5s infinite" : "float 4s ease-in-out infinite"
+          transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          animation: robotMood === "thinking" ? "pulseGlow 1.2s infinite ease-in-out" : "float 4s ease-in-out infinite"
         }}
       >
-        {/* Eye Screen */}
         <div style={{ position: "absolute", inset: "15%", background: "#000", borderRadius: "50%", overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center" }}>
-          
-          {/* Glowing Eye Core */}
           <div
             style={{
-              width: robotMood === "sad" ? "40%" : robotMood === "happy" ? "60%" : "50%",
-              height: robotMood === "sad" ? "20%" : robotMood === "happy" ? "40%" : "50%",
-              background: robotMood === "sad" ? "#ef4444" : robotMood === "happy" ? "#10b981" : "#3b82f6",
-              borderRadius: robotMood === "sad" ? "10px" : "50%",
-              boxShadow: `0 0 15px ${robotMood === "sad" ? "#ef4444" : robotMood === "happy" ? "#10b981" : "#3b82f6"}`,
-              transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-              transform: robotMood === "sad" ? "rotate(15deg) translateY(5px)" : "none",
-              animation: "realisticBlink 5s infinite"
+              width: robotMood === "sad" ? "45%" : robotMood === "happy" ? "65%" : "50%",
+              height: robotMood === "sad" ? "15%" : robotMood === "happy" ? "45%" : "50%",
+              background: getEyeColor(),
+              borderRadius: robotMood === "sad" ? "4px" : "50%",
+              boxShadow: `0 0 20px ${getEyeColor()}`,
+              transition: "all 0.3s ease",
+              transform: robotMood === "sad" ? "translateY(4px)" : "none",
+              animation: "realisticBlink 4s infinite"
             }}
           />
-          
-          {/* Eyelids for expressions */}
           <div style={{
             position: "absolute", top: 0, width: "100%", height: "50%", background: "#000",
-            transformOrigin: "top", transition: "transform 0.4s",
-            transform: robotMood === "sad" ? "rotate(20deg) translateY(-10%)" : robotMood === "happy" ? "translateY(-80%)" : "translateY(-100%)"
+            transformOrigin: "top", transition: "transform 0.3s",
+            transform: robotMood === "sad" ? "translateY(5%)" : robotMood === "happy" ? "translateY(-75%)" : "translateY(-100%)"
           }} />
           <div style={{
             position: "absolute", bottom: 0, width: "100%", height: "50%", background: "#000",
-            transformOrigin: "bottom", transition: "transform 0.4s",
-            transform: robotMood === "happy" ? "rotate(-10deg) translateY(-20%)" : "translateY(100%)"
+            transformOrigin: "bottom", transition: "transform 0.3s",
+            transform: robotMood === "happy" ? "translateY(15%)" : "translateY(100%)"
           }} />
         </div>
       </div>
     );
   }
 
-  /* ---------------- AUTH SCREEN ---------------- */
+  /* ---------------- 1. FIRST SCREEN: SYSTEM PASSWORD ---------------- */
   if (authStep === "SYSTEM_PASSWORD") {
     return (
-      <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top,#111827,#020617)", display: "flex", justifyContent: "center", alignItems: "center", fontFamily: "Arial", color: "white" }}>
+      <div style={{ minHeight: "100vh", background: "radial-gradient(circle at center, #0b0f24 0%, #030510 100%)", display: "flex", justifyContent: "center", alignItems: "center", fontFamily: "Arial", color: "white" }} dir="rtl">
         <style>{`
-          @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-10px);} 75% {transform: translateX(10px);} }
-          @keyframes realisticBlink { 0%, 96%, 98%, 100% {transform: scaleY(1)} 97%, 99% {transform: scaleY(0.1)} }
-          @keyframes pulseGlow { 0%, 100% {box-shadow: 0 0 20px rgba(59,130,246,0.4)} 50% {box-shadow: 0 0 50px rgba(124,58,237,0.8)} }
-          @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-5px)} }
+          @keyframes shake { 0%, 100% {transform: translateX(0);} 20%, 60% {transform: translateX(-8px);} 40%, 80% {transform: translateX(8px);} }
+          @keyframes realisticBlink { 0%, 95%, 97%, 100% {transform: scaleY(1)} 96%, 98% {transform: scaleY(0.1)} }
+          @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-8px)} }
         `}</style>
         
-        <div style={{ width: 500, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", backdropFilter: "blur(30px)", borderRadius: 30, padding: 50, textAlign: "center", animation: wrongPass ? "shake 0.4s" : "none" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 30 }}><RealisticRobot size={90} /></div>
-          <h1 style={{ fontSize: 48, marginBottom: 10, fontWeight: 800 }}>System Login</h1>
-          <p style={{ opacity: 0.5, marginBottom: 30 }}>Authenticate to access Nova AI</p>
+        <div style={{ width: 460, background: "rgba(10, 15, 36, 0.7)", border: `1px solid ${wrongPass ? '#ef4444' : 'rgba(59, 130, 246, 0.2)'}`, backdropFilter: "blur(25px)", borderRadius: 28, padding: "40px 30px", textAlign: "center", boxShadow: wrongPass ? "0 0 40px rgba(239, 68, 68, 0.15)" : "0 20px 50px rgba(0,0,0,0.4)", animation: wrongPass ? "shake 0.4s ease-in-out" : "none" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 25 }}><RealisticRobot size={100} /></div>
           
-          <input
-            type="password" placeholder="System Password" value={password}
-            onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && unlock()}
-            style={{ width: "100%", padding: 20, borderRadius: 15, border: wrongPass ? "1px solid #ef4444" : "1px solid rgba(255,255,255,.1)", background: "rgba(0,0,0,0.3)", color: "white", outline: "none", fontSize: 18 }}
-          />
-          <button onClick={unlock} style={{ width: "100%", marginTop: 20, padding: 18, borderRadius: 15, border: "none", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontSize: 18, cursor: "pointer", fontWeight: "bold" }}>Enter System</button>
+          <h1 style={{ fontSize: 28, marginBottom: 8, fontWeight: 800 }}>بوابة العبور الآمن</h1>
+          <p style={{ opacity: 0.5, fontSize: 13, marginBottom: 30 }}>الرجاء إدخال رمز النظام للاتصال بـ Nova AI</p>
+          
+          <div style={{ position: "relative" }}>
+            <input
+              type="password" 
+              placeholder="••••••••" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)} 
+              onKeyDown={(e) => e.key === "Enter" && unlock()}
+              style={{ width: "100%", padding: "18px 20px", borderRadius: 16, border: wrongPass ? "2px solid #ef4444" : "1px solid rgba(255,255,255,0.08)", background: "#040714", color: "white", outline: "none", fontSize: 16, textAlign: "center", letterSpacing: "4px" }}
+            />
+            <Lock style={{ position: "absolute", right: 18, top: 20, width: 18, height: 18, opacity: 0.3 }} />
+          </div>
+
+          {wrongPass && (
+            <p style={{ color: "#ef4444", fontSize: 12, marginTop: 10, fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+              <AlertTriangle className="w-4 h-4" /> الرمز المدخل غير صحيح. حاول مجدداً.
+            </p>
+          )}
+
+          <button onClick={unlock} style={{ width: "100%", marginTop: 20, padding: 16, borderRadius: 16, border: "none", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", color: "white", fontSize: 15, cursor: "pointer", fontWeight: "bold", boxShadow: "0 4px 20px rgba(59, 130, 246, 0.3)" }}>
+            بدء التحقق والمصادقة
+          </button>
         </div>
       </div>
     );
   }
 
-  /* ---------------- MAIN CHAT INTERFACE ---------------- */
+  /* ---------------- 2. SECOND SCREEN: INTERMEDIATE CYBER LOADING ---------------- */
+  if (authStep === "LOADING_TRANSITION") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#030510", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", fontFamily: "Arial", color: "white" }} dir="rtl">
+        <div style={{ textAlign: "center" }}>
+          <div style={{ position: "relative", width: 140, height: 140, margin: "0 auto 30px", display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px dashed #10b981", animation: "spin 10s linear infinite", opacity: 0.6 }}></div>
+            <div style={{ position: "absolute", inset: 10, borderRadius: "50%", border: "1px solid #3b82f6", opacity: 0.3 }}></div>
+            <RealisticRobot size={90} />
+          </div>
+
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: "bold", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <CheckCircle2 className="w-5 h-5" /> تم قبول الرمز بنجاح
+            </h2>
+            <p style={{ opacity: 0.5, fontSize: 12, marginTop: 6, letterSpacing: "1px" }}>LOADING NOVA CORE WORKSPACE...</p>
+          </div>
+
+          <div style={{ width: 240, height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 10, margin: "20px auto 0", overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", background: "linear-gradient(90deg, #3b82f6, #10b981)", width: "100%", animation: "slideLoading 2s forwards" }}></div>
+          </div>
+        </div>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes slideLoading { from { transform: translateX(100%); } to { transform: translateX(0%); } }
+        `}</style>
+      </div>
+    );
+  }
+
+  /* ---------------- 3. THIRD SCREEN: AUTHORIZED SYSTEM ---------------- */
   return (
     <div 
       onMouseMove={handleDragMove} 
       onMouseUp={handleDragEnd} 
-      style={{ minHeight: "100vh", background: "#050816", color: "white", overflow: "hidden", fontFamily: "Arial", position: "relative" }}
+      style={{ minHeight: "100vh", background: "#040612", color: "white", overflow: "hidden", fontFamily: "Arial", position: "relative" }}
+      dir="rtl"
     >
       <style>{`
-        @keyframes slideUpFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes realisticBlink { 0%, 96%, 98%, 100% {transform: scaleY(1)} 97%, 99% {transform: scaleY(0.1)} }
-        @keyframes pulseGlow { 0%, 100% {box-shadow: 0 0 20px rgba(59,130,246,0.4)} 50% {box-shadow: 0 0 50px rgba(124,58,237,0.8)} }
-        @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-5px)} }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        @keyframes slideUpFade { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow { 0%, 100% {box-shadow: 0 0 20px rgba(59,130,246,0.4)} 50% {box-shadow: 0 0 50px rgba(139,92,246,0.7)} }
+        @keyframes float { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-6px)} }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
       `}</style>
 
-      {/* HEADER WITH MODES */}
-      <div style={{ padding: "20px 40px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(5,8,22,0.8)", backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+      {/* HEADER BAR */}
+      <header style={{ padding: "15px 40px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(4,6,18,0.7)", backdropFilter: "blur(15px)", position: "sticky", top: 0, zIndex: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <RealisticRobot size={45} />
           <div>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: "bold", background: "linear-gradient(to right, #fff, #60a5fa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Nova AI</h1>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 10px #10b981" }} />
-              <span style={{ fontSize: 12, opacity: 0.6 }}>System Online</span>
+            <h1 style={{ margin: 0, fontSize: 18, fontWeight: "extrabold", background: "linear-gradient(to left, #fff, #818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NOVA MAIN CORE</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 10px #10b981" }} />
+              <span style={{ fontSize: 11, opacity: 0.5 }}>SECURE TUNNEL ACTIVE</span>
             </div>
           </div>
         </div>
 
         {/* AI MODE SWITCHER */}
-        <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4 }}>
-          <button onClick={() => setAiMode("builder")} style={{ padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: aiMode === "builder" ? "rgba(255,255,255,0.1)" : "transparent", color: aiMode === "builder" ? "white" : "rgba(255,255,255,0.4)", fontWeight: aiMode === "builder" ? "bold" : "normal", transition: "all 0.3s" }}>
-            🛠️ Website Builder
+        <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: 3 }}>
+          <button onClick={() => setAiMode("builder")} style={{ padding: "8px 18px", borderRadius: 11, border: "none", cursor: "pointer", background: aiMode === "builder" ? "rgba(255,255,255,0.08)" : "transparent", color: aiMode === "builder" ? "white" : "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "bold", transition: "all 0.2s" }}>
+            🛠️ محرك البناء
           </button>
-          <button onClick={() => setAiMode("chat")} style={{ padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: aiMode === "chat" ? "rgba(255,255,255,0.1)" : "transparent", color: aiMode === "chat" ? "white" : "rgba(255,255,255,0.4)", fontWeight: aiMode === "chat" ? "bold" : "normal", transition: "all 0.3s" }}>
-            💬 Super Chat
+          <button onClick={() => setAiMode("chat")} style={{ padding: "8px 18px", borderRadius: 11, border: "none", cursor: "pointer", background: aiMode === "chat" ? "rgba(255,255,255,0.08)" : "transparent", color: aiMode === "chat" ? "white" : "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "bold", transition: "all 0.2s" }}>
+            💬 محادثة فائقة
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* CHAT AREA */}
-      <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto", padding: "40px 20px 150px" }}>
+      {/* MAIN CONTAINER CHAT */}
+      <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto", padding: "40px 20px 160px", minHeight: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
+        
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: "10vh", animation: "slideUpFade 0.8s ease-out" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 30 }}><RealisticRobot size={120} /></div>
-            <h2 style={{ fontSize: 42, marginBottom: 10 }}>How can I help you today?</h2>
-            <p style={{ opacity: 0.5, fontSize: 18 }}>Current Mode: {aiMode === "builder" ? "Creating advanced websites" : "Answering all questions intelligently"}</p>
+          <div style={{ textAlign: "center", marginTop: "12vh", animation: "slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 25 }}><RealisticRobot size={110} /></div>
+            <h2 style={{ fontSize: 32, fontWeight: 800, marginBottom: 8 }}>كيف يمكنني صياغة نظامك اليوم؟</h2>
+            <p style={{ opacity: 0.4, fontSize: 14 }}>
+              الوضع الفعال الحالي: {aiMode === "builder" ? "توليد كود وبناء مواقع حية ورفعها" : "إجابة ذكية ومفتوحة على كافة الأسئلة والبرمجيات"}
+            </p>
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 30, display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", animation: "slideUpFade 0.4s ease-out forwards" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexDirection: m.role === "user" ? "row-reverse" : "row" }}>
-              {m.role === "assistant" ? <RealisticRobot size={32} /> : <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#3b82f6", display: "flex", justifyContent: "center", alignItems: "center", fontSize: 12 }}>US</div>}
-              <span style={{ fontSize: 13, opacity: 0.5 }}>{m.role === "assistant" ? "NOVA AI" : "YOU"}</span>
-            </div>
-            <div style={{ maxWidth: "80%", background: m.role === "assistant" ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg, #2563eb, #4f46e5)", padding: "18px 24px", borderRadius: m.role === "user" ? "20px 20px 4px 20px" : "20px 20px 20px 4px", border: m.role === "assistant" ? "1px solid rgba(255,255,255,0.05)" : "none", fontSize: 16, lineHeight: 1.6, whiteSpace: "pre-wrap", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-              {m.content}
-            </div>
-          </div>
-        ))}
+        {/* MESSAGES FEEDS */}
+        <div style={{ flex: 1 }}>
+          {messages.map((m, i) => {
+            const isAss = m.role === "assistant";
+            const hasUrl = !!m.previewUrl;
+            
+            return (
+              <div key={i} style={{ marginBottom: 35, display: "flex", flexDirection: "column", alignItems: isAss ? "flex-start" : "flex-end", animation: "slideUpFade 0.3s ease-out" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexDirection: isAss ? "row" : "row-reverse" }}>
+                  {isAss ? <RealisticRobot size={28} /> : <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, #3b82f6, #4f46e5)", display: "flex", justifyContent: "center", alignItems: "center", fontSize: 10, fontWeight: "bold" }}>UR</div>}
+                  <span style={{ fontSize: 11, opacity: 0.4, fontWeight: "bold" }}>{isAss ? "NOVA AI CORE" : "YOU"}</span>
+                </div>
+                
+                {/* صندوق الرسالة */}
+                <div style={{ 
+                  maxWidth: "90%", 
+                  background: hasUrl ? "#051a10" : isAss ? "rgba(255,255,255,0.03)" : "linear-gradient(135deg, #2563eb, #4f46e5)", 
+                  border: hasUrl ? "2px solid #10b981" : isAss ? "1px solid rgba(255,255,255,0.05)" : "none",
+                  color: hasUrl ? "#10b981" : "white",
+                  padding: "16px 22px", 
+                  borderRadius: isAss ? "20px 20px 20px 4px" : "20px 20px 4px 20px", 
+                  fontSize: 15, 
+                  lineHeight: 1.6, 
+                  whiteSpace: "pre-wrap", 
+                  boxShadow: hasUrl ? "0 0 25px rgba(16,185,129,0.08)" : "0 10px 30px rgba(0,0,0,0.15)",
+                  textAlign: "right"
+                }}>
+                  {m.content}
+
+                  {/* 🚀 الـ Magic الفعلي: عند نجاح بناء الموقع يتم حقن أزرار المعاينة وشاشة iframe فوراً */}
+                  {hasUrl && (
+                    <div style={{ marginTop: 20 }}>
+                      <a 
+                        href={m.previewUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#10b981", color: "black", borderRadius: 10, fontWeight: "bold", fontSize: 13, textDecoration: "none", boxShadow: "0 4px 15px rgba(16,185,129,0.3)" }}
+                      >
+                        <ExternalLink className="w-4 h-4" /> فتح الموقع في نافذة جديدة حية
+                      </a>
+
+                      {/* شاشة العرض والتشغيل المباشر للموقع التفاعلي */}
+                      <div style={{ marginTop: 15, background: "#000", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(16,185,129,0.3)" }}>
+                        <div style={{ background: "#0a0f0d", padding: "8px 15px", display: "flex", alignItems: "center", gap: 6, borderBottom: "1px solid rgba(16,185,129,0.1)" }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }} />
+                          <span style={{ fontSize: 11, opacity: 0.5, marginRight: 10, fontFamily: "monospace" }}>nova_live_browser.html</span>
+                        </div>
+                        <iframe 
+                          src={m.previewUrl} 
+                          style={{ width: "100%", height: "450px", border: "none", background: "white" }} 
+                          title="Nova Live Website Preview"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
         <div ref={bottomRef} />
       </div>
 
-      {/* INPUT BAR */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: 25, background: "linear-gradient(to top, rgba(5,8,22,1) 60%, rgba(5,8,22,0))", pointerEvents: "none" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 10, display: "flex", alignItems: "center", pointerEvents: "auto", backdropFilter: "blur(20px)", boxShadow: "0 10px 40px rgba(0,0,0,0.5)" }}>
+      {/* BOX INPUT AT BOTTOM */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "30px 20px", background: "linear-gradient(to top, #040612 70%, rgba(4,6,18,0))", zIndex: 30 }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto", background: "rgba(10, 14, 35, 0.7)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, padding: "6px 10px", display: "flex", alignItems: "center", backdropFilter: "blur(20px)", boxShadow: "0 15px 40px rgba(0,0,0,0.4)" }}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => !loading && setRobotMood("typing")}
             onBlur={() => !loading && setRobotMood("idle")}
-            placeholder={aiMode === "builder" ? "Describe the website you want to generate..." : "Ask Nova AI anything..."}
-            style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "white", fontSize: 16, padding: "15px 20px" }}
+            disabled={loading}
+            placeholder={aiMode === "builder" ? "اصنع لي موقع متجر إلكتروني فخم بنظام نيون غامق..." : "اسألني عن أي سكريبت أو قاعدة بيانات برمجية..."}
+            style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "white", fontSize: 14, padding: "14px 15px", textAlign: "right" }}
           />
-          <button onClick={sendMessage} disabled={loading} style={{ border: "none", padding: "14px 28px", borderRadius: 16, background: "white", color: "black", cursor: "pointer", fontSize: 16, fontWeight: "bold", transition: "all 0.2s" }}>
-            {loading ? "Processing..." : "Send"}
+          <button 
+            onClick={sendMessage} 
+            disabled={loading || !input.trim()} 
+            style={{ border: "none", padding: "12px 24px", borderRadius: 14, background: "white", color: "black", cursor: "pointer", fontSize: 14, fontWeight: "bold", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            {loading ? "جاري البناء الفعلي..." : <><Send className="w-4 h-4 transform rotate-180" /> إرسال</>}
           </button>
         </div>
       </div>
 
-      {/* ---------------- SECRET ADMIN PASSWORD PROMPT ---------------- */}
+      {/* ---------------- SECRET ADMIN PROMPT MODAL ---------------- */}
       {showAdminLogin && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)", zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <div style={{ background: "#111827", padding: 30, borderRadius: 20, border: "1px solid #ef4444", width: 400, animation: "slideUpFade 0.3s" }}>
-            <h3 style={{ color: "#ef4444", margin: "0 0 15px 0" }}>⚠️ RESTRICTED AREA</h3>
-            <p style={{ opacity: 0.7, marginBottom: 20, fontSize: 14 }}>Enter Admin Key to access Master Control Panel.</p>
-            <input type="password" value={adminPassInput} onChange={e => setAdminPassInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdminAuth()} placeholder="Master Key..." style={{ width: "100%", padding: 15, borderRadius: 10, border: "none", background: "rgba(0,0,0,0.5)", color: "white", marginBottom: 15 }} autoFocus />
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowAdminLogin(false)} style={{ flex: 1, padding: 12, background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, cursor: "pointer" }}>Cancel</button>
-              <button onClick={handleAdminAuth} style={{ flex: 1, padding: 12, background: "#ef4444", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: "bold" }}>Access</button>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(2, 3, 10, 0.85)", backdropFilter: "blur(12px)", zIndex: 100, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <div style={{ background: "#0c0407", padding: 35, borderRadius: 24, border: "2px solid #ef4444", width: 420, boxShadow: "0 0 40px rgba(239, 68, 68, 0.15)", animation: "slideUpFade 0.25s ease-out" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 15, color: "#ef4444" }}>
+              <ShieldAlert className="w-5 h-5" />
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: "extrabold" }}>منطقة محظورة بالكامل</h3>
+            </div>
+            <p style={{ opacity: 0.6, marginBottom: 25, fontSize: 13, lineHeight: 1.5 }}>الرجاء إدخل المفتاح الرئيسي (Master Key) لفك تشفير لوحة التحكم العليا.</p>
+            
+            <input 
+              type="password" 
+              value={adminPassInput} 
+              onChange={e => setAdminPassInput(e.target.value)} 
+              onKeyDown={e => e.key === "Enter" && handleAdminAuth()} 
+              placeholder="تشفير روت الـ Master..." 
+              style={{ width: "100%", padding: 15, borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)", background: "#020308", color: "white", marginBottom: 20, textAlign: "center", fontSize: 14 }} 
+              autoFocus 
+            />
+            
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => { setShowAdminLogin(false); setAdminPassInput(""); }} style={{ flex: 1, padding: 12, background: "transparent", color: "white", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, cursor: "pointer", fontSize: 13 }}>إلغاء الأمر</button>
+              <button onClick={handleAdminAuth} style={{ flex: 1, padding: 12, background: "#ef4444", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: "bold", fontSize: 13, boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3)" }}>تأكيد الهوية</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ---------------- DRAGGABLE ADMIN PANEL ---------------- */}
+      {/* ---------------- DRAGGABLE GLASS ADMIN PANEL ---------------- */}
       {isAdminAuth && (
         <div 
-          style={{ position: "fixed", left: adminPos.x, top: adminPos.y, width: 600, background: "rgba(15,23,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, zIndex: 99, boxShadow: "0 20px 50px rgba(0,0,0,0.5)", backdropFilter: "blur(20px)", overflow: "hidden", animation: "slideUpFade 0.3s" }}
+          style={{ position: "fixed", left: adminPos.x, top: adminPos.y, width: 560, background: "rgba(11, 16, 43, 0.95)", border: "1px solid rgba(59, 130, 246, 0.2)", borderRadius: 20, zIndex: 99, boxShadow: "0 25px 60px rgba(0,0,0,0.6)", backdropFilter: "blur(25px)", overflow: "hidden", animation: "slideUpFade 0.3s ease-out" }}
         >
-          {/* Header Draggable Area */}
           <div 
             onMouseDown={handleDragStart} 
-            style={{ padding: "15px 20px", background: "rgba(0,0,0,0.4)", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "grab", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            style={{ padding: "16px 20px", background: "rgba(4, 7, 24, 0.6)", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "grab", display: "flex", justifyContent: "space-between", alignItems: "center" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 10px #ef4444" }}/>
-              <span style={{ fontWeight: "bold", letterSpacing: 1, fontSize: 14 }}>MASTER CONTROL PANEL</span>
+              <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span style={{ fontWeight: "extrabold", fontSize: 13, color: "#fff" }}>لوحة تحكم المشرف الأعلى (MASTER PANEL)</span>
             </div>
-            <button onClick={() => setIsAdminAuth(false)} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer", fontSize: 18 }}>×</button>
+            <button onClick={() => setIsAdminAuth(false)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer" }}><X className="w-5 h-5" /></button>
           </div>
 
-          {/* Admin Content */}
-          <div style={{ padding: 20 }}>
-            <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
-              <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", padding: 15, borderRadius: 10, border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ opacity: 0.5, fontSize: 12 }}>Online Users</div>
-                <div style={{ fontSize: 24, fontWeight: "bold", color: "#10b981" }}>1,432</div>
+          <div style={{ padding: 22 }}>
+            <div style={{ display: "flex", gap: 15, marginBottom: 25 }}>
+              <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", padding: 15, borderRadius: 14, border: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 12 }}>
+                <Users className="w-8 h-8 text-indigo-400" />
+                <div>
+                  <div style={{ opacity: 0.4, fontSize: 11 }}>المستخدمين النشطين</div>
+                  <div style={{ fontSize: 20, fontWeight: "bold", color: "#10b981", fontFamily: "monospace", marginTop: 2 }}>1,432</div>
+                </div>
               </div>
-              <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", padding: 15, borderRadius: 10, border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ opacity: 0.5, fontSize: 12 }}>Sites Generated</div>
-                <div style={{ fontSize: 24, fontWeight: "bold", color: "#3b82f6" }}>89,204</div>
+              <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", padding: 15, borderRadius: 14, border: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 12 }}>
+                <Activity className="w-8 h-8 text-indigo-400" />
+                <div>
+                  <div style={{ opacity: 0.4, fontSize: 11 }}>إجمالي الـ Deploys</div>
+                  <div style={{ fontSize: 20, fontWeight: "bold", color: "#3b82f6", fontFamily: "monospace", marginTop: 2 }}>89,204</div>
+                </div>
               </div>
             </div>
 
-            <h4 style={{ margin: "0 0 15px 0", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 10 }}>User Management</h4>
-            <div style={{ maxHeight: 200, overflowY: "auto" }}>
+            <h4 style={{ margin: "0 0 12px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: 8, fontSize: 13, color: "#818cf8" }}>سجلات الرصد والتحكم الحية</h4>
+            
+            <div style={{ maxHeight: 180, overflowY: "auto" }}>
               {[
-                { email: "admin@nova.ai", status: "Active", ip: "192.168.1.1" },
-                { email: "user_992@gmail.com", status: "Online", ip: "10.0.0.45" },
-                { email: "hacker@test.com", status: "Suspicious", ip: "Unknown" },
+                { email: "admin@nova.ai", status: "Active", ip: "192.168.1.1", color: "#10b981" },
+                { email: "user_992@gmail.com", status: "Online", ip: "10.0.0.45", color: "#3b82f6" },
+                { email: "hacker@test.com", status: "Suspicious", ip: "Unknown", color: "#ef4444" },
               ].map((u, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                   <div>
-                    <div style={{ fontSize: 14 }}>{u.email}</div>
-                    <div style={{ fontSize: 11, opacity: 0.5 }}>IP: {u.ip} • Status: {u.status}</div>
+                    <div style={{ fontSize: 13, fontWeight: "bold" }}>{u.email}</div>
+                    <div style={{ fontSize: 11, opacity: 0.4, marginTop: 2 }}>IP: {u.ip} • الحالة: <span style={{ color: u.color }}>{u.status}</span></div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button style={{ padding: "6px 12px", background: "rgba(59,130,246,0.2)", color: "#60a5fa", border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Edit</button>
-                    <button style={{ padding: "6px 12px", background: "rgba(239,68,68,0.2)", color: "#f87171", border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Ban</button>
+                    <button style={{ padding: "6px 12px", background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#60a5fa", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>تعديل</button>
+                    <button style={{ padding: "6px 12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", borderRadius: 8, fontSize: 11, cursor: "pointer" }}>حظر</button>
                   </div>
                 </div>
               ))}
