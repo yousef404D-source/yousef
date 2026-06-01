@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js"; // استدعاء آمن ومتوافق يمنع أخطاء الـ Build
+import { createBrowserClient } from "@supabase/ssr"; // الطريقة الرسمية والآمنة لـ Next.js لمنع أخطاء الـ Prerender والـ Build
 import { useRouter } from "next/navigation";
 import { 
   Bot, 
@@ -23,12 +23,13 @@ interface UserData { name: string; email: string; avatar: string; }
 interface Project { id: string; name: string; url: string; prompt: string; created_at: string; }
 
 export default function AdminDashboard() {
-  // إنشاء عميل سوبابيز محلي يتجنب مشاكل استيراد auth-helpers في إصدارات Next الحالية
-  const supabase = createClient(
+  const router = useRouter();
+
+  // إنشاء العميل باستخدام createBrowserClient؛ وهو مخصص ومضمون للعمل داخل المتصفح بأمان دون التسبب بانهيار السيرفر أثناء الـ Build
+  const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
   );
-  const router = useRouter();
 
   // States
   const [user, setUser] = useState<UserData | null>(null);
@@ -47,41 +48,52 @@ export default function AdminDashboard() {
     const checkAuthAndAnimate = async () => {
       const startTime = Date.now();
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
+      // حماية إضافية: إذا لم تكن المتغيرات متوفرة بعد (أثناء الـ Build مثلاً) نتوقف بهدوء لتفادي الانهيار
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        setIsAuthenticating(false);
         return;
       }
 
-      const { data: userRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-
-      const duration = Date.now() - startTime;
-      const delay = Math.max(1800 - duration, 0); 
-
-      setTimeout(() => {
-        if (!userRole || userRole.role !== "admin") {
-          setAuthError("عذراً، هذا الحساب لا يملك صلاحيات المسؤول (Admin).");
-          setIsAuthenticating(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
           return;
         }
 
-        setUser({
-          name: session.user.user_metadata.full_name || "Admin",
-          email: session.user.email || "",
-          avatar: session.user.user_metadata.avatar_url || "",
-        });
-        
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single();
+
+        const duration = Date.now() - startTime;
+        const delay = Math.max(1800 - duration, 0); 
+
+        setTimeout(() => {
+          if (!userRole || userRole.role !== "admin") {
+            setAuthError("عذراً، هذا الحساب لا يملك صلاحيات المسؤول (Admin).");
+            setIsAuthenticating(false);
+            return;
+          }
+
+          setUser({
+            name: session.user.user_metadata.full_name || "Admin",
+            email: session.user.email || "",
+            avatar: session.user.user_metadata.avatar_url || "",
+          });
+          
+          setIsAuthenticating(false);
+          setTimeout(() => setPageReady(true), 100);
+        }, delay);
+      } catch (error) {
+        setAuthError("حدث خطأ أثناء الاتصال بنظام التحقق.");
         setIsAuthenticating(false);
-        setTimeout(() => setPageReady(true), 100);
-      }, delay);
+      }
     };
 
     checkAuthAndAnimate();
-  }, [router, supabase.auth]);
+  }, [router, supabase]);
 
   // 2. معالجة طلب توليد الموقع والـ Deploy
   const handleGenerateWebsite = async (e: React.FormEvent) => {
@@ -167,7 +179,7 @@ export default function AdminDashboard() {
   return (
     <div className={`min-h-screen bg-[#050816] text-slate-100 flex transition-opacity duration-700 ${pageReady ? "opacity-100" : "opacity-0"}`} dir="rtl">
       
-      {/* Sidebar - تم إصلاح الحواف والانحناءات لتطابق جهة اليمين البرمجية في الـ RTL */}
+      {/* Sidebar */}
       <aside className="w-72 bg-[#070b21] border-r border-slate-800/80 p-6 flex flex-col justify-between hidden lg:flex shrink-0">
         <div>
           <div className="flex items-center gap-3 mb-8">
@@ -225,10 +237,10 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Content Area - مصفوف بشكل مرن يمنع رمي العناصر لليسار */}
+        {/* Content Area */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 md:p-6 gap-6">
           
-          {/* Chat Hub (صندوق المحادثة الموزون والمستقر أفدح) */}
+          {/* Chat Hub */}
           <div className="flex-1 flex flex-col bg-[#070b21] border border-slate-800/80 rounded-3xl overflow-hidden relative shadow-2xl">
             
             {/* روبوت الحالة العلوي */}
@@ -287,7 +299,7 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* نموذج حقل الإدخال - مصلح هندسياً ليتناسب الزر مع اتجاه النص العربي (RTL) */}
+            {/* نموذج حقل الإدخال */}
             <form onSubmit={handleGenerateWebsite} className="p-4 bg-[#050816]/60 border-t border-slate-800/80">
               <div className="relative flex items-center">
                 <textarea
