@@ -57,7 +57,7 @@ export default function NovaAI() {
 
   const [screenSize, setScreenSize] = useState<ScreenSize>("desktop");
 
-  // Dynamic AI Questionnaire States (The core feature requested)
+  // Dynamic AI Questionnaire States
   const [showQuestions, setShowQuestions] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
   const [questionAnswers, setQuestionAnswers] = useState<Record<string, string>>({});
@@ -79,7 +79,7 @@ export default function NovaAI() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* ---------------- ADMIN DRAG & DROP LOGIC (FIXED) ---------------- */
+  /* ---------------- ADMIN DRAG & DROP LOGIC ---------------- */
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState("");
   const [isAdminAuth, setIsAdminAuth] = useState(false);
@@ -108,7 +108,7 @@ export default function NovaAI() {
     }
   }, [loading]);
 
-  // Global mouse tracker for smooth admin dashboard dragging without stuck bugs
+  // Global mouse tracker for smooth admin dashboard dragging
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -130,6 +130,15 @@ export default function NovaAI() {
     };
   }, [isDragging]);
 
+  // Clean up image object URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (selectedImage) {
+        URL.revokeObjectURL(selectedImage);
+      }
+    };
+  }, [selectedImage]);
+
   const showToast = (text: string, type: "success" | "error" | "info" = "info") => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
@@ -137,12 +146,10 @@ export default function NovaAI() {
 
   /* ---------------- DYNAMIC LANGUAGE DETECTION & INTENT PARSER ---------------- */
   function detectLanguageAndIntent(text: string) {
-    // 1. Language Detection
     const arabicPattern = /[\u0600-\u06FF]/;
     const isArabic = arabicPattern.test(text);
     setChatLanguage(isArabic ? "ar" : "en");
 
-    // 2. Intent Classification (Command vs Question)
     const buildingKeywords = ["build", "create", "make", "design", "website", "platform", "سوي", "ابني", "صمم", "موقع", "منصة"];
     const isCommand = buildingKeywords.some(keyword => text.toLowerCase().includes(keyword));
 
@@ -192,7 +199,7 @@ export default function NovaAI() {
         setIsAdminAuth(true);
         setShowAdminLogin(false);
         setAdminPassInput("");
-        showToast("Yousef Console Authenticated Successfully.", "success");
+        showToast("Admin Console Authenticated Successfully.", "success");
       } else {
         throw new Error();
       }
@@ -234,7 +241,6 @@ export default function NovaAI() {
     const promptToSend = overridePrompt || input;
     if (!promptToSend.trim() && !selectedImage) return;
 
-    // Secret Admin Bypass Code
     if (promptToSend.trim() === "/ad") {
       setShowAdminLogin(true);
       setInput("");
@@ -243,24 +249,21 @@ export default function NovaAI() {
 
     const { isArabic, isCommand } = detectLanguageAndIntent(promptToSend);
 
-    // 1. IF IT IS A QUESTION: Route directly to rapid smart chat assistant
     if (!isCommand) {
       setAiMode("chat");
       executeChatQuery(promptToSend, isArabic);
       return;
     }
 
-    // 2. IF IT IS A COMMAND: Auto-Switch to Builder and trigger dynamic context questions
     setAiMode("builder");
     triggerDynamicQuestionnaire(promptToSend);
   }
 
-  /* ---------------- DYNAMIC QUESTIONNAIRE GENERATOR (REAL AI LOGIC) ---------------- */
+  /* ---------------- DYNAMIC QUESTIONNAIRE GENERATOR ---------------- */
   function triggerDynamicQuestionnaire(prompt: string) {
     setRobotMood("thinking");
     showToast("Generating custom architectural questions...", "info");
 
-    // Dynamic question engine based on user prompt inputs to avoid hardcoded templates
     let dynamicSet = [
       `What core technical architecture or model should power the backend of this platform?`,
       `How do you want users to process files or interact with data layouts?`,
@@ -299,7 +302,6 @@ export default function NovaAI() {
     if (activeQuestionIdx < generatedQuestions.length - 1) {
       setActiveQuestionIdx(prev => prev + 1);
     } else {
-      // Completed standard questions, move to final "Something Else" stage
       setShowSomethingElseChat(true);
     }
   }
@@ -307,7 +309,6 @@ export default function NovaAI() {
   function submitFinalQuestionnaire() {
     setShowQuestions(false);
     
-    // Compile total context mapping
     let answersSummary = Object.entries(questionAnswers)
       .map(([q, a]) => `\n- Q: ${q} | Answer: ${a}`)
       .join("");
@@ -326,7 +327,8 @@ export default function NovaAI() {
 
   /* ---------------- CHAT ENGINE ROUTER ---------------- */
   async function executeChatQuery(prompt: string, isArabic: boolean) {
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content: prompt }]);
+    const uniqueId = Date.now().toString() + Math.random().toString(36).substring(2, 5);
+    setMessages((prev) => [...prev, { id: uniqueId, role: "user", content: prompt }]);
     setInput("");
     setLoading(true);
     setRobotMood("thinking");
@@ -339,17 +341,19 @@ export default function NovaAI() {
       });
       const data = await res.json();
       setRobotMood("happy");
+      
+      const assistantId = "ass-" + Date.now().toString();
       setMessages((prev) => [
         ...prev, 
         { 
-          id: crypto.randomUUID(), 
+          id: assistantId, 
           role: "assistant", 
           content: data.code || (isArabic ? "أنا هنا لمعالجة أحدث طلباتك ومساعدتك هندسياً." : "I am fully operational to assist you with elite engineering architecture.") 
         }
       ]);
     } catch {
       setRobotMood("sad");
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Connection to core engine failed." }]);
+      setMessages((prev) => [...prev, { id: "err-" + Date.now(), role: "assistant", content: "Connection to core engine failed." }]);
     }
     setLoading(false);
     setTimeout(() => setRobotMood("idle"), 2000);
@@ -358,9 +362,15 @@ export default function NovaAI() {
   /* ---------------- DEPLOYMENT & LIVE PREVIEW ENGINE ---------------- */
   async function executeWebsiteDeployment(finalPrompt: string) {
     const userMsgText = input + (selectedImage ? " [Attached Design Diagram Sketch]" : "");
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content: userMsgText }]);
+    const uniqueId = "dep-" + Date.now().toString();
+    setMessages((prev) => [...prev, { id: uniqueId, role: "user", content: userMsgText }]);
     setInput("");
-    setSelectedImage(null);
+    
+    if (selectedImage) {
+      URL.revokeObjectURL(selectedImage);
+      setSelectedImage(null);
+    }
+    
     setLoading(true);
     setRobotMood("thinking");
 
@@ -382,10 +392,11 @@ export default function NovaAI() {
         ? `🚀 تم نشر موقعك الفريد والمخصص تماماً على السيرفر بنجاح عالي!\n\nتم تجنب النمطية لبناء تصميم مبتكر بالكامل. يمكنك معاينته الآن في نافذة العرض واختبار التجاوب الذكي.`
         : `🚀 Your entirely dynamic and customized website layout has been compiled and deployed onto live cloud servers successfully!\n\nLayout randomization triggered. View it immediately on the right interactive sandbox engine.`;
 
+      const assistantDepId = "ass-dep-" + Date.now().toString();
       setMessages((prev) => [
         ...prev, 
         { 
-          id: crypto.randomUUID(),
+          id: assistantDepId,
           role: "assistant", 
           content: successNotification,
           previewUrl: data.url
@@ -397,7 +408,7 @@ export default function NovaAI() {
       const errorMsg = err instanceof Error ? err.message : "Internal pipeline failure.";
       setMessages((prev) => [
         ...prev, 
-        { id: crypto.randomUUID(), role: "assistant", content: `❌ Compilation Exception: ${errorMsg}` }
+        { id: "err-dep-" + Date.now(), role: "assistant", content: `❌ Compilation Exception: ${errorMsg}` }
       ]);
     }
     setLoading(false);
@@ -498,7 +509,7 @@ export default function NovaAI() {
     "🚀 Synchronizing sandbox compilation assets with secure operational live instances..."
   ];
 
-  /* ---------------- SCREEN 1: BRAND NEW ENGLISH GATEWAY ---------------- */
+  /* ---------------- SCREEN 1: GATEWAY ---------------- */
   if (authStep === "SYSTEM_PASSWORD") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#02040d] text-white p-4 font-sans" dir="ltr">
@@ -540,7 +551,7 @@ export default function NovaAI() {
     );
   }
 
-  /* ---------------- SCREEN 2: INITIALIZING LOADING BAR ---------------- */
+  /* ---------------- SCREEN 2: LOADING BAR ---------------- */
   if (authStep === "LOADING_TRANSITION") {
     return (
       <div className="min-h-screen bg-[#02030b] flex flex-col items-center justify-center text-white font-sans" dir="ltr">
@@ -567,7 +578,7 @@ export default function NovaAI() {
     );
   }
 
-  /* ---------------- SCREEN 3: POWERFUL MASTER HYBRID WORKSPACE ---------------- */
+  /* ---------------- SCREEN 3: HYBRID WORKSPACE ---------------- */
   return (
     <div className="min-h-screen bg-[#02040c] text-white flex flex-col font-sans relative" dir="ltr">
       <style>{`
@@ -629,17 +640,22 @@ export default function NovaAI() {
         </div>
       </header>
 
-      {/* CORE WORKSPACE: HIGH END FULL-GRID RESPONSIVE SYSTEM (FIXED THE VISUAL JUMP ISSUES) */}
+      {/* CORE WORKSPACE: UPDATED COL-SPAN FROM 4 TO 5 FOR BETTER WIDTH AND CLARITY */}
       <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 overflow-hidden relative">
         
-        {/* LEFT COMPONENT: STABLE CHAT AREA (xl:col-span-4 or 5 depending on room width) */}
-        <div className="xl:col-span-4 border-r border-slate-900 bg-[#02040a] flex flex-col overflow-hidden relative min-h-[450px] xl:min-h-0">
-          <div className="flex-1 overflow-y-auto p-4 space-y-5 pb-32">
+        {/* LEFT COMPONENT: UPDATED TO xl:col-span-5 FOR EXTRA BREATHING ROOM */}
+        <div className="xl:col-span-5 border-r border-slate-900 bg-[#02040a] flex flex-col overflow-hidden relative min-h-[450px] xl:min-h-0">
+          <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-40">
+            
             {messages.length === 0 && (
-              <div className="text-center pt-12 animate-[slideUpFade_0.4s_ease-out]">
-                <div className="flex justify-center mb-3"><RealisticRobot size={80} /></div>
-                <h3 className="text-sm font-bold text-slate-300">INTELLIGENT PIPELINE DISPATCHER</h3>
-                <p className="text-[11px] text-slate-500 max-w-xs mx-auto mt-1.5 leading-relaxed">
+              <div className="text-center pt-16 px-6 animate-[slideUpFade_0.4s_ease-out] flex flex-col items-center justify-center max-w-md mx-auto">
+                <div className="flex justify-center mb-6 min-h-[100px] relative z-10">
+                  <RealisticRobot size={90} />
+                </div>
+                <h3 className="text-base font-extrabold text-slate-200 tracking-wide block mb-3">
+                  INTELLIGENT PIPELINE DISPATCHER
+                </h3>
+                <p className="text-xs text-slate-400 font-normal leading-relaxed text-center">
                   Type your project commands or ask engineering questions. The core AI auto-classifies requests, asks targeted questions without repetition, and compiles dynamic layouts.
                 </p>
               </div>
@@ -650,17 +666,17 @@ export default function NovaAI() {
               const isAr = /[\u0600-\u06FF]/.test(m.content);
               return (
                 <div key={m.id} className={`flex flex-col ${isAss ? "items-start" : "items-end"} animate-[slideUpFade_0.2s_ease-out]`}>
-                  <div className={`flex items-center gap-1.5 mb-1 ${isAss ? "flex-row" : "flex-row-reverse"}`}>
-                    {isAss ? <RealisticRobot size={30} /> : <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-[10px] font-black tracking-tighter">UR</div>}
-                    <span className="text-[9px] font-bold text-slate-500 tracking-wider font-mono">{isAss ? "NOVA AGENT" : "USER MASTER"}</span>
+                  <div className={`flex items-center gap-2 mb-1.5 ${isAss ? "flex-row" : "flex-row-reverse"}`}>
+                    {isAss ? <RealisticRobot size={32} /> : <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-[11px] font-black tracking-tighter">UR</div>}
+                    <span className="text-[10px] font-bold text-slate-500 tracking-wider font-mono">{isAss ? "NOVA AGENT" : "USER MASTER"}</span>
                   </div>
                   
                   <div 
                     dir={isAr ? "rtl" : "ltr"}
-                    className={`max-w-[88%] p-3.5 text-xs leading-relaxed shadow-xl border font-medium ${
+                    className={`max-w-[85%] p-4 text-sm leading-relaxed shadow-xl border rounded-2xl ${
                       isAss 
-                        ? "bg-slate-900/40 text-slate-300 rounded-2xl rounded-tl-none border-slate-800/80 text-left" 
-                        : "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-tr-none border-indigo-500/20 text-right"
+                        ? "bg-slate-900/60 text-slate-200 border-slate-800/80 text-left" 
+                        : "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white border-indigo-500/20 text-right"
                     }`}
                   >
                     {m.content}
@@ -673,11 +689,11 @@ export default function NovaAI() {
               <div className="flex flex-col items-start animate-pulse">
                 <div className="flex items-center gap-1.5 mb-1">
                   <RealisticRobot size={30} />
-                  <span className="text-[9px] font-mono font-bold text-slate-500">NOVA EXECUTING PIPELINE...</span>
+                  <span className="text-[10px] font-mono font-bold text-slate-500">NOVA EXECUTING PIPELINE...</span>
                 </div>
-                <div className="max-w-[90%] p-4 bg-slate-900/60 border border-slate-800 rounded-xl text-[11px] font-mono text-indigo-400 space-y-2.5 w-full">
+                <div className="max-w-[90%] p-4 bg-slate-900/60 border border-slate-800 rounded-xl text-xs font-mono text-indigo-400 space-y-2.5 w-full">
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="w-3 h-3 text-indigo-500 animate-spin" />
+                    <RefreshCw className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
                     <span>{loadingTexts[loadingStep]}</span>
                   </div>
                   <div className="w-full bg-slate-950 h-1 rounded-full overflow-hidden">
@@ -707,307 +723,230 @@ export default function NovaAI() {
             <div className="mb-2 flex gap-1.5 overflow-x-auto py-1 scrollbar-none">
               <button 
                 onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                className={`py-1 px-2.5 rounded-lg text-[9px] font-bold tracking-wider uppercase flex items-center gap-1 transition shrink-0 ${showAdvancedSettings ? 'bg-indigo-600 text-white' : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-200'}`}
+                className="py-1 px-2.5 rounded-lg text-[10px] bg-slate-900 border border-slate-800/80 text-slate-400 hover:text-white transition flex items-center gap-1 font-mono"
               >
-                <Sliders className="w-2.5 h-2.5" /> Engine Overrides
+                <Sliders className="w-3 h-3 text-indigo-400" /> Settings
               </button>
-              <span className="bg-[#050818] border border-slate-900/60 text-indigo-400 text-[9px] px-2 py-0.5 rounded-md font-mono shrink-0 flex items-center gap-1">
-                ⚙️ {engineConfig.framework}
-              </span>
-              <span className="bg-[#050818] border border-slate-900/60 text-emerald-400 text-[9px] px-2 py-0.5 rounded-md font-mono shrink-0 flex items-center gap-1">
-                ✨ {engineConfig.layoutStyle}
-              </span>
             </div>
 
+            {/* ADVANCED SETTINGS PANEL */}
             {showAdvancedSettings && (
-              <div className="mb-2 p-3 bg-slate-950 border border-slate-900 rounded-xl space-y-2 animate-[slideUpFade_0.1s_ease-out]">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Engine Architectural Target Config:</span>
-                  <button onClick={() => setShowAdvancedSettings(false)} className="text-slate-500 hover:text-white"><X className="w-3 h-3" /></button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="mb-3 p-3 bg-[#040716] border border-slate-900 rounded-xl space-y-2 animate-[slideUpFade_0.15s_ease-out]">
+                <p className="text-[10px] font-mono font-bold text-slate-500 tracking-wider">ENGINE ARCHITECTURE CONFIGURATION</p>
+                <div className="grid grid-cols-3 gap-2 text-[10px]">
                   <div>
-                    <label className="text-[9px] text-slate-500 block mb-0.5">Framework Layer:</label>
-                    <select value={engineConfig.framework} onChange={(e) => setEngineConfig(p => ({...p, framework: e.target.value}))} className="w-full bg-slate-900 text-white border border-slate-800 rounded-md p-1 text-[9px] outline-none">
-                      <option value="Next.js 14+">Next.js 14 (App Router)</option>
-                      <option value="React.js (Vite)">React.js + Vite Stack</option>
-                      <option value="Static HTML5">Pure HTML5 / Tailwind</option>
+                    <span className="block text-slate-500 mb-1">Framework</span>
+                    <select 
+                      value={engineConfig.framework} 
+                      onChange={(e) => setEngineConfig(prev => ({ ...prev, framework: e.target.value }))}
+                      className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
+                    >
+                      <option>Next.js 14+</option>
+                      <option>React Vite</option>
+                      <option>Vue Nuxt 3</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] text-slate-500 block mb-0.5">Motion Modules:</label>
-                    <select value={engineConfig.animations} onChange={(e) => setEngineConfig(p => ({...p, animations: e.target.value}))} className="w-full bg-slate-900 text-white border border-slate-800 rounded-md p-1 text-[9px] outline-none">
-                      <option value="Framer Motion Premium">Framer Motion Pro</option>
-                      <option value="GSAP High-Perf">GSAP Engineering Canvas</option>
-                      <option value="Vanilla CSS Core">Standard CSS Hardware</option>
+                    <span className="block text-slate-500 mb-1">Animations</span>
+                    <select 
+                      value={engineConfig.animations} 
+                      onChange={(e) => setEngineConfig(prev => ({ ...prev, animations: e.target.value }))}
+                      className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
+                    >
+                      <option>Framer Motion Premium</option>
+                      <option>GSAP Core</option>
+                      <option>CSS Native Speed</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] text-slate-500 block mb-0.5">Layout Generation:</label>
-                    <select value={engineConfig.layoutStyle} onChange={(e) => setEngineConfig(p => ({...p, layoutStyle: e.target.value}))} className="w-full bg-slate-900 text-white border border-slate-800 rounded-md p-1 text-[9px] outline-none">
-                      <option value="Dynamic Layout">Dynamic Generation (No Templates)</option>
-                      <option value="Hyper Cyberpunk">Extreme Cyber Neon Grid</option>
-                      <option value="Luxury Minimalist">Luxury Corporate Editorial</option>
+                    <span className="block text-slate-500 mb-1">Layout Style</span>
+                    <select 
+                      value={engineConfig.layoutStyle} 
+                      onChange={(e) => setEngineConfig(prev => ({ ...prev, layoutStyle: e.target.value }))}
+                      className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none"
+                    >
+                      <option>Dynamic Layout</option>
+                      <option>Bento Grid Minimalist</option>
+                      <option>Clean SaaS Corporate</option>
                     </select>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* INPUT BOX WRAPPER BAR */}
-            <div className="bg-slate-950 border border-slate-900/80 rounded-xl p-1.5 flex items-center shadow-3xl focus-within:border-blue-600/40 transition">
-              <input
+            {/* CHAT INPUT FIELD CONTAINER */}
+            <div className="relative flex items-center bg-[#05081a] border border-slate-900 rounded-2xl p-2 shadow-2xl focus-within:border-indigo-500/50 transition">
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-slate-500 hover:text-slate-300 transition"
+                title="Attach Layout Sketch"
+              >
+                <Image className="w-4 h-4" />
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleImageUpload} 
+                accept="image/*" 
+                className="hidden" 
+              />
+              
+              <button 
+                onClick={handleVoiceClick}
+                className={`p-2 transition ${isRecording ? "text-red-500 animate-pulse" : "text-slate-500 hover:text-slate-300"}`}
+                title="Voice Command"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+
+              <input 
+                type="text"
+                placeholder={aiMode === "builder" ? "Describe the elite website setup you want to launch..." : "Ask anything about tech stacks, design tokens or APIs..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleMainAction()}
-                onFocus={() => !loading && setRobotMood("typing")}
-                onBlur={() => !loading && setRobotMood("idle")}
                 disabled={loading}
-                placeholder="Type command ('build an e-commerce') or questions..."
-                className="flex-1 bg-transparent border-none outline-none text-white text-xs px-2.5"
+                className="flex-1 bg-transparent border-none outline-none text-xs px-2 text-white placeholder-slate-600 disabled:opacity-50"
               />
-              
-              <div className="flex items-center gap-0.5 px-1 border-r border-slate-900 mr-1">
-                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
-                <button onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-500 hover:text-indigo-400 rounded-lg hover:bg-slate-900/60 transition" title="Attach Blueprint Diagram">
-                  <Image className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={handleVoiceClick} className={`p-2 rounded-lg transition ${isRecording ? "bg-red-500/10 text-red-400 animate-pulse" : "text-slate-500 hover:text-indigo-400 hover:bg-slate-900/60"}`} title="Voice Control Stream">
-                  <Mic className="w-3.5 h-3.5" />
-                </button>
-              </div>
 
               <button 
-                onClick={() => handleMainAction()} 
-                disabled={loading || (!input.trim() && !selectedImage)} 
-                className="py-1.5 px-3.5 rounded-lg bg-white hover:bg-slate-200 disabled:bg-slate-900 disabled:text-slate-600 text-black font-black text-xs transition flex items-center gap-1"
+                onClick={() => handleMainAction()}
+                disabled={loading || (!input.trim() && !selectedImage)}
+                className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-30 disabled:hover:bg-indigo-600 transition shadow-lg shadow-indigo-600/20"
               >
-                Execute <Send className="w-3 h-3" />
+                <Send className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT COMPONENT: INTEGRATED LIVE PREVIEW AND DEPLOYMENT SANDBOX FRAME (xl:col-span-8) */}
-        <div className="xl:col-span-8 flex flex-col bg-[#010205] relative min-h-[500px] xl:min-h-0">
-          <div className="px-4 py-3 bg-[#040612] border-b border-slate-900 flex justify-between items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 tracking-wide">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> DEPLOYMENT PREVIEW CHANNELS & SMART STABILITY CONTROLLER
+        {/* RIGHT COMPONENT: LIVE SANDBOX ENGINE PREVIEW (COL-SPAN UPDATED TO 7) */}
+        <div className="xl:col-span-7 bg-[#010207] flex flex-col overflow-hidden border-t xl:border-t-0 border-slate-900">
+          <div className="px-4 py-2 border-b border-slate-900 bg-[#030511] flex justify-between items-center flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Eye className="w-3.5 h-3.5 text-slate-500" />
+              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Interactive Live Preview Sandbox</span>
             </div>
-
-            <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-xl">
-              <button onClick={() => setScreenSize("desktop")} className={`p-1.5 rounded-md flex items-center gap-1 text-[10px] font-bold transition ${screenSize === "desktop" ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/10" : "text-slate-500 hover:text-slate-300"}`}>
-                <Monitor className="w-3 h-3" /> PC View
+            
+            {/* SCREEN RESPONSIVENESS CONTROLS */}
+            <div className="flex bg-slate-950 p-1 border border-slate-900 rounded-lg gap-1">
+              <button 
+                onClick={() => setScreenSize("desktop")}
+                className={`p-1.5 rounded text-slate-500 transition ${screenSize === "desktop" ? "bg-slate-900 text-indigo-400" : "hover:text-slate-300"}`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => setScreenSize("tablet")} className={`p-1.5 rounded-md flex items-center gap-1 text-[10px] font-bold transition ${screenSize === "tablet" ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/10" : "text-slate-500 hover:text-slate-300"}`}>
-                <Tablet className="w-3 h-3" /> Tablet
+              <button 
+                onClick={() => setScreenSize("tablet")}
+                className={`p-1.5 rounded text-slate-500 transition ${screenSize === "tablet" ? "bg-slate-900 text-indigo-400" : "hover:text-slate-300"}`}
+              >
+                <Tablet className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => setScreenSize("mobile")} className={`p-1.5 rounded-md flex items-center gap-1 text-[10px] font-bold transition ${screenSize === "mobile" ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/10" : "text-slate-500 hover:text-slate-300"}`}>
-                <Smartphone className="w-3 h-3" /> Mobile
+              <button 
+                onClick={() => setScreenSize("mobile")}
+                className={`p-1.5 rounded text-slate-500 transition ${screenSize === "mobile" ? "bg-slate-900 text-indigo-400" : "hover:text-slate-300"}`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* SANDBOX MONITOR CENTER */}
-          <div className="flex-1 p-5 flex justify-center items-center overflow-auto bg-[#020308] relative">
-            {messages.filter(m => m.previewUrl).length === 0 ? (
-              <div className="text-center text-slate-700 font-medium space-y-2 animate-pulse">
-                <Code className="w-10 h-10 mx-auto text-slate-800" />
-                <div className="text-xs font-bold uppercase tracking-wider">Sandbox Stream Dormant</div>
-                <div className="text-[10px] opacity-50">Initiate a build command to launch live automated layout rendering.</div>
-              </div>
-            ) : (
-              <div 
-                className="bg-white rounded-2xl shadow-2xl border border-slate-900/40 overflow-hidden transition-all duration-300 max-h-full"
-                style={{
-                  width: screenSize === "mobile" ? "375px" : screenSize === "tablet" ? "768px" : "100%",
-                  height: screenSize === "desktop" ? "100%" : "90%"
-                }}
-              >
-                <div className="bg-slate-950 px-4 py-2 flex items-center justify-between border-b border-slate-900/80">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-500/30" />
-                    <span className="w-2 h-2 rounded-full bg-yellow-500/30" />
-                    <span className="w-2 h-2 rounded-full bg-green-500/30" />
-                    <span className="text-[9px] font-mono text-slate-500 ml-2">nova_deployment_sandbox.output</span>
-                  </div>
-                  {messages.filter(m => m.previewUrl).map((m, idx, arr) => {
-                    if (idx === arr.length - 1) {
-                      return (
-                        <a key={m.id} href={m.previewUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-indigo-400 flex items-center gap-1 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30 hover:bg-indigo-900/60 transition">
-                          Launch Canvas <ExternalLink className="w-2.5 h-2.5" />
-                        </a>
-                      );
-                    }
-                    return null;
-                  })}
+          {/* SANDBOX SCREEN VIEWER */}
+          <div className="flex-1 bg-[#010103] p-6 flex items-center justify-center overflow-auto">
+            <div 
+              className="bg-slate-950 rounded-2xl border border-slate-900 shadow-2xl transition-all duration-300 overflow-hidden relative flex flex-col"
+              style={{
+                width: screenSize === "desktop" ? "100%" : screenSize === "tablet" ? "768px" : "375px",
+                height: "100%",
+                maxWidth: "100%"
+              }}
+            >
+              {/* IF A WEBSITE PREVIEW URL EXISTS IN MESSAGES */}
+              {messages.filter(m => m.previewUrl).length > 0 ? (
+                <iframe 
+                  src={messages.filter(m => m.previewUrl).slice(-1)[0].previewUrl} 
+                  className="w-full h-full border-none bg-slate-950"
+                  title="Nova Live Generation"
+                />
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-600 font-mono text-[11px]">
+                  <Layout className="w-8 h-8 text-slate-800 mb-2 stroke-[1.5]" />
+                  <span>Awaiting Core Deployment Blueprint Execution...</span>
+                  <p className="text-[9px] text-slate-700 max-w-xs mt-1">Once you complete the AI questionnaire, the fully operational interface will render instantly inside this container.</p>
                 </div>
-                {messages.filter(m => m.previewUrl).map((m, idx, arr) => {
-                  if (idx === arr.length - 1) {
-                    return (
-                      <iframe 
-                        key={m.id}
-                        sandbox="allow-scripts allow-same-origin"
-                        src={m.previewUrl} 
-                        className="w-full h-full bg-white border-none"
-                        title="Nova Operational Compiled Layout View"
-                      />
-                    );
-                  }
-                  return null;
-                })}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* DYNAMIC SMART AI QUESTIONNAIRE MODAL CONTEXT SCREEN */}
-      {showQuestions && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#070b1e] border border-indigo-500/30 rounded-3xl p-6 shadow-2xl animate-[slideUpFade_0.2s_forwards]">
-            
-            {/* STEP PROGRESS TRACKER */}
+      {/* QUESTIONNAIRE MODAL OVERLAY */}
+      {showQuestions && generatedQuestions.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-[#010206]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#060a1f] border border-slate-800 rounded-2xl p-6 shadow-2xl animate-[slideUpFade_0.2s_ease-out]">
             <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-2 text-indigo-400 text-xs font-black tracking-wider uppercase">
-                <HelpCircle className="w-4 h-4 text-indigo-400 animate-pulse" />
-                <span>AI Core Context Specification Engine</span>
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <span className="text-xs font-bold font-mono text-slate-400">CONTEXT MATCHING STEP {activeQuestionIdx + 1}/{generatedQuestions.length}</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md font-bold">
-                STAGE {activeQuestionIdx + 1} OF {generatedQuestions.length}
-              </span>
-            </div>
-
-            {/* PROGRESS STATUS BAR */}
-            <div className="w-full bg-slate-950 h-1 rounded-full mb-5 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300" style={{ width: `${((activeQuestionIdx + 1) / generatedQuestions.length) * 100}%` }} />
+              <button onClick={() => setShowQuestions(false)} className="text-slate-500 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {!showSomethingElseChat ? (
-              <div className="space-y-4">
-                <p className="text-xs text-slate-300 font-bold leading-relaxed bg-[#030614] p-3.5 border border-slate-900 rounded-xl">
-                  {generatedQuestions[activeQuestionIdx]}
-                </p>
-                
-                {/* Dynamically formulated smart choices to match your favorite architectural sketch concepts */}
-                <div className="grid grid-cols-1 gap-2">
-                  {[
-                    "Option A: Implement advanced automated adaptive UI layout architectures.",
-                    "Option B: Deploy minimalist clean user workflows with luxury dark neon interfaces.",
-                    "Option C: Integrate interactive full-screen modules and embedded real-time processing components.",
-                    "Something Else (I need specific customized features)"
-                  ].map((option, idx) => {
-                    return (
-                      <button 
-                        key={idx} 
-                        onClick={() => {
-                          if (idx === 3) {
-                            setShowSomethingElseChat(true);
-                          } else {
-                            handleAnswerSelect(option);
-                          }
-                        }}
-                        className="w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all border bg-slate-950 text-slate-400 border-slate-900 hover:text-white hover:border-indigo-500/50 hover:bg-[#0c122f]"
-                      >
-                        {option}
-                      </button>
-                    );
-                  })}
+              <div>
+                <h3 className="text-xs font-bold text-white mb-4">{generatedQuestions[activeQuestionIdx]}</h3>
+                <div className="space-y-2">
+                  <button onClick={() => handleAnswerSelect("Incorporate minimalist dark layout with modern grid grids")} className="w-full text-left p-3 rounded-xl bg-slate-950 border border-slate-900 hover:border-indigo-500 text-[11px] text-slate-300 transition">
+                    ✨ Heavy Futuristic Dark Mode Matrix
+                  </button>
+                  <button onClick={() => handleAnswerSelect("Clean bright corporate aesthetic with maximum empty white spaces")} className="w-full text-left p-3 rounded-xl bg-slate-950 border border-slate-900 hover:border-indigo-500 text-[11px] text-slate-300 transition">
+                    💼 Premium Corporate Professional Light
+                  </button>
+                  <button onClick={() => handleAnswerSelect("Highly vibrant neon gradients filled with custom animation frames")} className="w-full text-left p-3 rounded-xl bg-slate-950 border border-slate-900 hover:border-indigo-500 text-[11px] text-slate-300 transition">
+                    🎨 Cyberpunk Neon Vibrant Structure
+                  </button>
                 </div>
               </div>
             ) : (
-              // EXCLUSIVE SHAT-BOX COMPONENT FOR WRITING CUSTOM DESCRIPTIONS OUTSIDE THE QUESTIONS
-              <div className="space-y-4 animate-[slideUpFade_0.15s_ease-out]">
-                <div className="bg-slate-950 p-3 rounded-xl border border-slate-900">
-                  <h4 className="text-xs font-bold text-emerald-400 flex items-center gap-1 mb-1">✨ Custom Request Channel Activated</h4>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">Specify anything outside standard templates. Write features, layout arrangements or unique demands directly into the terminal block below:</p>
-                </div>
-
-                <textarea
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-white">Anything else specific you want Nova Engine to enforce?</h3>
+                <textarea 
                   value={somethingElseText}
                   onChange={(e) => setSomethingElseText(e.target.value)}
-                  placeholder="Type your custom requirements or features here..."
-                  className="w-full h-24 bg-slate-950 text-white border border-slate-900 p-3 rounded-xl text-xs outline-none focus:border-indigo-500 resize-none font-medium"
+                  placeholder="e.g., Add a custom currency switcher, integrate Stripe checkout buttons, make text float from right side..."
+                  className="w-full h-24 p-3 bg-slate-950 border border-slate-900 rounded-xl outline-none text-xs text-white resize-none focus:border-indigo-500"
                 />
-
-                <div className="flex gap-2 text-[11px] border-t border-slate-900 pt-3">
-                  {Object.keys(questionAnswers).length < generatedQuestions.length && (
-                    <button onClick={() => setShowSomethingElseChat(false)} className="py-2.5 px-4 rounded-xl bg-slate-900 text-slate-400 hover:text-white transition font-bold">
-                      Back to options
-                    </button>
-                  )}
-                  <button onClick={submitFinalQuestionnaire} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-black tracking-wider transition active:scale-95 text-center">
-                    Inject & Initialize Dynamic Build Process 🚀
-                  </button>
-                </div>
+                <button 
+                  onClick={submitFinalQuestionnaire}
+                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/20 hover:from-indigo-500"
+                >
+                  COMPILE & INJECT BLUEPRINT
+                </button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* FLOATING ADMIN CONSOLE AUTHENTICATION */}
+      {/* ADMIN LOGIN DIALOG */}
       {showAdminLogin && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-950 border border-red-500/20 rounded-2xl p-5 shadow-2xl text-center">
-            <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <ShieldAlert className="w-5 h-5 text-red-400" />
-            </div>
-            <h3 className="text-sm font-black text-white">Yousef Admin Channel Verification</h3>
-            <p className="text-[11px] text-slate-500 mt-1 mb-4">Provide security passkey encryption to synchronize admin control panel tools</p>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-xs bg-[#070917] border border-red-950 rounded-2xl p-5 text-center">
+            <ShieldAlert className="w-8 h-8 text-red-500 mx-auto mb-3" />
+            <h3 className="text-xs font-black text-red-400 tracking-wider">ADMIN CONSOLE BYPASS</h3>
+            <p className="text-[10px] text-slate-500 mt-1 mb-4">Enter master encrypted keys to override default pipeline behaviors</p>
             <input 
-              type="password" 
-              value={adminPassInput} 
-              onChange={(e) => setAdminPassInput(e.target.value)} 
-              placeholder="••••••••" 
-              className="w-full py-2 px-3 bg-slate-900 border border-slate-800 rounded-xl text-center text-xs text-white outline-none focus:border-red-500/40 mb-4 font-mono tracking-widest" 
+              type="password"
+              placeholder="Admin Master Key"
+              value={adminPassInput}
+              onChange={(e) => setAdminPassInput(e.target.value)}
+              className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-900 text-xs text-center font-mono outline-none text-white focus:border-red-500/50 mb-3"
             />
             <div className="flex gap-2">
-              <button onClick={handleAdminAuth} className="flex-1 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-500 transition">Authenticate Console</button>
-              <button onClick={() => setShowAdminLogin(false)} className="py-2 px-3 rounded-xl bg-slate-800 text-xs font-bold text-slate-400 transition">Dismiss</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* POWERFUL ADMIN CONSOLE FLOATING OVERLAY PANEL (YOUSEF ACCESS) */}
-      {isAdminAuth && (
-        <div 
-          style={{ left: `${adminPos.x}px`, top: `${adminPos.y}px` }}
-          className="fixed z-50 w-64 bg-[#050817]/95 backdrop-blur-md border border-emerald-500/20 rounded-2xl shadow-2xl overflow-hidden select-none"
-        >
-          <div 
-            onMouseDown={handleDragStart}
-            className="bg-slate-950/90 px-3 py-2.5 border-b border-slate-900 flex items-center justify-between cursor-move"
-          >
-            <div className="flex items-center gap-1.5 text-[9px] font-mono font-black text-emerald-400 tracking-wider">
-              <Activity className="w-3.5 h-3.5 animate-pulse" /> CONTROL PANEL V4 // OWNER: YOUSEF
-            </div>
-            <button onClick={() => setIsAdminAuth(false)} className="text-slate-500 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
-          </div>
-          <div className="p-3.5 space-y-2 text-left text-[11px] font-mono">
-            <div className="flex justify-between items-center border-b border-slate-900 pb-1.5">
-              <span className="text-slate-500">SYSTEM CLOUD STACK:</span>
-              <span className="text-emerald-400 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> STABLE</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-slate-900 pb-1.5">
-              <span className="text-slate-500">MEMORY CONSUMPTION:</span>
-              <span className="text-indigo-400 font-bold">42.8 MB / 512 MB</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500">SECURITY AUTHORIZATION:</span>
-              <span className="text-amber-400 font-bold flex items-center gap-1"><Users className="w-3 h-3" /> ROOT_OWNER</span>
-            </div>
-            <div className="pt-2">
-              <button 
-                onClick={() => { 
-                  setMessages([]); 
-                  showToast("Operational communication logs flushed.", "success");
-                }} 
-                className="w-full py-1.5 rounded-lg bg-slate-950 hover:bg-red-950/30 hover:text-red-400 border border-slate-900 text-[10px] font-bold tracking-wider uppercase transition text-center"
-              >
-                Flush System Chat Cache
-              </button>
+              <button onClick={() => setShowAdminLogin(false)} className="flex-1 py-2 rounded-lg bg-slate-900 text-slate-400 hover:text-white text-[11px] font-bold">Cancel</button>
+              <button onClick={handleAdminAuth} className="flex-1 py-2 rounded-lg bg-red-950/40 text-red-400 border border-red-900/30 text-[11px] font-bold hover:bg-red-900/20">Authenticate</button>
             </div>
           </div>
         </div>
