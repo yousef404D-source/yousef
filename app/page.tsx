@@ -1,8 +1,7 @@
-// المسار: app/admin/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@supabase/supabase-js"; // استدعاء آمن ومتوافق يمنع أخطاء الـ Build
 import { useRouter } from "next/navigation";
 import { 
   Bot, 
@@ -16,7 +15,6 @@ import {
   Loader2, 
   ExternalLink, 
   Sparkles, 
-  User,
   Send,
   ShieldCheck
 } from "lucide-react";
@@ -25,13 +23,17 @@ interface UserData { name: string; email: string; avatar: string; }
 interface Project { id: string; name: string; url: string; prompt: string; created_at: string; }
 
 export default function AdminDashboard() {
-  const supabase = createClientComponentClient();
+  // إنشاء عميل سوبابيز محلي يتجنب مشاكل استيراد auth-helpers في إصدارات Next الحالية
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  );
   const router = useRouter();
 
   // States
   const [user, setUser] = useState<UserData | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(true); // أنيميشن البداية الفاخر
-  const [pageReady, setPageReady] = useState(false); // إظهار الشات والصفحة بعد الأنيميشن
+  const [isAuthenticating, setIsAuthenticating] = useState(true); 
+  const [pageReady, setPageReady] = useState(false); 
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
@@ -40,10 +42,9 @@ export default function AdminDashboard() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // 1. نظام التحقق مع تأثير الأنيميشن الانتقالي
+  // 1. نظام التحقق الرقمي والأمان
   useEffect(() => {
     const checkAuthAndAnimate = async () => {
-      // نترك الأنيميشن يعمل لمدة ثانية ونصف على الأقل ليراه المستخدم بشكل جمالي
       const startTime = Date.now();
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -59,7 +60,7 @@ export default function AdminDashboard() {
         .single();
 
       const duration = Date.now() - startTime;
-      const delay = Math.max(1800 - duration, 0); // ضمان بقاء الأنيميشن 1.8 ثانية لمنع الوميض السريع
+      const delay = Math.max(1800 - duration, 0); 
 
       setTimeout(() => {
         if (!userRole || userRole.role !== "admin") {
@@ -75,15 +76,14 @@ export default function AdminDashboard() {
         });
         
         setIsAuthenticating(false);
-        // تفعيل تدرج ظهور الصفحة (Fade-in)
         setTimeout(() => setPageReady(true), 100);
       }, delay);
     };
 
     checkAuthAndAnimate();
-  }, [router, supabase]);
+  }, [router, supabase.auth]);
 
-  // 2. إرسال الطلب للـ API الخلفي للإنشاء والـ Deploy
+  // 2. معالجة طلب توليد الموقع والـ Deploy
   const handleGenerateWebsite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
@@ -121,11 +121,10 @@ export default function AdminDashboard() {
     }
   };
 
-  // 3. شاشة الأنيميشن البدئية (تظهر فوراً عند إدخال الباسورد/تسجيل الدخول)
+  // 3. شاشة التحقق البدئية المتمركزة بدقة في المنتصف
   if (isAuthenticating) {
     return (
       <div className="min-h-screen bg-[#030612] flex flex-col items-center justify-center text-white px-4 relative overflow-hidden">
-        {/* تأثير توهج خلفي خلف الروبوت */}
         <div className="absolute w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[120px] animate-pulse"></div>
         
         <div className="text-center z-10 space-y-6 animate-bounce duration-1000">
@@ -146,7 +145,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // 4. واجهة الخطأ في الصلاحية (باللون الأحمر المضيء الواضح جداً)
+  // 4. واجهة الخطأ في الصلاحيات
   if (authError) {
     return (
       <div className="min-h-screen bg-[#050816] flex items-center justify-center text-white px-4">
@@ -164,12 +163,12 @@ export default function AdminDashboard() {
     );
   }
 
-  // 5. الواجهة الأساسية للشات واللوحة (تظهر بـ Fade-in بعد انتهاء الأنيميشن)
+  // 5. الواجهة الأساسية المصححة هندسياً ومتوافقة مع الـ RTL بالكامل
   return (
     <div className={`min-h-screen bg-[#050816] text-slate-100 flex transition-opacity duration-700 ${pageReady ? "opacity-100" : "opacity-0"}`} dir="rtl">
       
-      {/* Sidebar */}
-      <aside className="w-72 bg-[#070b21] border-l border-slate-800/80 p-6 flex flex-col justify-between hidden lg:flex shrink-0">
+      {/* Sidebar - تم إصلاح الحواف والانحناءات لتطابق جهة اليمين البرمجية في الـ RTL */}
+      <aside className="w-72 bg-[#070b21] border-r border-slate-800/80 p-6 flex flex-col justify-between hidden lg:flex shrink-0">
         <div>
           <div className="flex items-center gap-3 mb-8">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -181,7 +180,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <nav>
-            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-950/50 to-transparent text-indigo-400 border-r-2 border-indigo-500 rounded-l-xl">
+            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-l from-indigo-950/50 to-transparent text-indigo-400 border-r-2 border-indigo-500 rounded-l-none rounded-r-xl">
               <Layers className="w-4 h-4" />
               <span className="text-xs font-semibold">استوديو توليد المواقع</span>
             </div>
@@ -226,13 +225,13 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Content Area */}
+        {/* Content Area - مصفوف بشكل مرن يمنع رمي العناصر لليسار */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 md:p-6 gap-6">
           
-          {/* Chat Hub (Left/Main Side) */}
+          {/* Chat Hub (صندوق المحادثة الموزون والمستقر أفدح) */}
           <div className="flex-1 flex flex-col bg-[#070b21] border border-slate-800/80 rounded-3xl overflow-hidden relative shadow-2xl">
             
-            {/* روبوت الحالة العلوي - تم تعديله ليتفاعل بشكل نيون رائع */}
+            {/* روبوت الحالة العلوي */}
             <div className={`p-4 border-b transition-colors duration-300 flex items-center justify-between ${isGenerating ? 'bg-amber-950/20 border-amber-500/40' : isBotTyping ? 'bg-indigo-950/30 border-indigo-500/40' : 'bg-slate-900/40 border-slate-800/80'}`}>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-xl transition-all duration-300 ${isGenerating ? 'bg-amber-500/20 border border-amber-400' : isBotTyping ? 'bg-indigo-500/20 border border-indigo-400' : 'bg-slate-800 border border-slate-700'}`}>
@@ -247,7 +246,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* منطقة رسائل الخطأ أو النجاح الواضحة جداً (حل مشكلة عدم ظهور الألوان) */}
+            {/* منطقة الرسائل */}
             <div className="p-4 space-y-3 overflow-y-auto flex-1">
               {serverError && (
                 <div className="p-4 bg-[#1a090d] border-2 border-red-500 rounded-2xl text-red-400 text-xs font-medium flex items-start gap-2.5 shadow-lg shadow-red-500/5 animate-headShake">
@@ -274,13 +273,12 @@ export default function AdminDashboard() {
                     rel="noopener noreferrer"
                     className="flex items-center justify-between p-3 bg-[#030612] border border-emerald-500/30 hover:border-emerald-400 rounded-xl text-xs font-mono text-indigo-400 transition group"
                   >
-                    <span className="truncate pl-4">{generatedUrl}</span>
+                    <span className="truncate pr-4">{generatedUrl}</span>
                     <ExternalLink className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-indigo-400 transition" />
                   </a>
                 </div>
               )}
 
-              {/* تلميح للمستخدم الجديد إن كان الشات فارغاً */}
               {!serverError && !generatedUrl && (
                 <div className="h-full flex flex-col items-center justify-center text-center opacity-40 py-20">
                   <Sparkles className="w-8 h-8 text-indigo-400 mb-2 animate-pulse" />
@@ -289,7 +287,7 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* نموذج حقل الإدخال الذكي (Chat Input) */}
+            {/* نموذج حقل الإدخال - مصلح هندسياً ليتناسب الزر مع اتجاه النص العربي (RTL) */}
             <form onSubmit={handleGenerateWebsite} className="p-4 bg-[#050816]/60 border-t border-slate-800/80">
               <div className="relative flex items-center">
                 <textarea
@@ -300,7 +298,7 @@ export default function AdminDashboard() {
                   placeholder="مثال: موقع شركة تقنية ناشئة، ثيم دارك مستقبلي، يحتوي كروت متحركة، تدرجات نيوني، وقسم تواصل..."
                   disabled={isGenerating}
                   rows={2}
-                  className="w-full bg-[#030612] border border-slate-800 focus:border-indigo-500 rounded-2xl pl-14 pr-4 py-3 text-xs text-white placeholder-slate-600 focus:outline-none transition disabled:opacity-50 resize-none leading-relaxed"
+                  className="w-full bg-[#030612] border border-slate-800 focus:border-indigo-500 rounded-2xl pr-4 pl-14 py-3 text-xs text-white placeholder-slate-600 focus:outline-none transition disabled:opacity-50 resize-none leading-relaxed"
                 />
                 <button
                   type="submit"
@@ -313,7 +311,7 @@ export default function AdminDashboard() {
             </form>
           </div>
 
-          {/* أرشيف وسجلات الـ Deploys الجانبي (Right Side) */}
+          {/* أرشيف وسجلات الـ Deploys الجانبي */}
           <div className="w-full lg:w-80 bg-[#070b21] border border-slate-800/80 rounded-3xl p-4 flex flex-col overflow-hidden shadow-xl shrink-0">
             <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 pb-2 border-b border-slate-800/60">
               <Globe className="w-4 h-4 text-slate-400" />
@@ -326,7 +324,7 @@ export default function AdminDashboard() {
                 <p className="text-[11px]">لا توجد سجلات رفع سابقة في هذه الجلسة.</p>
               </div>
             ) : (
-              <div className="space-y-3 overflow-y-auto flex-1 pr-0.5">
+              <div className="space-y-3 overflow-y-auto flex-1 pl-0.5">
                 {projects.map((proj) => (
                   <div key={proj.id} className="p-3 bg-[#030612] border border-slate-800/80 rounded-xl hover:border-slate-700 transition space-y-2">
                     <div className="flex items-center justify-between">
