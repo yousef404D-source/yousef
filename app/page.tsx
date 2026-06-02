@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-
+import { useEffect, useRef, useState, useMemo } from "react";
+import { createClient } from "@/utils/supabase/client";
 type Message = {
   role: "user" | "assistant";
   content: string;
