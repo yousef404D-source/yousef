@@ -16,8 +16,14 @@ type DeployResponse = {
 
 export default function NovaAI() {
   // إنشاء مستمع Supabase خاص بمكونات العميل (Client Components)
-  const supabase = createClientComponentClient();
-
+  const supabase = useMemo(
+  () =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    ),
+  []
+);
   /* ---------------- STATES ---------------- */
   const [authorized, setAuthorized] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
