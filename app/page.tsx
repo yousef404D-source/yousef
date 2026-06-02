@@ -2,19 +2,23 @@
 
 import { useState } from "react";
 
+/* ===================== TYPES ===================== */
+type Message = {
+  role: "user" | "bot";
+  text: string;
+};
+
+/* ===================== COMPONENT ===================== */
 export default function NovaAI() {
-  const [password, setPassword] = useState("");
-  const [isAuth, setIsAuth] = useState(false);
+  const [password, setPassword] = useState<string>("");
+  const [isAuth, setIsAuth] = useState<boolean>(false);
 
-  const [messages, setMessages] = useState<
-    { role: "user" | "bot"; text: string }[]
-  >([]);
-
-  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState<string>("");
 
   const correctPassword = "nova123";
 
-  // 🎤 Voice to Text
+  /* ===================== VOICE TO TEXT ===================== */
   const startVoice = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
@@ -36,36 +40,34 @@ export default function NovaAI() {
     recognition.start();
   };
 
-  // 📩 إرسال رسالة
+  /* ===================== SEND MESSAGE ===================== */
   const sendMessage = () => {
     if (!input.trim()) return;
 
-    const newMessages = [
-      ...messages,
-      { role: "user", text: input },
-    ];
+    const userMessage: Message = {
+      role: "user",
+      text: input,
+    };
 
-    setMessages(newMessages);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
-    // 🤖 رد AI وهمي
     setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "bot",
-          text: "🤖 Nova AI: تم استلام رسالتك وتحليلها بنجاح...",
-        },
-      ]);
+      const botMessage: Message = {
+        role: "bot",
+        text: "🤖 Nova AI: تم استلام رسالتك وتحليلها بنجاح...",
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
     }, 700);
   };
 
-  // 🔐 شاشة الباسورد
+  /* ===================== LOGIN SCREEN ===================== */
   if (!isAuth) {
     return (
-      <div className="h-screen flex items-center justify-center bg-black text-white overflow-hidden relative">
+      <div className="h-screen flex items-center justify-center bg-black text-white relative overflow-hidden">
 
-        {/* خلفية أنيميشن */}
+        {/* Glow Background */}
         <div className="absolute w-[500px] h-[500px] bg-purple-600 blur-[120px] opacity-30 animate-pulse rounded-full"></div>
 
         <div className="bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 w-[340px] animate-fadeIn">
@@ -98,17 +100,17 @@ export default function NovaAI() {
     );
   }
 
-  // 🤖 واجهة الشات
+  /* ===================== MAIN UI ===================== */
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-black via-purple-950 to-black text-white">
 
-      {/* Header */}
-      <div className="p-4 border-b border-white/10 flex justify-between">
+      {/* HEADER */}
+      <div className="p-4 border-b border-white/10 flex justify-between items-center">
         <h1 className="font-bold text-lg">🤖 Nova AI</h1>
-        <span className="text-white/50 text-sm">AI Chat System</span>
+        <span className="text-white/40 text-sm">AI Chat System</span>
       </div>
 
-      {/* Messages */}
+      {/* MESSAGES */}
       <div className="flex-1 p-4 overflow-auto space-y-3">
         {messages.map((msg, i) => (
           <div
@@ -124,7 +126,7 @@ export default function NovaAI() {
         ))}
       </div>
 
-      {/* Input */}
+      {/* INPUT */}
       <div className="p-4 border-t border-white/10 flex gap-2 items-center">
 
         <input
@@ -142,7 +144,7 @@ export default function NovaAI() {
           🎤
         </button>
 
-        {/* Send */}
+        {/* SEND */}
         <button
           onClick={sendMessage}
           className="p-3 bg-purple-600 rounded-xl hover:scale-110 transition"
