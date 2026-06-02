@@ -1,286 +1,332 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createBrowserClient } from "@supabase/ssr"; 
+import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { 
-  Bot, 
-  Cpu, 
-  Lock,
-  Eye,
-  EyeOff,
-  Code2,
-  Rocket,
-  Layers,
-  FileText,
-  CreditCard,
-  Check,
-  Database,
-  RefreshCw,
-  Coins,
-  Send,
-  Loader2,
-  ExternalLink,
-  ShieldCheck
-} from "lucide-react";
+import { Bot, Terminal, Globe, LogOut, Layers, Cpu, CheckCircle, Loader2, ExternalLink, Sparkles, Mic, MicOff, Eye, MessageSquare } from "lucide-react";
 
-interface UserData { id: string; name: string; email: string; avatar: string; plan: "Free" | "Pro" | "Enterprise"; credits: number; }
-interface Project { id: string; name: string; url: string; prompt: string; type: string; created_at: string; }
-interface Message { id: string; role: "user" | "assistant"; text: string; type: "chat" | "code_preview"; previewUrl?: string; pages?: string[]; }
+export const dynamic = "force-dynamic";
 
-export default function UltimateSaaSDashboard() {
+interface UserData { name: string; email: string; avatar: string; }
+interface Project { id: string; name: string; url: string; prompt: string; created_at: string; }
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+export default function AdminDashboard() {
   const router = useRouter();
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-url.supabase.co";
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-  const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
   const [user, setUser] = useState<UserData | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(true); 
-  const [pageReady, setPageReady] = useState(false); 
+  const [loading, setLoading] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isBotTyping, setIsBotTyping] = useState(false);
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // نظام الرمز السري الحصري
-  const [gatePassword, setGatePassword] = useState("");
-  const [isPassedGate, setIsPassedGate] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [gateStatus, setGateStatus] = useState<"idle" | "verifying" | "success" | "error">("idle");
+  // أنظمة التحكم في وضع العرض المطور (تبديل الشاشات)
+  const [activeTab, setActiveTab] = useState<"chat" | "preview">("chat");
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [activePreviewPage, setActivePreviewPage] = useState("الرئيسية (Home)");
-  const [showPricingModal, setShowPricingModal] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [dbSyncStatus, setDbSyncStatus] = useState<"synced" | "syncing" | "error">("synced");
+  // أنظمة التحكم في الصوت وتحويله إلى نص
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!supabaseUrl || !supabaseAnonKey) {
+      setError("إعدادات الاتصال بـ Supabase غير مكتملة.");
+      setLoading(false);
+      return;
+    }
 
-  useEffect(() => {
-    const initSaaSPlatform = async () => {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        setUser({
-          id: "demo-id",
-          name: "يوسف بيكر",
-          email: "yousef@nova.com",
-          avatar: "https://api.dicebear.com/7.x/bottts/svg",
-          plan: "Free",
-          credits: 3
-        });
-        setIsAuthenticating(false);
-        return;
-      }
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    const checkAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setDbSyncStatus("syncing");
         
-        let { data: profile } = await supabase
-          .from("user_subscriptions")
-          .select("plan, credits")
-          .eq("user_id", session?.user.id || "")
+        // التحقق الصارم من تسجيل الدخول قبل عرض الشات وحماية الجلسة
+        if (!session) { 
+          router.push("/login"); 
+          return; 
+        }
+
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
           .single();
 
+        if (!userRole || userRole.role !== "admin") {
+          setError("عذراً، هذه اللوحة مخصصة للمسؤولين فقط.");
+          setLoading(false);
+          return;
+        }
+
         setUser({
-          id: session?.user.id || "id",
-          name: session?.user.user_metadata.full_name || "عضو نوڤا الخارق",
-          email: session?.user.email || "",
-          avatar: session?.user.user_metadata.avatar_url || "https://api.dicebear.com/7.x/bottts/svg",
-          plan: profile?.plan || "Free",
-          credits: profile?.credits ?? 3
+          name: session.user.user_metadata.full_name || "Admin",
+          email: session.user.email || "",
+          avatar: session.user.user_metadata.avatar_url || "https://avatar.iran.liara.run/public/1",
         });
-
-        const { data: userProjects } = await supabase
-          .from("generated_websites")
-          .select("*")
-          .eq("user_id", session?.user.id || "")
-          .order("created_at", { ascending: false });
-
-        if (userProjects) setProjects(userProjects);
-        setDbSyncStatus("synced");
-        setIsAuthenticating(false);
-      } catch (error) {
-        setIsAuthenticating(false);
+      } catch (err) {
+        console.error("Auth error:", err);
+      } finally {
+        setLoading(false);
       }
     };
-    initSaaSPlatform();
-  }, [router, supabase]);
+    checkAuth();
 
-  const handleGateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gatePassword.trim()) return;
-    setGateStatus("verifying");
+    // تهيئة ميزة التعرف على الصوت المدمجة في المتصفحات
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.lang = "ar-SA"; // يدعم الإدخال باللغة العربية الفصحى واللهجات المحلية
+        rec.interimResults = false;
 
-    setTimeout(() => {
-      if (gatePassword === "yousefyousefbaker505") { 
-        setGateStatus("success");
-        setTimeout(() => {
-          setIsPassedGate(true);
-          setTimeout(() => setPageReady(true), 100);
-          setMessages([
-            {
-              id: "welcome",
-              role: "assistant",
-              text: "🔥 تم تفعيل نظام NOVA AI بنجاح! المنصة الآن جاهزة ومفتوحة بالكامل لتوليد المواقع متعددة الصفحات لأي تخصص تطلبه.",
-              type: "chat"
-            }
-          ]);
-        }, 500);
-      } else {
-        setGateStatus("error");
-        setTimeout(() => setGateStatus("idle"), 1200);
+        rec.onstart = () => setIsListening(true);
+        rec.onend = () => setIsListening(false);
+        rec.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setPrompt((prev) => (prev ? prev + " " + transcript : transcript));
+        };
+        rec.onerror = (e: any) => {
+          console.error("Speech error", e);
+          setIsListening(false);
+        };
+        recognitionRef.current = rec;
       }
-    }, 1000);
+    }
+  }, [router]);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert("التعرف على الصوت غير مدعوم في متصفحك الحالي، يرجى استخدام Chrome أو Edge.");
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleGenerateWebsite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim() || isGenerating) return;
+    if (!prompt.trim()) return;
 
-    const userPrompt = prompt.trim();
-    setPrompt("");
     setIsGenerating(true);
-    setMessages(prev => [...prev, { id: Math.random().toString(), role: "user", text: userPrompt, type: "chat" }]);
+    setError(null);
+    setGeneratedUrl(null);
 
-    setTimeout(() => {
-      const structuralPages = ["الرئيسية (Home)", "من نحن (About)", "خدماتنا (Services)", "اتصل بنا (Contact)"];
-      setActivePreviewPage(structuralPages[0]);
-      
-      setMessages(prev => [...prev, {
-        id: Math.random().toString(),
-        role: "assistant",
-        text: `🚀 تم بنجاح بناء هيكل الموقع المتكامل وتوزيعه بالكامل في المنتصف! عاين صفحات النظام الحية من هنا:`,
-        type: "code_preview",
-        previewUrl: "https://stackblitz.com",
-        pages: structuralPages
-      }]);
+    try {
+      const res = await fetch("/api/nova", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) throw new Error(data.error || "فشل توليد الموقع الحقيقي");
+
+      setGeneratedUrl(data.url);
+      setProjects([
+        { 
+          id: Math.random().toString(), 
+          name: `Nova Site ${projects.length + 1}`, 
+          url: data.url, 
+          prompt, 
+          created_at: new Date().toLocaleDateString("ar-SA") 
+        }, 
+        ...projects
+      ]);
+      setPrompt("");
+      // الانتقال التلقائي السلس إلى شاشة المعاينة بعد اكتمال التوليد
+      setActiveTab("preview");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
-  if (isAuthenticating) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#030612] flex flex-col items-center justify-center text-white">
-        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin mb-2" />
-        <span className="text-xs font-mono tracking-widest text-slate-500">BOOTING NOVA SYSTEM...</span>
+      <div className="min-h-screen bg-[#050816] flex flex-col items-center justify-center text-white gap-4">
+        <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+        <p className="text-sm font-medium text-slate-400">جاري فحص صلاحيات المسؤول السيبراني وتأمين الحساب...</p>
       </div>
     );
   }
 
-  // التمركز المطلق في السنتر (نفس مكان إشارة صبعك بالظبط)
-  if (!isPassedGate) {
-    return (
-      <div className="min-h-screen w-full bg-[#030612] flex items-center justify-center text-white p-4 relative" dir="rtl">
-        {/* توهج خلفي فخم لضبط السنتر */}
-        <div className="absolute w-[350px] h-[350px] rounded-full blur-[120px] bg-indigo-600/20 z-0"></div>
-        
-        {/* الكارت ممركز 100% في شاشة الكمبيوتر */}
-        <div className="max-w-md w-full bg-[#070b21]/90 border border-slate-800/80 backdrop-blur-xl p-8 rounded-[28px] shadow-2xl text-center space-y-6 z-10 mx-auto my-auto">
-          <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
-            <Lock className="w-6 h-6 text-white" />
-          </div>
-          
-          <div className="space-y-1">
-            <h2 className="text-lg font-bold text-white tracking-wide">System Login</h2>
-            <p className="text-xs text-slate-400">Authenticate to access Nova AI</p>
-          </div>
+  const activeSupabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
-          <form onSubmit={handleGateSubmit} className="space-y-4 text-right">
-            <div className="relative">
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"><Lock className="w-4 h-4" /></span>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={gatePassword}
-                onChange={(e) => setGatePassword(e.target.value)}
-                placeholder="System Password"
-                className="w-full bg-[#030612] border border-slate-800 focus:border-indigo-500 rounded-2xl pr-11 pl-12 py-3.5 text-xs font-mono text-center text-white focus:outline-none transition-all placeholder-slate-600"
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            
-            {gateStatus === "error" && (
-              <p className="text-[11px] text-red-400 text-center font-medium animate-pulse">❌ الرمز السري غير صحيح!</p>
-            )}
-
-            <button type="submit" disabled={gateStatus === "verifying"} className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2">
-              {gateStatus === "verifying" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enter System"}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // واجهة لوحة التحكم بعد الدفع والدخول الناجح
   return (
-    <div className={`min-h-screen bg-[#050816] text-slate-100 flex flex-col transition-opacity duration-700 ${pageReady ? "opacity-100" : "opacity-0"}`} dir="rtl">
-      <header className="border-b border-slate-800/60 bg-[#050816]/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto h-16 flex items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center"><Cpu className="w-5 h-5 text-white" /></div>
-            <h1 className="text-sm font-bold text-white flex items-center gap-2">NOVA OMNI-SAAS</h1>
-          </div>
-          {user && (
-            <div className="flex items-center gap-3">
-              <div className="bg-[#0c1333] border border-slate-800 px-3 py-1.5 rounded-xl text-[11px]">
-                <span className="text-amber-400 font-bold">الرصيد: لانهائي ∞</span>
-              </div>
+    <div className="min-h-screen bg-[#050816] text-slate-100 flex overflow-hidden h-screen" dir="rtl">
+      
+      {/* Sidebar */}
+      <aside className="w-72 bg-[#0a0f24] border-l border-slate-800/60 p-6 flex flex-col justify-between hidden md:flex h-full shrink-0">
+        <div>
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
+              <Cpu className="w-5 h-5 text-white" />
             </div>
-          )}
+            <div>
+              <h1 className="text-lg font-bold text-white">NOVA AI</h1>
+              <span className="text-[10px] text-indigo-400 font-mono tracking-widest block">ADMIN v2.5</span>
+            </div>
+          </div>
+          <nav>
+            <div className="flex items-center gap-3 px-4 py-3 bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 rounded-xl">
+              <Layers className="w-5 h-5" /> 
+              <span className="text-sm font-medium">لوحة التحكم والتوليد</span>
+            </div>
+          </nav>
         </div>
-      </header>
+        
+        {user && (
+          <div className="bg-[#0e1533] border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border border-indigo-500/30" />
+              <div className="overflow-hidden">
+                <p className="text-xs font-bold text-white truncate">{user.name}</p>
+                <p className="text-[10px] text-slate-400 truncate font-mono">{user.email}</p>
+              </div>
+            </div>
+            <button 
+              onClick={async () => { if(activeSupabase) { await activeSupabase.auth.signOut(); } router.push("/login"); }} 
+              className="w-full py-2 bg-red-950/30 hover:bg-red-900/40 border border-red-500/20 rounded-xl text-xs font-medium text-red-400 flex items-center justify-center gap-2 transition"
+            >
+              <LogOut className="w-4 h-4" /> تسجيل الخروج
+            </button>
+          </div>
+        )}
+      </aside>
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6 flex flex-col gap-6 justify-center">
-        <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full justify-center">
+      {/* Main Content Viewport */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        
+        {/* Top bar with Smart Toggle Switch - أزرار العرض المزدوجة المتطورة في أعلى اليمين */}
+        <div className="p-4 bg-[#0a0f24]/60 border-b border-slate-800/50 flex items-center justify-between z-20 shrink-0">
+          <div className="flex items-center gap-2 bg-[#050816] border border-slate-800 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveTab("chat")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${activeTab === "chat" ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
+            >
+              <MessageSquare className="w-4 h-4" /> التحكم والشات
+            </button>
+            <button
+              onClick={() => setActiveTab("preview")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${activeTab === "preview" ? "bg-purple-600 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
+            >
+              <Eye className="w-4 h-4" /> معاينة الموقع الحية (Preview)
+            </button>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 font-mono text-[11px] text-slate-500">
+            STATUS: <span className="text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE</span>
+          </div>
+        </div>
+
+        {/* Dynamic Workspace Container */}
+        <div className="flex-1 flex overflow-hidden p-4 md:p-6 gap-6 relative h-full w-full">
           
-          <div className="flex-1 flex flex-col bg-[#070b21] border border-slate-800/80 rounded-3xl h-[580px] shadow-2xl relative overflow-hidden">
-            <div className="p-4 border-b border-slate-800/80 bg-slate-900/40 text-xs font-bold text-white">محرك الإنتاج الشامل متعدد الصفحات</div>
-
-            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#040718]/40">
-              {messages.map((msg) => (
-                <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-start" : "items-end"} w-full`}>
-                  <div className={`max-w-[85%] p-3 rounded-xl text-xs ${msg.role === "user" ? "bg-indigo-600 text-white" : "bg-[#0b122c] border border-slate-800 text-slate-200"}`}>{msg.text}</div>
-
-                  {msg.type === "code_preview" && msg.previewUrl && (
-                    <div className="w-full mt-3 bg-[#030612] border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-                      <div className="bg-[#090e26] p-2.5 border-b border-slate-800/80 flex flex-wrap gap-1.5">
-                        {msg.pages?.map((p) => (
-                          <button key={p} onClick={() => setActivePreviewPage(p)} className={`px-2.5 py-1 text-[10px] rounded-md border transition ${activePreviewPage === p ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 text-slate-400 border-slate-800'}`}>{p}</button>
-                        ))}
-                      </div>
-                      <div className="w-full h-60 bg-slate-950">
-                        <iframe src={msg.previewUrl} className="w-full h-full border-none" title="Preview" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+          {/* Left/Main Column: Chat & Engine 控制 */}
+          <div className={`transition-all duration-500 ease-in-out flex flex-col gap-6 h-full ${activeTab === "preview" ? "w-0 opacity-0 pointer-events-none md:w-1/4 md:opacity-100 md:pointer-events-auto" : "w-full md:w-70% lg:w-7/12"}`}>
+            
+            <div className="overflow-hidden bg-gradient-to-l from-indigo-950/20 via-[#0a0f24] to-[#050816] border border-slate-800/60 rounded-2xl p-5 shrink-0">
+              <h2 className="text-xl font-black text-white flex items-center gap-2">محرك NOVA AI الذكي</h2>
+              <p className="text-slate-400 text-xs mt-1 leading-relaxed">اكتب متطلباتك أو تكلم مباشرة لبناء نظامك البرمجي السحابي المطور.</p>
             </div>
 
-            <form onSubmit={handleSendMessage} className="p-4 bg-[#050816]/80 border-t border-slate-800/80">
-              <div className="relative flex items-center">
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="اكتب طلبك وتخصص الموقع هنا..."
-                  rows={2}
-                  className="w-full bg-[#030612] border border-slate-800 focus:border-indigo-500 rounded-xl pl-12 pr-4 py-2.5 text-xs text-white focus:outline-none resize-none"
-                />
-                <button type="submit" disabled={isGenerating || !prompt.trim()} className="absolute left-3 p-2 bg-indigo-600 text-white rounded-lg transition">
-                  {isGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 transform -rotate-90" />}
-                </button>
+            {/* مجمع الإدخال المحسن والمحاذى بشكل مثالي بدون نتوءات أو بروز */}
+            <div className="bg-[#0a0f24] border border-slate-800/80 rounded-2xl p-5 flex flex-col flex-1 overflow-hidden min-h-[300px]">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${isGenerating ? 'bg-amber-500/10 text-amber-400 animate-bounce' : 'bg-slate-800 text-slate-400'}`}>
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">مساعد التصميم والهوية</h3>
+                    <p className="text-[10px] text-slate-500">مستعد لمعالجة وبناء الفكرة الحقيقية</p>
+                  </div>
+                </div>
               </div>
-            </form>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-950/20 border border-red-500/30 text-red-400 rounded-xl text-xs flex gap-2 shrink-0">
+                  <Terminal className="w-4 h-4" /> <span>{error}</span>
+                </div>
+              )}
+
+              {/* حقل الإدخال المصحح مع الميكروفون المدمج التفاعلي */}
+              <form onSubmit={handleGenerateWebsite} className="flex-1 flex flex-col gap-4 overflow-hidden relative">
+                <div className="relative flex-1 bg-[#050816] border border-slate-800 focus-within:border-indigo-500/60 rounded-xl p-1 flex flex-col overflow-hidden">
+                  <textarea 
+                    value={prompt} 
+                    onChange={(e) => setPrompt(e.target.value)} 
+                    onFocus={() => setIsBotTyping(true)} 
+                    onBlur={() => setIsBotTyping(false)} 
+                    placeholder="اكتب فكرتك بالتفصيل، أو اضغط على الميكروفون الجانبي للتحدث مباشرة..." 
+                    disabled={isGenerating} 
+                    className="w-full h-full bg-transparent text-sm text-white placeholder-slate-600 focus:outline-none transition p-3 disabled:opacity-50 resize-none overflow-y-auto" 
+                  />
+                  
+                  {/* زر التحدث الصوتي الذكي داخل صندوق النص والمحاذاة الفائقة */}
+                  <div className="absolute left-3 bottom-3 z-10 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      className={`p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center shadow-lg ${isListening ? 'bg-red-600 text-white animate-pulse scale-110' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                      title={isListening ? "جاري الاستماع... اضغط للإيقاف" : "تحدث لإدخال النص صوتياً"}
+                    >
+                      {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={isGenerating || !prompt.trim()} 
+                  className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+                >
+                  {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> <span>جاري البناء السحابي المطور...</span></> : <><Sparkles className="w-4 h-4" /> <span>توليد وتدشين الموقع الفوري</span></>}
+                </button>
+              </form>
+            </div>
           </div>
 
-          <div className="w-full lg:w-64 bg-[#070b21] border border-slate-800/80 rounded-3xl p-4 flex flex-col shadow-xl shrink-0">
-            <h3 className="text-xs font-bold text-white mb-3 pb-2 border-b border-slate-800/60">المشاريع المحفوظة ({projects.length})</h3>
-            <div className="space-y-2 overflow-y-auto flex-1 text-[11px] text-slate-400">
-              {projects.length === 0 ? <p className="opacity-40 text-center py-6">لا توجد مشاريع.</p> : projects.map(p => <div key={p.id} className="p-2 bg-[#030612] border border-slate-800 rounded-lg">{p.name}</div>)}
+          {/* Right Column: Full Interactive Dynamic Live Preview Section */}
+          {/* قسم المعاينة الذي يتمدد بشكل كامل ليأخذ الشاشة عند تفعيل زر Preview ويتقلص بسلاسة */}
+          <div className={`transition-all duration-500 ease-in-out h-full flex flex-col ${activeTab === "preview" ? "w-full md:w-full" : "w-0 opacity-0 pointer-events-none md:w-5/12 lg:w-5/12 md:opacity-100 md:pointer-events-auto"}`}>
+            
+            <div className="bg-[#0a0f24] border border-slate-800/80 rounded-2xl p-4 flex flex-col h-full overflow-hidden w-full">
+              
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800/60 mb-4 shrink-0">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-xs font-bold text-white">المعاينة الفورية المباشرة</h3>
+                </div>
+                {generatedUrl && (
+                  <a href={generatedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] text-indigo-400 hover:underline">
+                    رابط خارجي <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+
+              {!generatedUrl ? (
+                <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl bg-[#050816] p-6 text-center">
+                  <Globe className="w-10 h-10 text-slate-700 mb-3 animate-pulse" />
+                  <p className="text-xs text-slate-400 font-medium">لا يوجد رابط نشط حالياً للمعالجة</p>
+                  <p className="text-[10px] text-slate-600 mt-1 max-w-[200px]">قم بكتابة وصفك البرمجي والضغط على زر التوليد لتشاهد النتيجة الحية هنا مباشرة.</p>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col gap-4 overflow-hidden h-full w-full">
+                  <div className="flex-1 rounded-xl overflow-hidden border border-slate-800 bg-white relative shadow-inner h-full w-full">
+                    <iframe src={generatedUrl} className="w-full h-full border-none" title="Nova Dynamic Live Preview" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
