@@ -1,337 +1,330 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
-import { Bot, Terminal, Globe, LogOut, Layers, Cpu, CheckCircle, Loader2, ExternalLink, Sparkles, Mic, MicOff, Eye, MessageSquare } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-export const dynamic = "force-dynamic";
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
 
-interface UserData { name: string; email: string; avatar: string; }
-interface Project { id: string; name: string; url: string; prompt: string; created_at: string; }
+type DeployResponse = {
+  success?: boolean;
+  url?: string;
+  error?: string;
+};
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+export default function NovaAI() {
+  // إنشاء مستمع Supabase خاص بمكونات العميل (Client Components)
+  const supabase = createClientComponentClient();
 
-export default function AdminDashboard() {
-  const router = useRouter();
+  /* ---------------- STATES ---------------- */
+  const [authorized, setAuthorized] = useState(false);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [robotMood, setRobotMood] = useState<"idle" | "thinking" | "happy" | "typing">("idle");
 
-  const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [prompt, setPrompt] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isBotTyping, setIsBotTyping] = useState(false);
-  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  // أنظمة التحكم في وضع العرض المطور (تبديل الشاشات)
-  const [activeTab, setActiveTab] = useState<"chat" | "preview">("chat");
-
-  // أنظمة التحكم في الصوت وتحويله إلى نص
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
+  /* ---------------- AUTH LOGIC (SUPABASE) ---------------- */
   useEffect(() => {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      setError("إعدادات الاتصال بـ Supabase غير مكتملة.");
-      setLoading(false);
-      return;
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        // التحقق الصارم من تسجيل الدخول قبل عرض الشات وحماية الجلسة
-        if (!session) { 
-          router.push("/login"); 
-          return; 
-        }
-
-        const { data: userRole } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .single();
-
-        if (!userRole || userRole.role !== "admin") {
-          setError("عذراً، هذه اللوحة مخصصة للمسؤولين فقط.");
-          setLoading(false);
-          return;
-        }
-
-        setUser({
-          name: session.user.user_metadata.full_name || "Admin",
-          email: session.user.email || "",
-          avatar: session.user.user_metadata.avatar_url || "https://avatar.iran.liara.run/public/1",
-        });
-      } catch (err) {
-        console.error("Auth error:", err);
-      } finally {
-        setLoading(false);
-      }
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) setAuthorized(true);
+      setLoadingAuth(false);
     };
-    checkAuth();
 
-    // تهيئة ميزة التعرف على الصوت المدمجة في المتصفحات
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
-        rec.continuous = false;
-        rec.lang = "ar-SA"; // يدعم الإدخال باللغة العربية الفصحى واللهجات المحلية
-        rec.interimResults = false;
+    checkUser();
 
-        rec.onstart = () => setIsListening(true);
-        rec.onend = () => setIsListening(false);
-        rec.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setPrompt((prev) => (prev ? prev + " " + transcript : transcript));
-        };
-        rec.onerror = (e: any) => {
-          console.error("Speech error", e);
-          setIsListening(false);
-        };
-        recognitionRef.current = rec;
-      }
+    // الاستماع الفوري لتغير حالة المستخدم (تسجيل دخول / خروج)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthorized(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  async function loginWithGoogle() {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "",
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Auth error:", error);
     }
-  }, [router]);
+  }
 
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      alert("التعرف على الصوت غير مدعوم في متصفحك الحالي، يرجى استخدام Chrome أو Edge.");
-      return;
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setMessages([]);
+  }
+
+  /* ---------------- SCROLL EFFECT ---------------- */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  /* ---------------- ACTION HANDLERS ---------------- */
+  async function sendMessage() {
+    if (!input.trim() || loading) return;
+
+    const text = input;
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setInput("");
+    setLoading(true);
+    setRobotMood("thinking");
+
+    const loadingSteps = [
+      "Nova AI is thinking...",
+      "Analyzing request...",
+      "Generating modern UI...",
+      "Deploying website...",
+    ];
+
+    for (const step of loadingSteps) {
+      setMessages((prev) => [...prev, { role: "assistant", content: step }]);
+      await new Promise((r) => setTimeout(r, 1400));
     }
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
-    }
-  };
-
-  const handleGenerateWebsite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prompt.trim()) return;
-
-    setIsGenerating(true);
-    setError(null);
-    setGeneratedUrl(null);
 
     try {
-      const res = await fetch("/api/nova", {
+      const res = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: text }),
       });
-      const data = await res.json();
 
-      if (!res.ok || !data.success) throw new Error(data.error || "فشل توليد الموقع الحقيقي");
+      const data: DeployResponse = await res.json();
+      setRobotMood("happy");
 
-      setGeneratedUrl(data.url);
-      setProjects([
-        { 
-          id: Math.random().toString(), 
-          name: `Nova Site ${projects.length + 1}`, 
-          url: data.url, 
-          prompt, 
-          created_at: new Date().toLocaleDateString("ar-SA") 
-        }, 
-        ...projects
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.success
+            ? `✅ Website generated successfully\n\n🌍 ${data.url}`
+            : data.error || "Failed to generate website.",
+        },
       ]);
-      setPrompt("");
-      // الانتقال التلقائي السلس إلى شاشة المعاينة بعد اكتمال التوليد
-      setActiveTab("preview");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsGenerating(false);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "AI system error." }]);
     }
-  };
 
-  if (loading) {
+    setLoading(false);
+    setTimeout(() => setRobotMood("idle"), 3000);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") sendMessage();
+  }
+
+  /* ---------------- ANIMATION STYLES (SAFE INJECTION) ---------------- */
+  const animationStyles = `
+    @keyframes blink { 0%, 48%, 52%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.1); } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+    @keyframes happy { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+    @keyframes idle { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+    .animate-blink { animation: blink 4s infinite; }
+    .animate-float { animation: float 2s infinite ease-in-out; }
+    .animate-pulse-custom { animation: pulse 1.2s infinite; }
+    .animate-happy { animation: happy 0.6s infinite ease-in-out; }
+    .animate-idle { animation: idle 3s infinite ease-in-out; }
+  `;
+
+  /* ---------------- ROBOT FACE COMPONENT ---------------- */
+  function RobotFace({ size = 70 }: { size?: number }) {
+    const getBgGradient = () => {
+      if (robotMood === "thinking") return "from-blue-600 to-purple-600";
+      if (robotMood === "happy") return "from-emerald-500 to-cyan-500";
+      if (robotMood === "typing") return "from-amber-500 to-red-500";
+      return "from-slate-900 to-slate-800";
+    };
+
+    const getAnimationClass = () => {
+      if (robotMood === "thinking") return "animate-float";
+      if (robotMood === "happy") return "animate-happy";
+      return "animate-idle";
+    };
+
     return (
-      <div className="min-h-screen bg-[#050816] flex flex-col items-center justify-center text-white gap-4">
-        <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-        <p className="text-sm font-medium text-slate-400">جاري فحص صلاحيات المسؤول السيبراني وتأمين الحساب...</p>
+      <div
+        className={`bg-gradient-to-br ${getBgGradient()} ${getAnimationClass()} relative shadow-[0_0_40px_rgba(59,130,246,0.3)] transition-all duration-500`}
+        style={{ width: size, height: size, borderRadius: size * 0.35 }}
+      >
+        {/* EYES */}
+        <div
+          className="absolute bg-white animate-blink transition-all duration-300 rounded-full"
+          style={{
+            top: size * 0.32,
+            left: size * 0.22,
+            width: size * 0.12,
+            height: robotMood === "typing" ? 3 : size * 0.12,
+          }}
+        />
+        <div
+          className="absolute bg-white animate-blink transition-all duration-300 rounded-full"
+          style={{
+            top: size * 0.32,
+            right: size * 0.22,
+            width: size * 0.12,
+            height: robotMood === "typing" ? 3 : size * 0.12,
+          }}
+        />
+
+        {/* MOUTH */}
+        <div
+          className="absolute bg-white left-1/2 bottom-[20%] -translate-x-1/2 rounded-full transition-all duration-300"
+          style={{
+            width: robotMood === "happy" ? size * 0.38 : size * 0.2,
+            height: robotMood === "happy" ? size * 0.12 : 4,
+          }}
+        />
+
+        {/* THINKING LIGHTS */}
+        {robotMood === "thinking" && (
+          <>
+            <div className="absolute -top-2 -right-1 w-2.5 h-2.5 bg-blue-400 rounded-full animate-pulse-custom" />
+            <div className="absolute -top-5 right-2 w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse-custom [animation-delay:0.4s]" />
+          </>
+        )}
       </div>
     );
   }
 
-  const activeSupabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
+  /* ---------------- LOADING AUTH STATE ---------------- */
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex justify-center items-center text-white font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="opacity-60 text-sm tracking-wide">Establishing secure connection...</p>
+        </div>
+      </div>
+    );
+  }
 
+  /* ---------------- SIGN IN INTERFACE ---------------- */
+  if (!authorized) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#111827,#020617)] flex justify-center items-center p-6 text-white font-sans">
+        <style dangerouslySetInnerHTML={{ __html: animationStyles }} />
+        <div className="w-full max-w-[460px] bg-white/[0.02] border border-white/[0.06] backdrop-blur-3xl rounded-[32px] p-10 text-center shadow-[0_0_100px_rgba(124,58,237,0.08)]">
+          <div className="flex justify-center mb-6">
+            <RobotFace size={90} />
+          </div>
+          <h1 className="text-4xl font-extrabold mb-2 tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
+            Nova AI
+          </h1>
+          <p className="opacity-50 mb-8 text-sm">
+            Instant, futuristic AI website generation. Sign in to start building.
+          </p>
+
+          <button
+            onClick={loginWithGoogle}
+            className="w-full py-4 px-6 border border-white/10 rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] active:scale-[0.98] text-white font-medium flex items-center justify-center gap-3 transition-all duration-200 shadow-xl"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22.81-.6z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.08l3.66 2.84c.87-2.6 3.3-4.54 6.16-4.54z" fill="#EA4335"/>
+            </svg>
+            Continue with Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- MAIN APP INTERFACE ---------------- */
   return (
-    <div className="min-h-screen bg-[#050816] text-slate-100 flex overflow-hidden h-screen" dir="rtl">
-      
-      {/* Sidebar */}
-      <aside className="w-72 bg-[#0a0f24] border-l border-slate-800/60 p-6 flex flex-col justify-between hidden md:flex h-full shrink-0">
-        <div>
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
-              <Cpu className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">NOVA AI</h1>
-              <span className="text-[10px] text-indigo-400 font-mono tracking-widest block">ADMIN v2.5</span>
-            </div>
-          </div>
-          <nav>
-            <div className="flex items-center gap-3 px-4 py-3 bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 rounded-xl">
-              <Layers className="w-5 h-5" /> 
-              <span className="text-sm font-medium">لوحة التحكم والتوليد</span>
-            </div>
-          </nav>
-        </div>
-        
-        {user && (
-          <div className="bg-[#0e1533] border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border border-indigo-500/30" />
-              <div className="overflow-hidden">
-                <p className="text-xs font-bold text-white truncate">{user.name}</p>
-                <p className="text-[10px] text-slate-400 truncate font-mono">{user.email}</p>
-              </div>
-            </div>
-            <button 
-              onClick={async () => { if(activeSupabase) { await activeSupabase.auth.signOut(); } router.push("/login"); }} 
-              className="w-full py-2 bg-red-950/30 hover:bg-red-900/40 border border-red-500/20 rounded-xl text-xs font-medium text-red-400 flex items-center justify-center gap-2 transition"
-            >
-              <LogOut className="w-4 h-4" /> تسجيل الخروج
-            </button>
-          </div>
-        )}
-      </aside>
+    <div className="min-h-screen bg-[#050816] text-white overflow-x-hidden font-sans">
+      <style dangerouslySetInnerHTML={{ __html: animationStyles }} />
 
-      {/* Main Content Viewport */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        
-        {/* Top bar with Smart Toggle Switch - أزرار العرض المزدوجة المتطورة في أعلى اليمين */}
-        <div className="p-4 bg-[#0a0f24]/60 border-b border-slate-800/50 flex items-center justify-between z-20 shrink-0">
-          <div className="flex items-center gap-2 bg-[#050816] border border-slate-800 p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab("chat")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${activeTab === "chat" ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
-            >
-              <MessageSquare className="w-4 h-4" /> التحكم والشات
-            </button>
-            <button
-              onClick={() => setActiveTab("preview")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${activeTab === "preview" ? "bg-purple-600 text-white shadow" : "text-slate-400 hover:text-slate-200"}`}
-            >
-              <Eye className="w-4 h-4" /> معاينة الموقع الحية (Preview)
-            </button>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 font-mono text-[11px] text-slate-500">
-            STATUS: <span className="text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE</span>
+      {/* HEADER */}
+      <header className="p-6 md:px-12 flex justify-between items-center border-b border-white/[0.03]">
+        <div className="flex items-center gap-4">
+          <RobotFace size={55} />
+          <div>
+            <h1 className="text-xl font-bold tracking-wide">Nova AI</h1>
+            <p className="text-xs opacity-50">AI Website Builder</p>
           </div>
         </div>
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 text-xs border border-white/10 rounded-xl bg-white/[0.02] hover:bg-red-500/20 hover:border-red-500/30 text-slate-400 hover:text-red-400 transition-all"
+        >
+          Sign Out
+        </button>
+      </header>
 
-        {/* Dynamic Workspace Container */}
-        <div className="flex-1 flex overflow-hidden p-4 md:p-6 gap-6 relative h-full w-full">
-          
-          {/* Left/Main Column: Chat & Engine 控制 */}
-          <div className={`transition-all duration-500 ease-in-out flex flex-col gap-6 h-full ${activeTab === "preview" ? "w-0 opacity-0 pointer-events-none md:w-1/4 md:opacity-100 md:pointer-events-auto" : "w-full md:w-70% lg:w-7/12"}`}>
-            
-            <div className="overflow-hidden bg-gradient-to-l from-indigo-950/20 via-[#0a0f24] to-[#050816] border border-slate-800/60 rounded-2xl p-5 shrink-0">
-              <h2 className="text-xl font-black text-white flex items-center gap-2">محرك NOVA AI الذكي</h2>
-              <p className="text-slate-400 text-xs mt-1 leading-relaxed">اكتب متطلباتك أو تكلم مباشرة لبناء نظامك البرمجي السحابي المطور.</p>
-            </div>
-
-            {/* مجمع الإدخال المحسن والمحاذى بشكل مثالي بدون نتوءات أو بروز */}
-            <div className="bg-[#0a0f24] border border-slate-800/80 rounded-2xl p-5 flex flex-col flex-1 overflow-hidden min-h-[300px]">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60 shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${isGenerating ? 'bg-amber-500/10 text-amber-400 animate-bounce' : 'bg-slate-800 text-slate-400'}`}>
-                    <Bot className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-white">مساعد التصميم والهوية</h3>
-                    <p className="text-[10px] text-slate-500">مستعد لمعالجة وبناء الفكرة الحقيقية</p>
-                  </div>
-                </div>
-              </div>
-
-              {error && (
-                <div className="mb-4 p-3 bg-red-950/20 border border-red-500/30 text-red-400 rounded-xl text-xs flex gap-2 shrink-0">
-                  <Terminal className="w-4 h-4" /> <span>{error}</span>
-                </div>
-              )}
-
-              {/* حقل الإدخال المصحح مع الميكروفون المدمج التفاعلي */}
-              <form onSubmit={handleGenerateWebsite} className="flex-1 flex flex-col gap-4 overflow-hidden relative">
-                <div className="relative flex-1 bg-[#050816] border border-slate-800 focus-within:border-indigo-500/60 rounded-xl p-1 flex flex-col overflow-hidden">
-                  <textarea 
-                    value={prompt} 
-                    onChange={(e) => setPrompt(e.target.value)} 
-                    onFocus={() => setIsBotTyping(true)} 
-                    onBlur={() => setIsBotTyping(false)} 
-                    placeholder="اكتب فكرتك بالتفصيل، أو اضغط على الميكروفون الجانبي للتحدث مباشرة..." 
-                    disabled={isGenerating} 
-                    className="w-full h-full bg-transparent text-sm text-white placeholder-slate-600 focus:outline-none transition p-3 disabled:opacity-50 resize-none overflow-y-auto" 
-                  />
-                  
-                  {/* زر التحدث الصوتي الذكي داخل صندوق النص والمحاذاة الفائقة */}
-                  <div className="absolute left-3 bottom-3 z-10 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={toggleListening}
-                      className={`p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center shadow-lg ${isListening ? 'bg-red-600 text-white animate-pulse scale-110' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
-                      title={isListening ? "جاري الاستماع... اضغط للإيقاف" : "تحدث لإدخال النص صوتياً"}
-                    >
-                      {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <button 
-                  type="submit" 
-                  disabled={isGenerating || !prompt.trim()} 
-                  className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
-                >
-                  {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> <span>جاري البناء السحابي المطور...</span></> : <><Sparkles className="w-4 h-4" /> <span>توليد وتدشين الموقع الفوري</span></>}
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Right Column: Full Interactive Dynamic Live Preview Section */}
-          {/* قسم المعاينة الذي يتمدد بشكل كامل ليأخذ الشاشة عند تفعيل زر Preview ويتقلص بسلاسة */}
-          <div className={`transition-all duration-500 ease-in-out h-full flex flex-col ${activeTab === "preview" ? "w-full md:w-full" : "w-0 opacity-0 pointer-events-none md:w-5/12 lg:w-5/12 md:opacity-100 md:pointer-events-auto"}`}>
-            
-            <div className="bg-[#0a0f24] border border-slate-800/80 rounded-2xl p-4 flex flex-col h-full overflow-hidden w-full">
-              
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800/60 mb-4 shrink-0">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-purple-400" />
-                  <h3 className="text-xs font-bold text-white">المعاينة الفورية المباشرة</h3>
-                </div>
-                {generatedUrl && (
-                  <a href={generatedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] text-indigo-400 hover:underline">
-                    رابط خارجي <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
-              </div>
-
-              {!generatedUrl ? (
-                <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl bg-[#050816] p-6 text-center">
-                  <Globe className="w-10 h-10 text-slate-700 mb-3 animate-pulse" />
-                  <p className="text-xs text-slate-400 font-medium">لا يوجد رابط نشط حالياً للمعالجة</p>
-                  <p className="text-[10px] text-slate-600 mt-1 max-w-[200px]">قم بكتابة وصفك البرمجي والضغط على زر التوليد لتشاهد النتيجة الحية هنا مباشرة.</p>
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col gap-4 overflow-hidden h-full w-full">
-                  <div className="flex-1 rounded-xl overflow-hidden border border-slate-800 bg-white relative shadow-inner h-full w-full">
-                    <iframe src={generatedUrl} className="w-full h-full border-none" title="Nova Dynamic Live Preview" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
+      {/* HERO SECTION */}
+      {messages.length === 0 && (
+        <div className="flex flex-col items-center justify-center text-center mt-24 px-6">
+          <RobotFace size={110} />
+          <h1 className="text-5xl md:text-7xl font-black mt-8 tracking-tight bg-gradient-to-b from-white to-slate-500 bg-clip-text text-transparent">
+            Nova AI
+          </h1>
+          <p className="opacity-50 text-base md:text-lg mt-3 max-w-md">
+            Describe your vision, and watch Nova assemble your custom production-ready platform.
+          </p>
         </div>
+      )}
+
+      {/* CHAT CONTAINER */}
+      <main className="w-full max-w-4xl mx-auto px-6 pt-8 pb-40">
+        {messages.map((m, i) => (
+          <div key={i} className="mb-8 last:mb-0">
+            <div className="flex items-center gap-3 mb-2">
+              {m.role === "assistant" && <RobotFace size={36} />}
+              <span className="text-[11px] tracking-widest opacity-40 uppercase font-bold">
+                {m.role === "assistant" ? "Nova Assistant" : "You"}
+              </span>
+            </div>
+            <div
+              className={`text-base md:text-lg leading-relaxed whitespace-pre-wrap ${
+                m.role === "assistant"
+                  ? "bg-white/[0.03] border border-white/[0.04] p-6 rounded-2xl md:rounded-3xl"
+                  : "pl-2 opacity-90"
+              }`}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
       </main>
+
+      {/* FIXED CONTROL PANEL */}
+      <footer className="fixed bottom-0 left-0 right-0 p-6 bg-[#050816]/90 backdrop-blur-lg border-t border-white/[0.04]">
+        <div className="max-w-4xl mx-auto bg-white/[0.03] border border-white/[0.06] rounded-2xl p-3">
+          <div className="flex gap-4 items-center">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => !loading && setRobotMood("typing")}
+              onBlur={() => !loading && setRobotMood("idle")}
+              disabled={loading}
+              placeholder="Describe your dream website..."
+              className="flex-1 bg-transparent border-none outline-none text-white text-base md:text-lg px-2 disabled:opacity-50 placeholder:text-slate-600"
+            />
+            <button
+              onClick={sendMessage}
+              disabled={loading || !input.trim()}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:from-slate-800 disabled:to-slate-800 disabled:opacity-40 font-bold text-sm tracking-wide active:scale-95 transition-all"
+            >
+              {loading ? "Processing..." : "Generate"}
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
