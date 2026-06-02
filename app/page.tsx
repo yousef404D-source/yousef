@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "../utils/supabase/client";
 type Message = {
   role: "user" | "assistant";
   content: string;
