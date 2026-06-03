@@ -175,24 +175,44 @@ export default function NovaAI() {
         }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         
-        /* تخصيص الخلفية العامة للفورم لتصبح سوداء من خلال الـ CSS */
+        /* التحكم الكامل والتام بمظهر عناصر Supabase Auth باللون الأسود الفخم لتفادي مشاكل الـ Types */
         .supabase-auth-container {
           background: #030303 !important;
         }
         .supabase-auth-container button {
           border-radius: 12px !important;
-          font-weight: 500 !important;
+          font-weight: 600 !important;
           font-size: 0.9rem !important;
           transition: 0.2s all !important;
+          background-color: #ffffff !important;
+          color: #000000 !important;
+          border: none !important;
+        }
+        .supabase-auth-container button:hover {
+          background-color: #eeeeee !important;
         }
         .supabase-auth-container input {
           border-radius: 12px !important;
           text-align: center !important;
+          background-color: #000000 !important;
+          color: #ffffff !important;
+          border: 1px solid rgba(255,255,255,0.06) !important;
+          padding: 12px !important;
         }
         .supabase-auth-container label {
           color: #555555 !important;
           font-size: 0.8rem !important;
           letter-spacing: 1px !important;
+          display: block;
+          margin-bottom: 5px;
+        }
+        .supabase-auth-container a {
+          color: #666666 !important;
+          font-size: 0.8rem !important;
+          text-decoration: none !important;
+        }
+        .supabase-auth-container a:hover {
+          color: #999999 !important;
         }
       `}</style>
 
@@ -225,7 +245,7 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [2] خطوة الـ Supabase Auth الحقيقية المصححة ==================== */}
+      {/* ==================== [2] خطوة الـ Supabase Auth الحقيقية المعزولة والمضمونة ==================== */}
       {step === 'oauth' && (
         <div style={{ animation: 'fadeIn 0.4s ease', width: '90%', maxWidth: '380px', background: '#030303', border: '1px solid rgba(255,255,255,0.04)', padding: '40px 35px', borderRadius: '24px', boxSizing: 'border-box' }}>
           <div style={{ width: '75px', height: '75px', borderRadius: '50%', background: '#080808', border: '1px solid rgba(255,255,255,0.1)', margin: '0 auto 25px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -237,25 +257,7 @@ export default function NovaAI() {
           <div className="supabase-auth-container">
             <Auth
               supabaseClient={supabase}
-              appearance={{
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: '#ffffff',
-                      brandAccent: '#eeeeee',
-                      brandButtonText: '#000000',
-                      defaultButtonBackground: '#000000',
-                      defaultButtonBackgroundHover: '#0a0a0a',
-                      defaultButtonBorder: 'rgba(255,255,255,0.06)',
-                      inputText: '#ffffff',
-                      inputBorder: 'rgba(255,255,255,0.06)',
-                      inputBackground: '#000000',
-                      inputPlaceholder: '#444444',
-                    },
-                  },
-                },
-              }}
+              appearance={{ theme: ThemeSupa }}
               providers={['google', 'github']}
               theme="dark"
               view="sign_in"
