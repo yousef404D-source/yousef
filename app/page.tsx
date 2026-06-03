@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-// السطر الجديد (اخرج مجلد واحد ثم ادخل لـ lib):
-import { supabase } from '../lib/supabase'; // استدعاء ملف الربط الخاص بك
+import { supabase } from '../lib/supabase'; // مسار مستقر ومضمون
 
 export default function NovaAI() {
   // الحالات الأمنية والتحقق
@@ -24,14 +23,12 @@ export default function NovaAI() {
 
   // مراقبة حالة تسجيل الدخول الحقيقية من Supabase
   useEffect(() => {
-    // 1. فحص إذا كان المستخدم يمتلك جلسة نشطة بالفعل عند فتح الموقع
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setStep('main'); 
       }
     });
 
-    // 2. الاستماع لأي تغيير في حالة تسجيل الدخول (مثل نجاح الدخول عبر Google/GitHub أو الإيميل)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setRobotEyeColor('green');
@@ -40,7 +37,6 @@ export default function NovaAI() {
           setRobotEyeColor('white');
         }, 600);
       } else {
-        // إذا لم يكن هناك جلسة، نبدأ بشاشة الباسورد الأولية لحماية المنصة
         setStep('password');
       }
     });
@@ -87,7 +83,7 @@ export default function NovaAI() {
     if (password === 'yousefyousefbaker505') {
       setRobotEyeColor('green');
       setTimeout(() => {
-        setStep('oauth'); // ينقله لشاشة تسجيل دخول Supabase
+        setStep('oauth');
       }, 800);
     } else {
       setRobotEyeColor('red');
@@ -179,7 +175,10 @@ export default function NovaAI() {
         }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         
-        /* تخصيص مظهر فورم Supabase ليتناسق مع التصميم البسيط */
+        /* تخصيص الخلفية العامة للفورم لتصبح سوداء من خلال الـ CSS */
+        .supabase-auth-container {
+          background: #030303 !important;
+        }
         .supabase-auth-container button {
           border-radius: 12px !important;
           font-weight: 500 !important;
@@ -226,7 +225,7 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [2] خطوة الـ Supabase Auth الحقيقية ==================== */}
+      {/* ==================== [2] خطوة الـ Supabase Auth الحقيقية المصححة ==================== */}
       {step === 'oauth' && (
         <div style={{ animation: 'fadeIn 0.4s ease', width: '90%', maxWidth: '380px', background: '#030303', border: '1px solid rgba(255,255,255,0.04)', padding: '40px 35px', borderRadius: '24px', boxSizing: 'border-box' }}>
           <div style={{ width: '75px', height: '75px', borderRadius: '50%', background: '#080808', border: '1px solid rgba(255,255,255,0.1)', margin: '0 auto 25px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -245,11 +244,14 @@ export default function NovaAI() {
                     colors: {
                       brand: '#ffffff',
                       brandAccent: '#eeeeee',
-                      background: '#000000',
-                      linkText: '#666666',
+                      brandButtonText: '#000000',
+                      defaultButtonBackground: '#000000',
+                      defaultButtonBackgroundHover: '#0a0a0a',
+                      defaultButtonBorder: 'rgba(255,255,255,0.06)',
                       inputText: '#ffffff',
                       inputBorder: 'rgba(255,255,255,0.06)',
                       inputBackground: '#000000',
+                      inputPlaceholder: '#444444',
                     },
                   },
                 },
@@ -323,7 +325,6 @@ export default function NovaAI() {
             </button>
           </div>
 
-          {/* زر لتسجيل الخروج السريع أسفل الصفحة للمطور (اختياري) */}
           <button onClick={() => supabase.auth.signOut()} style={{ position: 'absolute', bottom: '15px', right: '20px', background: 'transparent', color: '#333', border: 'none', cursor: 'pointer', fontSize: '0.75rem' }}>
             Logout Session
           </button>
