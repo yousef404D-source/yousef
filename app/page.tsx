@@ -3,9 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 
 export default function NovaAI() {
+  // الحالات الأمنية والتحقق
   const [password, setPassword] = useState('');
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [isLockedScreenHidden, setIsLockedScreenHidden] = useState(false);
+  const [step, setStep] = useState<'password' | 'oauth' | 'main' | 'admin'>('password');
+  const [robotEyeColor, setRobotEyeColor] = useState<'white' | 'red' | 'green'>('white');
+  const [robotIsShaking, setRobotIsShaking] = useState(false);
+  
+  // حالات الشات والذكاء الاصطناعي
   const [userInput, setUserInput] = useState('');
   const [robotState, setRobotState] = useState<'normal' | 'thinking' | 'listening'>('normal');
   const [isListening, setIsListening] = useState(false);
@@ -14,7 +18,7 @@ export default function NovaAI() {
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  // نظام الـ Voice-to-Text المتوافق مع الواجهة الاحترافية
+  // إعداد ميزة الـ Voice-to-Text
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -48,24 +52,40 @@ export default function NovaAI() {
     }
   }, [chatMessages]);
 
+  // فحص كلمة المرور مع تفاعل الروبوت بالألوان والاهتزاز
   const checkPassword = () => {
     if (password === 'yousefyousefbaker505') {
-      setIsUnlocked(true);
+      setRobotEyeColor('green');
       setTimeout(() => {
-        setIsLockedScreenHidden(true);
-      }, 600);
+        setStep('oauth'); // الانتقال لخطوة تسجيل جوجل / جيت هاب
+      }, 800);
     } else {
-      alert('🔒 Access Denied: Invalid Security Token!');
-      setPassword('');
+      setRobotEyeColor('red');
+      setRobotIsShaking(true);
+      setTimeout(() => {
+        setRobotIsShaking(false);
+        setRobotEyeColor('white');
+        setPassword('');
+      }, 1000);
     }
   };
 
-  const handleSendMessage = () => {
-    if (userInput.trim() === '') return;
+  // محاكاة تسجيل الدخول الخارجي المتصل بالسبب/السيرفر عندك
+  const handleOAuthLogin = (provider: 'Google' | 'GitHub') => {
+    setRobotEyeColor('green');
+    setTimeout(() => {
+      setStep('main'); // الدخول للموقع الرئيسي
+      setRobotEyeColor('white');
+    }, 600);
+  };
 
-    const currentText = userInput;
-    setChatMessages((prev) => [...prev, { sender: 'user', text: currentText }]);
-    setUserInput('');
+  // معالجة إرسال النصوص للذكاء الاصطناعي الشامل
+  const handleSendMessage = (customText?: string) => {
+    const textToSend = customText || userInput;
+    if (!textToSend.trim()) return;
+
+    setChatMessages((prev) => [...prev, { sender: 'user', text: textToSend }]);
+    if (!customText) setUserInput('');
     setRobotState('thinking');
 
     setTimeout(() => {
@@ -74,16 +94,16 @@ export default function NovaAI() {
         ...prev,
         {
           sender: 'bot',
-          text: `🎯 Nova Obsidian Engine Response:\nYour premium architecture for: "${currentText}" has been compiled.\n\n[✓] Generated hyper-responsive minimal layouts.\n[✓] Applied premium monochrome asset styling.`,
+          text: `🎯 تم تشغيل محرك نوفا الشامل الخارق (Nova Engine v5):\nلقد تم استلام طلبك لبناء البرمجية الخاصة بـ: "${textToSend}".\n\n[✓] جاري تهيئة قواعد البيانات وتصميم واجهات المستخدم المتجاوبة.\n[✓] النظام الآن يدعم (المتاجر، المطاعم، أنظمة الـ AI، والمنصات المخصصة بنسبة 100%).`,
           hasButton: true
         }
       ]);
-    }, 2500);
+    }, 2000);
   };
 
   const toggleVoice = () => {
     if (!recognitionRef.current) {
-      alert('Voice Module requires a premium modern browser connection.');
+      alert('ميزة الصوت تحتاج إلى متصفح يدعم الـ Speech Recognition مثل كروم.');
       return;
     }
     if (isListening) {
@@ -100,8 +120,8 @@ export default function NovaAI() {
 
   return (
     <div style={{ 
-      direction: 'ltr', 
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', 
+      direction: 'rtl', 
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', 
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
@@ -115,166 +135,203 @@ export default function NovaAI() {
       overflow: 'hidden'
     }}>
       
-      {/* أنميشن وحركات المكعب الماتريكس الأسود والعيون البيضاء المتوهجة */}
+      {/* أنميشن الروبوت الدائري الجديد واهتزاز الخطأ */}
       <style>{`
-        @keyframes monolithFloat {
-          0%, 100% { transform: translateY(0) rotateX(15deg) rotateY(15deg); box-shadow: 0 10px 30px rgba(255,255,255,0.05); }
-          50% { transform: translateY(-10px) rotateX(20deg) rotateY(25deg); box-shadow: 0 20px 40px rgba(255,255,255,0.1); }
+        @keyframes robotFloat {
+          0%, 100% { transform: translateY(0); box-shadow: 0 0 25px rgba(255,255,255,0.05); }
+          50% { transform: translateY(-8px); box-shadow: 0 0 40px rgba(255,255,255,0.15); }
         }
-        @keyframes monolithThink {
-          0% { transform: scale(1) rotate(0deg); border-color: #ffffff; }
-          25% { transform: scale(0.95) rotate(5deg); }
-          75% { transform: scale(1.05) rotate(-5deg); box-shadow: 0 0 30px rgba(255,255,255,0.2); }
-          100% { transform: scale(1) rotate(0deg); }
+        @keyframes robotShake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-8px); }
+          40%, 80% { transform: translateX(8px); }
         }
-        @keyframes monolithListen {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(255,255,255,0.3); border-color: #ffffff; }
-          50% { transform: scale(1.08); box-shadow: 0 0 60px rgba(255,255,255,0.5); border-color: #ffffff; }
+        @keyframes pulseEye {
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.15); opacity: 1; }
         }
-        @keyframes eyePulse {
-          0%, 100% { transform: scale(1); opacity: 0.9; box-shadow: 0 0 15px #ffffff, 0 0 30px #ffffff; }
-          50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 25px #ffffff, 0 0 50px #ffffff; }
+        @keyframes rotateRing {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
-        @keyframes eyeThinking {
-          0%, 100% { transform: scaleX(1) scaleY(1); }
-          50% { transform: scaleX(0.2) scaleY(1.5); }
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); filter: blur(4px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
       `}</style>
 
-      {/* [1] شاشة الـ System Login باللون الأسود الفخم والغامض */}
-      {!isLockedScreenHidden && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
-          background: '#000000',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
-          transition: 'transform 0.7s cubic-bezier(0.86, 0, 0.07, 1)',
-          transform: isUnlocked ? 'translateY(-100%)' : 'translateY(0)'
-        }}>
-          <div style={{ 
-            background: '#050505', 
-            border: '1px solid rgba(255, 255, 255, 0.05)', 
-            padding: '50px 40px', 
-            borderRadius: '24px',
-            boxShadow: '0 30px 100px rgba(0,0,0,0.9)', 
-            textAlign: 'center', 
-            width: '90%', 
-            maxWidth: '440px',
-            boxSizing: 'border-box'
-          }}>
-            {/* الروبوت المكعب الأسود في شاشة القفل */}
-            <div style={{
-              width: '75px', height: '75px', background: '#0a0a0a',
-              border: '2px solid rgba(255, 255, 255, 0.2)', margin: '0 auto 35px auto', display: 'flex', justifyContent: 'center', alignItems: 'center',
-              borderRadius: '16px', animation: 'monolithFloat 4s infinite ease-in-out', transformStyle: 'preserve-3d'
-            }}>
-              {/* العين البيضاء الحية */}
-              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#ffffff', animation: 'eyePulse 2s infinite ease-in-out' }} />
-            </div>
-
-            <h1 style={{ margin: '0 0 8px 0', fontSize: '2.2rem', fontWeight: '700', letterSpacing: '-0.5px', color: '#ffffff' }}>System Login</h1>
-            <p style={{ fontSize: '0.9rem', color: '#666666', margin: '0 0 35px 0', fontWeight: '500', letterSpacing: '0.5px' }}>AUTHENTICATE TO ACCESS NOVA REPOSITORY</p>
-            
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              onKeyDown={(e) => e.key === 'Enter' && checkPassword()} 
-              placeholder="ENTER SECURITY TOKEN" 
-              style={{ width: '100%', padding: '16px 24px', fontSize: '1rem', color: '#fff', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', outline: 'none', boxSizing: 'border-box', background: '#0c0c0c', transition: 'all 0.3s ease', letterSpacing: '2px' }} 
-              onFocus={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.4)'}
-              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-            />
-            
-            <button onClick={checkPassword} style={{ marginTop: '25px', padding: '16px', fontSize: '1rem', background: '#ffffff', color: '#000000', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', width: '100%', boxSizing: 'border-box', transition: 'all 0.2s ease', letterSpacing: '0.5px' }} onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'} onMouseOut={(e) => e.currentTarget.style.opacity = '1'}>
-              ACCESS SYSTEM
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* [2] الواجهة الرئيسية كاملة السواد بأعلى مستويات الفخامة البصرية */}
-      <div style={{
-        display: isUnlocked ? 'flex' : 'none', width: '100%', height: '100%', flexDirection: 'column',
-        justifyContent: 'space-between', alignItems: 'center', padding: '50px 24px', boxSizing: 'border-box',
-        opacity: isUnlocked ? 1 : 0, transform: isUnlocked ? 'scale(1)' : 'scale(0.98)', transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-      }}>
-        
-        {/* الجسم المركزي للتطبيق */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', marginBottom: 'auto', textAlign: 'center', animation: 'fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+      {/* ==================== [1] مرحلة الباسورد الأولية ==================== */}
+      {step === 'password' && (
+        <div style={{ animation: 'fadeIn 0.4s ease', textAlign: 'center', width: '90%', maxWidth: '420px', background: '#050505', border: '1px solid rgba(255,255,255,0.05)', padding: '45px 35px', borderRadius: '24px', boxShadow: '0 25px 80px rgba(0,0,0,0.9)' }}>
           
-          {/* الروبوت المكعب الأسود المطور والذكي المتفاعل بالكامل */}
+          {/* تصميم الروبوت الدائري المتفاعل بالألوان والاهتزاز */}
           <div style={{
-            width: '90px',
-            height: '90px',
-            background: '#080808',
-            borderRadius: '20px',
-            border: '2px solid rgba(255, 255, 255, 0.15)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: '35px',
-            transition: 'all 0.4s ease',
-            animation: robotState === 'thinking' ? 'monolithThink 0.6s infinite linear' : robotState === 'listening' ? 'monolithListen 0.5s infinite ease-in-out' : 'monolithFloat 4s infinite ease-in-out'
+            width: '90px', height: '90px', borderRadius: '50%', background: '#0d0d0d',
+            border: `2px solid ${robotEyeColor === 'red' ? '#ff3333' : robotEyeColor === 'green' ? '#33cc66' : 'rgba(255,255,255,0.1)'}`,
+            margin: '0 auto 30px auto', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative',
+            animation: robotIsShaking ? 'robotShake 0.2s infinite' : 'robotFloat 4s infinite ease-in-out', transition: 'all 0.3s'
           }}>
-            {/* العيون البيضاء الفائقة التوهج */}
+            {/* حلقة طاقة خارجية دوارة */}
+            <div style={{ position: 'absolute', width: '102%', height: '102%', borderRadius: '50%', border: '2px dashed rgba(255,255,255,0.2)', animation: 'rotateRing 12s infinite linear' }} />
+            {/* العيون البيضاء / الحمراء / الخضراء الفائقة الذكاء */}
             <div style={{ 
-              width: '20px', 
-              height: '20px', 
-              borderRadius: '50%', 
-              background: '#ffffff', 
-              boxShadow: '0 0 20px #ffffff, 0 0 40px #ffffff',
-              animation: robotState === 'thinking' ? 'eyeThinking 0.3s infinite linear' : 'eyePulse 2s infinite ease-in-out',
-              transition: 'all 0.3s'
+              width: '22px', height: '22px', borderRadius: '50%', 
+              background: robotEyeColor === 'red' ? '#ff3333' : robotEyeColor === 'green' ? '#33cc66' : '#ffffff', 
+              boxShadow: `0 0 25px ${robotEyeColor === 'red' ? '#ff3333' : robotEyeColor === 'green' ? '#33cc66' : '#ffffff'}`,
+              animation: 'pulseEye 1.5s infinite ease-in-out', transition: 'all 0.3s'
             }} />
           </div>
 
-          <h1 style={{ fontSize: '2.8rem', fontWeight: '800', margin: '0 0 12px 0', letterSpacing: '-1px', color: '#ffffff' }}>How can I help you today?</h1>
-          <p style={{ fontSize: '1rem', color: '#666666', margin: 0, fontWeight: '500', letterSpacing: '0.5px' }}>CURRENT MODE: <span style={{ color: '#ffffff', fontWeight: '700' }}>CREATING ADVANCED WEBSITES</span></p>
-
-          {/* لوحة عرض المخرجات والدردشة باللون الأسود المتناسق */}
-          {chatMessages.length > 0 && (
-            <div style={{ width: '90vw', maxWidth: '650px', maxHeight: '220px', overflowY: 'auto', marginTop: '30px', background: '#050505', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: 'inset 0 4px 30px rgba(0,0,0,0.8)' }} ref={chatBoxRef}>
-              {chatMessages.map((msg, idx) => (
-                <div key={idx} style={{ padding: '12px 5px', textAlign: msg.sender === 'user' ? 'right' : 'left', color: '#ffffff', fontSize: '0.98rem', borderBottom: '1px solid rgba(255,255,255,0.03)', animation: 'fadeIn 0.3s ease' }}>
-                  <strong style={{ color: msg.sender === 'user' ? '#888888' : '#ffffff' }}>{msg.sender === 'user' ? 'You: ' : 'Nova AI: '}</strong>
-                  <span style={{ whiteSpace: 'pre-line', lineHeight: '1.5', opacity: msg.sender === 'user' ? 0.8 : 1 }}>{msg.text}</span>
-                  {msg.hasButton && (
-                    <button onClick={() => alert('Downloading compiled structural assets...')} style={{ display: 'block', marginTop: '12px', background: '#ffffff', color: '#000000', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 4px 15px rgba(255,255,255,0.1)', transition: '0.2s' }}>Download Application Zip 📂</button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* الكونسول السفلي الفخم الفائق البساطة (Ultra-Minimalist Input) */}
-        <div style={{
-          width: '100%', maxWidth: '780px', display: 'flex', gap: '15px', background: '#050505',
-          border: '1px solid rgba(255, 255, 255, 0.08)', padding: '12px 18px', borderRadius: '16px', boxSizing: 'border-box',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.9)', alignItems: 'center'
-        }}>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '700', margin: '0 0 5px 0' }}>نظام حماية نوفا AI</h2>
+          <p style={{ fontSize: '0.9rem', color: '#666', margin: '0 0 30px 0', letterSpacing: '0.5px' }}>ENTER SYSTEM SECURITY TOKEN</p>
+          
           <input 
-            type="text"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Describe the website you want to generate..." 
-            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '1.05rem', padding: '8px 5px', fontFamily: 'inherit' }}
+            type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && checkPassword()} 
+            placeholder="أدخل رمز المرور الخاص بك..." 
+            style={{ width: '100%', padding: '15px', fontSize: '1rem', color: '#fff', textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', outline: 'none', boxSizing: 'border-box', background: '#0a0a0a', transition: '0.3s' }} 
           />
+          <button onClick={checkPassword} style={{ width: '100%', marginTop: '20px', padding: '15px', background: '#ffffff', color: '#000', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '1rem' }}>التحقق من الرمز ⚡</button>
+        </div>
+      )}
+
+      {/* ==================== [2] مرحلة الـ OAuth (تسجيل الدخول المطلب) ==================== */}
+      {step === 'oauth' && (
+        <div style={{ animation: 'fadeIn 0.4s ease', textAlign: 'center', width: '90%', maxWidth: '420px', background: '#050505', border: '1px solid rgba(255,255,255,0.05)', padding: '45px 35px', borderRadius: '24px' }}>
+          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#0d0d0d', border: '2px solid #33cc66', margin: '0 auto 25px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#33cc66', boxShadow: '0 0 20px #33cc66' }} />
+          </div>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: '700', margin: '0 0 8px 0' }}>تأكيد الهوية الرقمية</h2>
+          <p style={{ fontSize: '0.9rem', color: '#777', margin: '0 0 35px 0' }}>الرجاء اختيار وسيلة تسجيل الدخول المعتمدة للمنصة</p>
           
-          {/* المايك الاحترافي أحادي اللون */}
-          <button onClick={toggleVoice} style={{ background: isListening ? '#ffffff' : 'transparent', color: isListening ? '#000000' : '#ffffff', border: isListening ? 'none' : '1px solid rgba(255,255,255,0.1)', width: '46px', height: '46px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', transition: 'all 0.3s ease' }}>
-            🎙️
+          <button onClick={() => handleOAuthLogin('Google')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '14px', background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', marginBottom: '12px', transition: '0.3s' }}>
+            <span>Sign in with Google</span> 🌐
           </button>
           
-          {/* زر التفعيل باللون الأبيض الصافي الفخم */}
-          <button onClick={handleSendMessage} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '0 28px', height: '46px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '1rem', transition: 'all 0.2s ease' }}>
-            Next
+          <button onClick={() => handleOAuthLogin('GitHub')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '14px', background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', transition: '0.3s' }}>
+            <span>Sign in with GitHub</span> 🐙
           </button>
         </div>
+      )}
 
-      </div>
+      {/* ==================== [3] الواجهة الرئيسية (الموقع الاحترافي) ==================== */}
+      {step === 'main' && (
+        <div style={{ animation: 'fadeIn 0.5s ease', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 24px', boxSizing: 'border-box' }}>
+          
+          {/* شريط الملاحة العلوي المتوازن */}
+          <div style={{ width: '100%', maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#33cc66', boxShadow: '0 0 10px #33cc66' }} />
+              <span style={{ fontSize: '1.1rem', fontWeight: '700', letterSpacing: '0.5px' }}>NOVA CORE SYSTEM</span>
+            </div>
+            <button onClick={() => setStep('admin')} style={{ padding: '10px 20px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', transition: '0.3s' }}>لوحة التحكم بالأدمن 👑</button>
+          </div>
+
+          {/* القسم الأوسط: الروبوت الجديد والمحرك الشامل */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: 'auto 0', textAlign: 'center' }}>
+            
+            {/* روبوت النواة الدائرية المطور والذكي */}
+            <div style={{
+              width: '95px', height: '95px', borderRadius: '50%', background: '#050505',
+              border: '2px solid rgba(255, 255, 255, 0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', marginBottom: '30px',
+              animation: 'robotFloat 4s infinite ease-in-out'
+            }}>
+              <div style={{ position: 'absolute', width: '104%', height: '104%', borderRadius: '50%', border: '1px dashed rgba(255,255,255,0.3)', animation: 'rotateRing 20s infinite linear' }} />
+              <div style={{ 
+                width: '24px', height: '24px', borderRadius: '50%', background: '#ffffff', 
+                boxShadow: robotState === 'thinking' ? '0 0 30px #ff3333' : robotState === 'listening' ? '0 0 30px #33cc66' : '0 0 25px #ffffff',
+                animation: 'pulseEye 1.2s infinite ease-in-out'
+              }} />
+            </div>
+
+            <h1 style={{ fontSize: '2.6rem', fontWeight: '800', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>كيف يمكنني مساعدتك اليوم؟</h1>
+            <p style={{ fontSize: '1.05rem', color: '#555', margin: '0 0 35px 0' }}>المحرك الشامل المتخصص في بناء (المتاجر، المطاعم، منصات الـ AI، وكافة الأنظمة المتطورة)</p>
+
+            {/* أزرار قدرات الـ AI الفورية لتجربة استخدام فائقة الجودة */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '700px', marginBottom: '20px' }}>
+              <button onClick={() => handleSendMessage('أنشئ متجر إلكتروني متكامل لبيع المنتجات التقنية')} style={{ padding: '12px 20px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: '#bbb', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '600' }}>🛒 متجر إلكتروني E-Commerce</button>
+              <button onClick={() => handleSendMessage('صمم موقع مطعم فاخر مع نظام حجز الطلبات')} style={{ padding: '12px 20px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: '#bbb', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '600' }}>🍔 موقع مطعم متطور Restaurant</button>
+              <button onClick={() => handleSendMessage('بناء منصة ذكاء اصطناعي توليدي مخصصة')} style={{ padding: '12px 20px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: '#bbb', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '600' }}>🤖 منصة ذكاء اصطناعي AI App</button>
+            </div>
+
+            {/* صندوق رسائل الدردشة الذكي في حال وجود محادثة نشطة */}
+            {chatMessages.length > 0 && (
+              <div style={{ width: '90vw', maxWidth: '680px', maxHeight: '200px', overflowY: 'auto', background: '#050505', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', boxShadow: 'inset 0 4px 30px rgba(0,0,0,0.8)' }} ref={chatBoxRef}>
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} style={{ padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.02)', fontSize: '0.98rem' }}>
+                    <strong style={{ color: msg.sender === 'user' ? '#888' : '#fff' }}>{msg.sender === 'user' ? 'أنت: ' : 'نوفا AI: '}</strong>
+                    <span style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>{msg.text}</span>
+                    {msg.hasButton && (
+                      <button onClick={() => alert('جاري تحميل الملفات البرمجية الكاملة والمضغوطة للمشروع...')} style={{ display: 'block', marginTop: '12px', background: '#ffffff', color: '#000', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>تحميل الأكواد والملفات Zip 📂</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* كونسول الإدخال السفلي المتطور وعالي الدقة */}
+          <div style={{ width: '100%', maxWidth: '780px', margin: '0 auto', display: 'flex', gap: '15px', background: '#050505', border: '1px solid rgba(255, 255, 255, 0.08)', padding: '12px 18px', borderRadius: '16px', alignItems: 'center' }}>
+            <input 
+              type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="اكتب فكرتك البرمجية هنا بالتفصيل (متجر، مطعم، تطبيق...)" 
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '1.02rem', fontFamily: 'inherit' }}
+            />
+            <button onClick={toggleVoice} style={{ background: isListening ? '#ff3333' : 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', width: '46px', height: '46px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', transition: '0.3s' }}>
+              🎙️
+            </button>
+            <button onClick={() => handleSendMessage()} style={{ background: '#ffffff', color: '#000', border: 'none', padding: '0 ' + '26px', height: '46px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.95rem' }}>
+              إنشاء البرمجية ⚡
+            </button>
+          </div>
+
+        </div>
+      )}
+
+      {/* ==================== [4] نظام الأدمن القوي والخارق (Admin Dashboard) ==================== */}
+      {step === 'admin' && (
+        <div style={{ animation: 'fadeIn 0.4s ease', width: '95vw', maxWidth: '1000px', height: '85vh', background: '#050505', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '24px', display: 'flex', flexDirection: 'column', padding: '30px', boxSizing: 'border-box' }}>
+          
+          {/* هيدر لوحة الإدارة */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '20px', marginBottom: '25px' }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '800' }}>لوحة التحكم الإدارية للمؤسسات 👑</h1>
+              <p style={{ margin: '5px 0 0 0', color: '#555', fontSize: '0.9rem' }}>تحكم كامل في المنصة ومراقبة خوادم معالجة أكواد المواقع</p>
+            </div>
+            <button onClick={() => setStep('main')} style={{ padding: '10px 18px', background: '#fff', color: '#000', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>العودة للنظام الرئيسي ←</button>
+          </div>
+
+          {/* شبكة البيانات الرقمية (Stats Grid) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1px))', gap: '20px', flex: 1, contentVisibility: 'auto' } as any}>
+            <div style={{ background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.03)', padding: '20px', borderRadius: '14px' }}>
+              <div style={{ color: '#555', fontSize: '0.85rem', fontWeight: '700' }}>إجمالي المواقع المنشأة</div>
+              <div style={{ fontSize: '2rem', fontWeight: '800', marginTop: '10px', color: '#fff' }}>1,482 مَوقع</div>
+            </div>
+            <div style={{ background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.03)', padding: '20px', borderRadius: '14px' }}>
+              <div style={{ color: '#555', fontSize: '0.85rem', fontWeight: '700' }}>استهلاك المعالج الخاص بالـ AI</div>
+              <div style={{ fontSize: '2rem', fontWeight: '800', marginTop: '10px', color: '#33cc66' }}>34.2 %</div>
+            </div>
+            <div style={{ background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.03)', padding: '20px', borderRadius: '14px' }}>
+              <div style={{ color: '#555', fontSize: '0.85rem', fontWeight: '700' }}>المستخدمين النشطين الآن</div>
+              <div style={{ fontSize: '2rem', fontWeight: '800', marginTop: '10px', color: '#ffffff' }}>89 مستخدم</div>
+            </div>
+            <div style={{ background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.03)', padding: '20px', borderRadius: '14px' }}>
+              <div style={{ color: '#555', fontSize: '0.85rem', fontWeight: '700' }}>حالة اتصال الخادم بالسيرفر</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: '700', marginTop: '18px', color: '#33cc66' }}>متصل وآمن [✓]</div>
+            </div>
+          </div>
+
+          {/* سجل تفاعلات التحكم والمراقبة والبيانات التخيلية للموقع */}
+          <div style={{ marginTop: '25px', background: '#0c0c0c', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '14px', padding: '20px', flex: 1.5, display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '1.1rem', color: '#888' }}>سجل العمليات والتحكم المركزي (Live System Actions)</h3>
+            <div style={{ flex: 1, overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem', color: '#666', lineHeight: '1.8', textAlign: 'left', direction: 'ltr' }}>
+              [SYSTEM LOG - 03:27:01] Secure Token Verified successfully.<br />
+              [NOVA ENGINE] Loaded global intelligence frameworks (E-Commerce, Medical, Real Estate, Blogs).<br />
+              [OAUTH GATEWAY] Initialized OAuth callback handlers for Google Cloud Console.<br />
+              [COMPILER] Cache parameters synchronized with Vercel edge repository deployments.<br />
+              [READY] Complete administrative power is granted.
+            </div>
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }
