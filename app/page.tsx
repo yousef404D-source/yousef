@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '@/lib/supabase'; // استدعاء ملف الربط الخاص بك
+// السطر الجديد (اخرج مجلد واحد ثم ادخل لـ lib):
+import { supabase } from '../lib/supabase'; // استدعاء ملف الربط الخاص بك
 
 export default function NovaAI() {
   // الحالات الأمنية والتحقق
