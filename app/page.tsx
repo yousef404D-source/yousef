@@ -208,6 +208,63 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [3] الواجهة الرئيسية البسيطة الفاخرة ==================== */}
+      {/* ==================== [3] الواجهة الرئيسية البسيطة الفاخرة الأسود المطلق ==================== */}
       {step === 'main' && (
-        <div style={{ animation: 'fadeIn 0.5s ease', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '
+        <div style={{ animation: 'fadeIn 0.5s ease', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 24px', boxSizing: 'border-box' }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: 'auto 0', textAlign: 'center' }}>
+            
+            {/* الروبوت باللون الأسود الكامل والعيون البيضاء المتوهجة */}
+            <div style={{
+              width: '95px', height: '95px', borderRadius: '50%', background: '#050505',
+              border: '2px solid rgba(255, 255, 255, 0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', marginBottom: '30px',
+              animation: 'robotFloat 4s infinite ease-in-out'
+            }}>
+              <div style={{ position: 'absolute', width: '104%', height: '104%', borderRadius: '50%', border: '1px dashed rgba(255,255,255,0.3)', animation: 'rotateRing 20s infinite linear' }} />
+              <div style={{ 
+                width: '24px', height: '24px', borderRadius: '50%', background: '#ffffff', 
+                boxShadow: robotState === 'thinking' ? '0 0 30px #ffffff' : robotState === 'listening' ? '0 0 30px #33cc66' : '0 0 25px #ffffff',
+                animation: 'pulseEye 1.2s infinite ease-in-out'
+              }} />
+            </div>
+
+            <h1 style={{ fontSize: '2.6rem', fontWeight: '800', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>كيف يمكنني مساعدتك اليوم؟</h1>
+            <p style={{ fontSize: '1.05rem', color: '#444', margin: '0 0 35px 0' }}>CURRENT MODE: SYSTEM READY</p>
+
+            {/* عرض محادثات الشات والنتائج */}
+            {chatMessages.length > 0 && (
+              <div style={{ width: '90vw', maxWidth: '680px', maxHeight: '220px', overflowY: 'auto', background: '#050505', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', boxShadow: 'inset 0 4px 30px rgba(0,0,0,0.8)' }} ref={chatBoxRef}>
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} style={{ padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.02)', fontSize: '0.98rem' }}>
+                    <strong style={{ color: msg.sender === 'user' ? '#888' : '#fff' }}>{msg.sender === 'user' ? 'أنت: ' : 'النظام الذكي: '}</strong>
+                    <span style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>{msg.text}</span>
+                    {msg.hasButton && (
+                      <button onClick={() => alert('جاري تحميل الملفات البرمجية الكاملة للمشروع...')} style={{ display: 'block', marginTop: '12px', background: '#ffffff', color: '#000', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>تحميل الأكواد والملفات Zip 📂</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* كونسول الإدخال السفلي الصافي الفخم */}
+          <div style={{ width: '100%', maxWidth: '780px', margin: '0 auto', display: 'flex', gap: '15px', background: '#050505', border: '1px solid rgba(255, 255, 255, 0.08)', padding: '12px 18px', borderRadius: '16px', alignItems: 'center' }}>
+            <input 
+              type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="اكتب فكرتك البرمجية هنا بالتفصيل..." 
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '1.02rem', fontFamily: 'inherit' }}
+            />
+            <button onClick={toggleVoice} style={{ background: isListening ? '#ff3333' : 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', width: '46px', height: '46px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', transition: '0.3s' }}>
+              🎙️
+            </button>
+            <button onClick={handleSendMessage} style={{ background: '#ffffff', color: '#000', border: 'none', padding: '0 26px', height: '46px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.95rem' }}>
+              إرسال الطلب ⚡
+            </button>
+          </div>
+
+        </div>
+      )}
+
+    </div>
+  );
+}
