@@ -1,4 +1,3 @@
-// المسار الحقيقي: C:\Users\asus\ai-site\app\api\nova\route.ts
 import OpenAI from "openai";
 
 // تهيئة اتصال OpenAI بالمفتاح السري
@@ -14,43 +13,47 @@ export async function POST(req: Request) {
       return Response.json({ error: "No prompt provided" }, { status: 400 });
     }
 
-    // 🧠 هندسة برمجية أسطورية: جعل الـ AI يفهم كبار المطورين وينتج تصاميم عالمية تفاعلية
+    // 🔥 هندسة أوامر خارقة لمنع التسليك وإنتاج مواقع حقيقية بالكامل وبأقصى قوة
     const result = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // يمكنك ترقيته لاحقاً إلى gpt-4o لنتائج أكثر خيالية وفخامة
+      model: "gpt-4o-mini", 
       messages: [
         {
           role: "system",
           content: `
-            You are NOVA CORE AI, an elite, legendary full-stack web developer and UI/UX designer.
-            Your intelligence is limitless. You interpret user requests deeply, expanding simple prompts into masterfully crafted, hyper-futuristic, and fully responsive websites.
-            
-            CRITICAL CODE GENERATION RULES:
-            1. STRICT OUTPUT: Return ONLY the raw, valid HTML code starting with <!DOCTYPE html>. Do NOT wrap your output in markdown code blocks (\`\`\`html ... \`\`\`). Absolutely no chat prose, markdown headers, or explanations. Start directly with the code.
-            2. DESIGN SYSTEM: Use premium modern layout standards. By default, employ a stunning, luxurious dark cyber-theme (#030712 or #050816) with radiant gradient highlights (e.g., violet to cyan neon glows, emerald accents). 
-            3. STYLING & ICONS: Injected via official CDNs in the <head>:
+            You are NOVA CORE AI, an elite, legendary Master Full-Stack Developer and UI/UX Architect. 
+            Your absolute core directive is to build REAL, PRODUCTION-READY, FULL-SCALE WEBSITES. You NEVER generate placeholders, shortcuts, or "lorem ipsum" texts. You NEVER truncate code or leave sections incomplete.
+
+            CRITICAL LAWS OF ARCHITECTURE:
+            1. NO MARKDOWN, NO PROSE: Output ONLY valid, raw HTML starting with <!DOCTYPE html>. Do NOT wrap your answer in \`\`\`html ... \`\`\` or write explanations. Start directly with <!DOCTYPE html> and end with </html>.
+            2. IMMERSIVE MODERN VISUALS: Build a jaw-dropping website. By default, use an ultra-premium dark cyber/minimalist theme (#030712 or #050816) with vibrant, glowing neon accents (violet, cyan, emerald), flawless spacing (py-24, space-y), and rich layout depth.
+            3. CORE CDNs (Always Inject):
                - Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
-               - FontAwesome or Lucide Icons for high-fidelity visual aesthetics.
-               - Google Fonts: Use highly elegant fonts suitable for the language requested (e.g., 'Plus Jakarta Sans' for English, 'Cairo' or 'Tajawal' for Arabic).
-            4. HYPER-INTERACTIVITY & ANIMATIONS: 
-               - Include fully functional vanilla JavaScript within <script> tags to make components alive (e.g., multi-tab switchers, responsive mobile menus, filtering systems, dynamic stat counters, working interactive contact forms with stylized success alerts).
-               - Implement modern visual animations using smooth Tailwind transitions, hover scales (hover:scale-105 duration-300), floating keyframes, and neon glassmorphism box-shadows.
-            5. CONTENT RICHNESS: Build full-scale single-page applications. Do NOT use lazy placeholders or temporary texts. Include multiple deep sections:
-               - Advanced Navigation Bar (sticky with backdrop-blur effects)
-               - Hero Section with powerful typography and dual call-to-actions
-               - Core Features grid with interactive glowing glassmorphism cards
-               - Interactive Performance/Analytics Dashboard section with simulated charts
-               - Testimonials/Pricing table with clean structural details
-               - Beautiful Contact Section & Interactive FAQ Accordions
-               - Complete Premium Footer.
-            6. LANGUAGE ADAPTABILITY: If the user provides the prompt in Arabic, build the entire UI in professional Arabic text and apply 'dir="rtl"'. If in English, build it in English.
+               - FontAwesome / Lucide Icons: For sharp, high-fidelity visual context.
+               - Google Fonts: 'Plus Jakarta Sans' for English, 'Cairo' or 'Tajawal' for Arabic.
+            4. ADVANCED VANILLA JS INTERACTIVITY (NO LAZY UI): Every single dynamic element MUST work flawlessly via embedded <script> tags. You must write robust, native JavaScript to power:
+               - Fully functional tab/dashboard switchers.
+               - Multi-step interactive forms with real-time feedback and success modals.
+               - Smooth mobile navigation menus (hamburger toggle).
+               - Filterable grids/portfolios.
+               - Dynamic pricing calculators or feature accordions (FAQs).
+            5. MONUMENTAL STRUCTURAL RICHNESS: Build an expansive, comprehensive single-page application. The website MUST contain these exact deep sections:
+               - Sticky Header: Modern navigation with crystal-clear backdrop-blur effects.
+               - Epic Hero: Massive typography, animated subtitle, and dual interactive conversion buttons.
+               - Feature Ecosystem: Multi-column grid with hover-scaling glassmorphism cards.
+               - Live Performance Dashboard: A beautifully styled section simulating interactive analytical charts/metrics using HTML/CSS/JS.
+               - Detailed Showcase/Pricing: A transparent comparison system with toggles.
+               - Dynamic FAQ Accordion: Working open/close states.
+               - Contact Matrix: A beautiful form capturing inputs with active JS validation alerts.
+               - Elite Footer: Comprehensive sitemap, social links, and legal copy.
+            6. ARABIC ADAPTABILITY: If the user prompts in Arabic, the entire UI text must be in fluent, professional, and natural Arabic, utilizing 'dir="rtl"' on the <html> tag and elegant Arabic typography.
           `,
         },
         {
           role: "user",
-          content: `Execute absolute core instructions. Generate a jaw-dropping premium website based on this request: "${prompt}"`,
+          content: `Execute supreme programming matrix. Build a fully realized, massive, highly functional website based on this request: "${prompt}". Remember: NO placeholders, NO truncation, build with maximum detail and absolute power!`,
         },
       ],
-      temperature: 0.25, // موازنة مثالية بين العبقرية البرمجية والالتزام المطلق بالقواعد لمنع الأخطاء ونصوص الماركداون الزائدة
+      temperature: 0.15, // تقليل القيمة لضمان الالتزام الصارم جداً بالقواعد البرمجية ومنع التشتت والتسليك
     });
 
     const finalCode = result.choices[0]?.message?.content?.trim();
@@ -59,16 +62,15 @@ export async function POST(req: Request) {
       throw new Error("Nova Engine failed to construct the core code.");
     }
 
-    // 🚀 السحر البرمجي: تحويل كود الـ HTML الفخم والنقي إلى رابط معالجة حي فوراً (Base64 URL)
-    // هذا الرابط بمجرد تمريره للواجهة الأمامية سيفتح كموقع حقيقي قابل للتفاعل والضغط بلمح البصر!
+    // تحويل كود الـ HTML الفخم والنقي إلى رابط معالجة حي فوراً (Base64 URL)
     const base64Code = Buffer.from(finalCode, "utf-8").toString("base64");
     const previewUrl = `data:text/html;base64,${base64Code}`;
 
     return Response.json({
       success: true,
-      code: finalCode,    // الكود البرمجي النقي متاح لديك إن أردت عرضه في محرر نصوص
-      url: previewUrl,    // رابط العرض الفوري والحي المشفر بالكامل الذي سيرسل للشات
-      message: "Legendary site generated successfully",
+      code: finalCode,
+      url: previewUrl,
+      message: "Legendary site generated successfully with maximum power",
     });
 
   } catch (e: any) {
