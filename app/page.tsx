@@ -1,4 +1,4 @@
-ر'use client';
+'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
