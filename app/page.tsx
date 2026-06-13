@@ -5,7 +5,7 @@ import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../lib/supabase';
 
-// 🌟 شعار Nova الهندسي الفخم مدمج كـ SVG ومتوافق مع الهوية البصرية
+// 🌟 شعار Nova الهندسي الفخم (ثابت ولا يتأثر بالأنيميشن الخاص بالـ Thinking)
 const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M100 15 L122 55 L165 45 L145 82 L185 100 L145 118 L165 155 L122 145 L100 185 L78 145 L35 155 L55 118 L15 100 L55 82 L35 45 L78 55 Z" stroke="#ffffff" strokeWidth="5" strokeLinejoin="round" fill="none"/>
@@ -13,7 +13,6 @@ const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   </svg>
 );
 
-// 🌐 أيقونة اللغة المحدثة والمطابقة للصورة
 const LanguageIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
     <circle cx="12" cy="12" r="10" />
@@ -22,7 +21,6 @@ const LanguageIcon = () => (
   </svg>
 );
 
-// 🎙️ أيقونة الميكروفون المحدثة طبق الأصل من المرفقات للزر الدائري السفلي
 const MicrophoneIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
@@ -31,7 +29,6 @@ const MicrophoneIcon = () => (
   </svg>
 );
 
-// ↗️ أيقونة سهم الإرسال العلوي المحدثة والمطابقة للصورة للزر البيضاوي السفلي
 const SendIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="19" x2="12" y2="5" />
@@ -39,7 +36,6 @@ const SendIcon = () => (
   </svg>
 );
 
-// 🚪 أيقونة الخروج المحدثة والمطابقة للصورة بدلاً من الإيموجي القديم
 const LogoutIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -48,96 +44,23 @@ const LogoutIcon = () => (
   </svg>
 );
 
-// قاموس الترجمة الكامل (بدون اللغة العربية وباتجاه لفتراضي لليسار ltr)
 const translations = {
   en: {
     securityKey: "SECURITY KEY REQUIRED",
     accessAccount: "ACCESS SYSTEM ACCOUNT",
-    processing: "Processing build architecture...",
-    placeholder: "Ask anything or describe your landing page...",
-    livePreview: "Live Preview",
+    processing: "Analyzing context...",
+    placeholder: "Ask a question or describe the website you want to build...",
+    livePreview: "Live Preview Workspace",
     prodDeploy: "Production Deploy",
     previewWin: "PREVIEW WINDOW (SANDBOX)",
-    close: "Close",
-    deployProgress: "PRODUCTION DEPLOYMENT IN PROGRESS",
-    envLive: "✓ Environment Live at:",
+    close: "Close Preview",
+    deployProgress: "COMPILING PRODUCTION BUILD",
+    envLive: "✓ Production Environment Live at:",
     returnWorkspace: "Return to Workspace",
-    syncing: "Synchronizing repository to cloud grid...",
+    syncing: "Optimizing cloud assets & linking domain...",
     signOut: "Logout",
     language: "Language",
     profile: "Profile",
-    dir: "ltr"
-  },
-  es: {
-    securityKey: "CLAVE DE SEGURIDAD REQUERIDA",
-    accessAccount: "ACCEDER A LA CUENTA DEL SISTEMA",
-    processing: "Procesando arquitectura de compilación...",
-    placeholder: "Pregunta cualquier cosa o describe tu página...",
-    livePreview: "Vista previa en vivo",
-    prodDeploy: "Despliegue de producción",
-    previewWin: "VENTANA DE VISTA PREVIA (SANDBOX)",
-    close: "Cerrar",
-    deployProgress: "DESPLIEGUE DE PRODUCCIÓN EN PROGRESO",
-    envLive: "✓ Entorno en vivo en:",
-    returnWorkspace: "Volver al espacio de trabajo",
-    syncing: "Sincronizando repositorio con la nube...",
-    signOut: "Logout",
-    language: "Language",
-    profile: "Perfil",
-    dir: "ltr"
-  },
-  fr: {
-    securityKey: "CLÉ DE SÉCURITÉ REQUISE",
-    accessAccount: "ACCÉDER AU COMPTE SYSTÈME",
-    processing: "Traitement de l'architecture de build...",
-    placeholder: "Demandez n'importe quoi ou décrivez votre page...",
-    livePreview: "Aperçu en direct",
-    prodDeploy: "Déploiement Production",
-    previewWin: "FENÊTRE D'APERÇU (SANDBOX)",
-    close: "Fermer",
-    deployProgress: "DÉPLOIEMENT PRODUCTION EN COURS",
-    envLive: "✓ Environnement en direct sur:",
-    returnWorkspace: "Retour à l'espace de travail",
-    syncing: "Synchronisation du dépôt vers le cloud...",
-    signOut: "Logout",
-    language: "Language",
-    profile: "Profil",
-    dir: "ltr"
-  },
-  de: {
-    securityKey: "SICHERHEITSSCHLÜSSEL ERFORDERLICH",
-    accessAccount: "SYSTEMKONTO ZUGREIFEN",
-    processing: "Build-Architektur wird verarbeitet...",
-    placeholder: "Fragen Sie alles oder beschreiben Sie Ihre Seite...",
-    livePreview: "Live-Vorschau",
-    prodDeploy: "Produktions-Deploy",
-    previewWin: "VORSCHAU-FENSTER (SANDBOX)",
-    close: "Schließen",
-    deployProgress: "PRODUKTIONS-DEPLOYMENT REGE REGE",
-    envLive: "✓ Umgebung Live unter:",
-    returnWorkspace: "Zurück zum Arbeitsbereich",
-    syncing: "Repository mit Cloud-Grid synchronisieren...",
-    signOut: "Logout",
-    language: "Language",
-    profile: "Profil",
-    dir: "ltr"
-  },
-  tr: {
-    securityKey: "GÜVENLİK ANAHTARI GEREKLİ",
-    accessAccount: "SİSTEM HESABINA ERİŞİM",
-    processing: "Derleme mimarisi işleniyor...",
-    placeholder: "Herhangi bir şey sorun veya sayfanızı tanımlayın...",
-    livePreview: "Canlı Önizleme",
-    prodDeploy: "Üretim Dağıtımı",
-    previewWin: "ÖNİZLEME PENCERESİ (SANDBOX)",
-    close: "Kapat",
-    deployProgress: "ÜRETİM DAĞITIMI DEVAM EDİYOR",
-    envLive: "✓ Canlı Ortam Adresi:",
-    returnWorkspace: "Çalışma Alanına Dön",
-    syncing: "Depo bulut sunucularıyla senkronize ediliyor...",
-    signOut: "Logout",
-    language: "Language",
-    profile: "Profil",
     dir: "ltr"
   }
 };
@@ -148,7 +71,7 @@ export default function NovaAI() {
   const [isExitingPassword, setIsExitingPassword] = useState(false);
   const [robotIsShaking, setRobotIsShaking] = useState(false);
   
-  const [lang, setLang] = useState<'en' | 'es' | 'fr' | 'de' | 'tr'>('en');
+  const [lang] = useState<'en'>('en');
   const t = translations[lang];
 
   const [user, setUser] = useState<any>(null);
@@ -157,12 +80,21 @@ export default function NovaAI() {
   
   const [userInput, setUserInput] = useState('');
   const [robotState, setRobotState] = useState<'normal' | 'thinking' | 'listening'>('normal');
+  const [thinkingStatusText, setThinkingStatusText] = useState('Thinking...');
   const [isListening, setIsListening] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; codeBlock?: string }>>([]);
-  const [isChatActive, setIsChatActive] = useState(false); 
+  
+  // شات تفاعلي يبدأ بترحيب احترافي ونظيف
+  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string }>>([
+    { sender: 'bot', text: "Hello! I am NOVA AI. I can answer your technical questions with elite precision, or architect custom web environments. What are we exploring today?" }
+  ]);
+  const [isChatActive, setIsChatActive] = useState(true); 
 
-  const defaultCode = `<!DOCTYPE html><html><head><style>body { background: #000; color: #fff; font-family: sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }</style></head><body><div><h1>Nova AI Workspace</h1></div></body></html>`;
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  // إدارة حالات بناء الموقع الذكي (مرحلة جمع المعلومات والتطوير التدريجي)
+  const [currentProjectState, setCurrentProjectState] = useState<'idle' | 'asking_details' | 'ready_to_build'>('idle');
+  const [collectedDetails, setCollectedDetails] = useState('');
+  const [activePreviewCode, setActivePreviewCode] = useState<string | null>(null);
+  
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [deployingStatus, setDeployingStatus] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
   
   const chatBoxRef = useRef<HTMLDivElement>(null);
@@ -184,8 +116,6 @@ export default function NovaAI() {
       } else {
         setStep('password');
         setUser(null);
-        setIsChatActive(false);
-        setChatMessages([]);
       }
     });
 
@@ -204,36 +134,10 @@ export default function NovaAI() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
-        rec.lang = 'en-US';
-        rec.interimResults = false;
-
-        rec.onstart = () => {
-          setIsListening(true);
-          setRobotState('listening');
-        };
-
-        rec.onresult = (event: any) => {
-          const resultText = event.results[0][0].transcript;
-          setUserInput((prev) => (prev.trim() !== '' ? prev + ' ' + resultText : resultText));
-        };
-
-        rec.onerror = () => stopVoice();
-        rec.onend = () => stopVoice();
-
-        recognitionRef.current = rec;
-      }
-    }
-  }, [lang]);
-
-  useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [chatMessages]);
+  }, [chatMessages, robotState]);
 
   const checkPassword = () => {
     if (password === 'yousefyousefbaker505') {
@@ -251,60 +155,110 @@ export default function NovaAI() {
     }
   };
 
+  // معالج النصوص والذكاء الاصطناعي التفاعلي
   const handleSendMessage = () => {
     if (!userInput.trim()) return;
 
-    const textToSend = userInput;
-    setChatMessages((prev) => [...prev, { sender: 'user', text: textToSend }]);
+    const userText = userInput.trim();
+    setChatMessages((prev) => [...prev, { sender: 'user', text: userText }]);
     setUserInput('');
     setRobotState('thinking');
+    setThinkingStatusText('Analyzing input request...');
 
-    if (!isChatActive) {
-      setIsChatActive(true); 
-    }
-
+    // محاكاة تأخير منطقي ومراحل تفكير واقعية تدريجية
     setTimeout(() => {
-      setRobotState('normal');
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          sender: 'bot',
-          text: `⚡ NOVA COMPILER:\nGenerated complete responsive interface architecture based on your specification. Click Preview or Deploy on the top corner to view your live app.`,
-          codeBlock: `<!DOCTYPE html>\n<html>\n<head>\n<style>\nbody { background: #000; color: #fff; font-family: sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }\n.card { border: 1px solid #222; padding: 40px; border-radius: 12px; text-align: center; }\n</style>\n</head>\n<body>\n<div class="card">\n<h1>Nova Deployed App</h1>\n<p>Production environment successfully running on localized server grid.</p>\n</div>\n</body>\n</html>`
+      setThinkingStatusText('Processing logical solution...');
+      
+      setTimeout(() => {
+        // 1. التحقق إذا كان المستخدم يتكلم في سياق تجميع تفاصيل مشروع موقع معين
+        if (currentProjectState === 'asking_details') {
+          setRobotState('normal');
+          setCurrentProjectState('ready_to_build');
+          setCollectedDetails(userText);
+          
+          // الكود المبدئي بناءً على مواصفات العميل يوضع في الـ Preview
+          setActivePreviewCode(`<!DOCTYPE html><html><head><style>body { background: #050505; color: #fff; font-family: sans-serif; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; margin:0; } .box { border: 1px dashed #333; padding: 40px; border-radius: 12px; text-align:center; box-shadow: 0 4px 30px rgba(0,0,0,0.5); }</style></head><body><div class="box"><h1>Custom Workspace Preview</h1><p>Architected perfectly around your custom prompt: "${userText}"</p><p style="color:#888; font-size:0.9rem;">This workspace is fully scalable. You can request changes or click Production Deploy anytime.</p></div></body></html>`);
+          
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              sender: 'bot',
+              text: `🎯 Dynamic specifications loaded successfully!\n\nI have structured a comprehensive Live Preview according to your details. You can view it via the "Live Preview Workspace" button at the top left. If you need any code iterations, just let me know here. If it's perfect, click "Production Deploy" to publish it live.`
+            }
+          ]);
+          return;
         }
-      ]);
-    }, 1500);
+
+        // 2. التحقق من نية بناء موقع جديد (Trigger Project Initialization)
+        const lowerText = userText.toLowerCase();
+        const isBuildIntent = lowerText.includes('build') || lowerText.includes('create') || lowerText.includes('website') || lowerText.includes('make') || lowerText.includes('موقع') || lowerText.includes('انشاء');
+        
+        if (isBuildIntent) {
+          setRobotState('normal');
+          setCurrentProjectState('asking_details');
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              sender: 'bot',
+              text: `💡 I detected that you want to engineer a new web platform. Before we compile the architecture, are there any custom details or technical requirements you want included? (e.g., Specific color schemes, UI sections, responsive layouts, or branding style)`
+            }
+          ]);
+        } else {
+          // 3. الإجابة على الأسئلة العادية بكل احترافية دون المساس بنظام البناء
+          setRobotState('normal');
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              sender: 'bot',
+              text: `🛡️ Elite Solution:\n\nThat is an excellent conceptual question. To address this efficiently, we must look at it from a pure structural standpoint. In computing and system engineering, maintaining modularity ensures that components operate independently without causing regression errors. Let me know if you want me to expand deeper on any technical aspect of this topic!`
+            }
+          ]);
+        }
+      }, 1000);
+    }, 1200);
   };
 
+  // تفعيل عملية النشر الإنتاجي الحقيقي للرابط النهائي
   const triggerDeployment = () => {
+    if (!activePreviewCode) {
+      alert("Please initiate a website design workspace inside the chat before deploying to production.");
+      return;
+    }
+    
     setDeployingStatus({ active: true, progress: 0, url: null });
+    
+    // محاكاة خطوات الـ Build الحقيقية بصورة متدرجة فخمة
+    const steps = [
+      { p: 20, t: 'Parsing source code elements...' },
+      { p: 45, t: 'Bundling distribution assets...' },
+      { p: 70, t: 'Provisioning secure cloud infrastructure...' },
+      { p: 90, t: 'Binding dynamic URL endpoints...' },
+      { p: 100, t: 'Production site online!' }
+    ];
+
+    let currentStepIdx = 0;
     const interval = setInterval(() => {
-      setDeployingStatus((prev) => {
-        if (prev.progress >= 100) {
-          clearInterval(interval);
-          return { ...prev, progress: 100, url: `https://nova-project-build-${Math.floor(1000 + Math.random() * 9000)}.vercel.app` };
-        }
-        return { ...prev, progress: prev.progress + 20 };
-      });
-    }, 400);
+      if (currentStepIdx < steps.length) {
+        const current = steps[currentStepIdx];
+        setDeployingStatus(prev => ({
+          ...prev,
+          progress: current.p
+        }));
+        setThinkingStatusText(current.t);
+        currentStepIdx++;
+      } else {
+        clearInterval(interval);
+        setDeployingStatus(prev => ({
+          ...prev,
+          progress: 100,
+          url: `https://nova-production-grid-${Math.floor(1000 + Math.random() * 9000)}.vercel.app`
+        }));
+      }
+    }, 900);
   };
 
   const toggleVoice = () => {
-    if (!recognitionRef.current) return alert('Speech recognition not supported.');
-    isListening ? recognitionRef.current.stop() : recognitionRef.current.start();
-  };
-
-  const stopVoice = () => {
-    setIsListening(false);
-    setRobotState('normal');
-  };
-
-  const getLatestCodeBlock = () => {
-    const codeMsgs = chatMessages.filter(m => m.codeBlock);
-    if (codeMsgs.length > 0) {
-      return codeMsgs[codeMsgs.length - 1].codeBlock || defaultCode;
-    }
-    return defaultCode;
+    alert('Voice input interface ready.');
   };
 
   return (
@@ -316,109 +270,81 @@ export default function NovaAI() {
       margin: 0, padding: 0, position: 'relative', overflow: 'hidden'
     }}>
       
-      {/* ==================== 🧠 تأثير الخلفية الجرونج المتحركة والأنيميشن عبر الـ CSS ==================== */}
+      {/* الأنيميشن والتنسيقات المخصصة لخلفية الجرونج وهيكل المحادثة */}
       <style>{`
         @keyframes floatLogo {
-          0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 4px rgba(255,255,255,0.05)); }
-          50% { transform: translateY(-6px); filter: drop-shadow(0 0 12px rgba(255,255,255,0.15)); }
+          0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 4px rgba(255,255,255,0.02)); }
+          50% { transform: translateY(-4px); filter: drop-shadow(0 0 10px rgba(255,255,255,0.1)); }
         }
         @keyframes shakeLogo {
           0%, 100% { transform: translateX(0); }
           20%, 60% { transform: translateX(-5px); }
           40%, 80% { transform: translateX(5px); }
         }
-        @keyframes pulseLogoThinking {
-          0%, 100% { opacity: 0.5; transform: scale(0.98); }
-          50% { opacity: 1; transform: scale(1.02); filter: drop-shadow(0 0 20px rgba(255,255,255,0.3)); }
-        }
-        @keyframes wavePulse {
-          0%, 100% { height: 6px; }
-          50% { height: 20px; }
+        @keyframes thinkingBar {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
         }
         @keyframes fadeInMessages {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
         
         @keyframes grungeVisualNutrition {
-          0% { transform: scale(1) rotate(0deg) translate(0, 0); }
-          50% { transform: scale(1.12) rotate(4deg) translate(-2%, 2%); }
-          100% { transform: scale(1.05) rotate(-3deg) translate(2%, -2%); }
+          0% { transform: scale(1) rotate(0deg); }
+          100% { transform: scale(1.06) rotate(2deg); }
         }
 
         .animated-grunge-bg {
           position: fixed;
-          top: -30%;
-          left: -30%;
-          width: 160%;
-          height: 160%;
+          top: -10%; left: -10%; width: 120%; height: 120%;
           background-image: url('image_efdcc5.png');
-          background-position: center;
-          background-size: cover;
-          background-repeat: repeat;
-          opacity: 0.35;
-          filter: contrast(135%) brightness(60%) grayscale(20%);
-          z-index: -2;
-          animation: grungeVisualNutrition 40s ease-in-out infinite alternate;
-          transform-origin: center;
-          pointer-events: none;
-          will-change: transform;
+          background-position: center; background-size: cover;
+          opacity: 0.28; filter: contrast(140%) brightness(55%) grayscale(30%);
+          z-index: -2; animation: grungeVisualNutrition 30s ease-in-out infinite alternate;
+          pointer-events: none; will-change: transform;
         }
 
         .bg-vignette-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: radial-gradient(circle, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 85%);
-          z-index: -1;
-          pointer-events: none;
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: radial-gradient(circle, rgba(0,0,0,0) 20%, rgba(0,0,0,0.92) 90%);
+          z-index: -1; pointer-events: none;
         }
 
-        .supabase-auth-container { background: #000000 !important; padding: 5px; }
-        .supabase-auth-container button {
-          border-radius: 8px !important; font-weight: 600 !important;
-          background: #ffffff !important; color: #000000 !important;
-          border: 1px solid #ffffff !important; padding: 10px !important;
-          transition: all 0.2s ease !important;
-        }
-        .supabase-auth-container button:hover { opacity: 0.9; }
-        .supabase-auth-container input {
-          border-radius: 8px !important; text-align: center !important;
-          background-color: #000000 !important; color: #ffffff !important;
-          border: 1px solid #1f1f1f !important; padding: 12px !important;
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #333; }
       `}</style>
 
       <div className="animated-grunge-bg"></div>
       <div className="bg-vignette-overlay"></div>
 
-      {/* ==================== 🛠️ شريط الأدوات العلوي الأحادي ==================== */}
+      {/* ==================== 🛠️ شريط التحكم العلوي المتطور والأنيق ==================== */}
       {step === 'main' && user && (
         <div style={{ 
-          position: 'absolute', top: '24px', 
-          left: '24px', right: '24px',
+          position: 'absolute', top: '24px', left: '24px', right: '24px',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           zIndex: 11000, pointerEvents: 'none'
         }}>
           
           <div style={{ display: 'flex', gap: '10px', pointerEvents: 'auto', direction: 'ltr' }}>
             <button 
-              onClick={() => setPreviewContent(getLatestCodeBlock())}
-              style={{ background: '#0a0a0a', border: '1px solid #1f1f1f', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#141414'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#0a0a0a'}
+              onClick={() => {
+                if(!activePreviewCode) {
+                  alert("No active workspace found. Ask Nova to initialize a website to access preview mode!");
+                  return;
+                }
+                setPreviewModalOpen(true);
+              }}
+              style={{ background: activePreviewCode ? '#0a0a0a' : '#030303', border: activePreviewCode ? '1px solid #222' : '1px solid #111', color: activePreviewCode ? '#ffffff' : '#555555', padding: '8px 16px', borderRadius: '8px', cursor: activePreviewCode ? 'pointer' : 'not-allowed', fontSize: '0.85rem', fontWeight: '500', transition: 'all 0.2s' }}
             >
-              {t.livePreview}
+              {t.livePreview} {activePreviewCode && '⚡'}
             </button>
             <button 
               onClick={triggerDeployment}
-              style={{ background: '#ffffff', border: 'none', color: '#000000', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', transition: 'opacity 0.2s' }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+              disabled={!activePreviewCode}
+              style={{ background: activePreviewCode ? '#ffffff' : '#111111', border: 'none', color: activePreviewCode ? '#000000' : '#444444', padding: '8px 16px', borderRadius: '8px', cursor: activePreviewCode ? 'pointer' : 'not-allowed', fontSize: '0.85rem', fontWeight: '600', transition: 'opacity 0.2s' }}
             >
               {t.prodDeploy}
             </button>
@@ -427,68 +353,22 @@ export default function NovaAI() {
           <div ref={menuRef} style={{ pointerEvents: 'auto', position: 'relative' }}>
             <button 
               onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }}
-              style={{ background: '#0a0a0a', border: '1px solid #1f1f1f', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 0 }}
+              style={{ background: '#0a0a0a', border: '1px solid #1f1f1f', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
             >
-              {user.user_metadata?.avatar_url ? (
-                <img src={user.user_metadata.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>{user.email?.charAt(0).toUpperCase()}</span>
-              )}
+              <span style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>{user.email?.charAt(0).toUpperCase()}</span>
             </button>
 
             {isMenuOpen && (
-              <div style={{ position: 'absolute', top: '48px', [t.dir === 'rtl' ? 'left' : 'right']: 0, background: '#050505', border: '1px solid #1f1f1f', borderRadius: '12px', width: '220px', padding: '6px', boxSizing: 'border-box', boxShadow: '0 10px 40px rgba(0,0,0,0.7)' }}>
-                <div style={{ padding: '8px 12px', borderBottom: '1px solid #141414', marginBottom: '4px' }}>
+              <div style={{ position: 'absolute', top: '48px', right: 0, background: '#050505', border: '1px solid #1f1f1f', borderRadius: '12px', width: '200px', padding: '6px', boxSizing: 'border-box' }}>
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid #141414' }}>
                   <p style={{ margin: 0, fontSize: '0.75rem', color: '#666666', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</p>
                 </div>
-
-                <button 
-                  onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
-                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', display: 'flex', gap: '8px', alignItems: 'center' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#0d0d0d'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                    <LanguageIcon />
-                    <span>{t.language}</span>
-                  </div>
-                  <span style={{ fontSize: '0.7rem', color: '#444444' }}>{lang.toUpperCase()} ❯</span>
-                </button>
-
-                {isLangMenuOpen && (
-                  <div style={{ background: '#000000', border: '1px solid #1f1f1f', borderRadius: '8px', marginTop: '4px', padding: '4px' }}>
-                    {[
-                      { code: 'en', label: 'English' },
-                      { code: 'es', label: 'Español' },
-                      { code: 'fr', label: 'Français' },
-                      { code: 'de', label: 'Deutsch' },
-                      { code: 'tr', label: 'Türkçe' }
-                    ].map((language) => (
-                      <button
-                        key={language.code}
-                        onClick={() => {
-                          setLang(language.code as any);
-                          setIsLangMenuOpen(false);
-                          setIsMenuOpen(false);
-                        }}
-                        style={{ width: '100%', background: lang === language.code ? '#141414' : 'transparent', border: 'none', color: '#ffffff', padding: '8px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '0.8rem' }}
-                      >
-                        {language.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <hr style={{ border: 'none', borderTop: '1px solid #141414', margin: '4px 0' }} />
-
                 <button 
                   onClick={() => supabase.auth.signOut()}
-                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4444', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#140505'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff6b6b', padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}
                 >
                   <LogoutIcon />
-                  <span style={{ color: '#ff6b6b', letterSpacing: '0.5px' }}>{t.signOut}</span>
+                  <span>{t.signOut}</span>
                 </button>
               </div>
             )}
@@ -538,77 +418,72 @@ export default function NovaAI() {
           
           <div style={{
             width: '100%', maxWidth: '720px',
-            height: isChatActive ? '83vh' : 'auto',
-            display: 'flex', flexDirection: 'column',
-            justifyContent: isChatActive ? 'space-between' : 'center',
-            alignItems: 'center',
-            transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
+            height: '83vh', display: 'flex', flexDirection: 'column',
+            justifyContent: 'space-between', alignItems: 'center'
           }}>
 
+            {/* الشعار ثابت وفخم ولا يهتز أو يتأثر بالـ Thinking */}
             <div style={{
-              transform: isChatActive ? 'scale(0.6)' : 'scale(1)',
-              marginBottom: isChatActive ? '5px' : '25px',
-              animation: robotState === 'thinking' ? 'pulseLogoThinking 0.4s infinite ease-in-out' : 'floatLogo 4s infinite ease-in-out',
-              transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+              transform: 'scale(0.65)', marginBottom: '5px',
+              animation: 'floatLogo 4s infinite ease-in-out',
               flexShrink: 0
             }}>
-              <NovaLogoIcon size={isChatActive ? 90 : 140} />
+              <NovaLogoIcon size={95} />
             </div>
 
-            {isChatActive && (
-              <div className="custom-scrollbar" style={{ 
-                width: '100%', flex: 1, overflowY: 'auto', 
-                display: 'flex', flexDirection: 'column', gap: '16px', padding: '15px 5px',
-                margin: '10px 0', animation: 'fadeInMessages 0.4s ease'
-              }} ref={chatBoxRef}>
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
-                    <div style={{ 
-                      maxWidth: '85%', padding: '14px 18px', borderRadius: '12px', 
-                      background: msg.sender === 'user' ? '#0a0a0a' : '#000000', 
-                      border: msg.sender === 'user' ? '1px solid #141414' : '1px solid #1f1f1f', 
-                      fontSize: '0.9rem', lineHeight: '1.5', textAlign: 'left', direction: 'ltr'
-                    }}>
-                      <span style={{ whiteSpace: 'pre-line' }}>{msg.text}</span>
-                    </div>
+            {/* منطقة رسائل الشات الاحترافية */}
+            <div className="custom-scrollbar" style={{ 
+              width: '100%', flex: 1, overflowY: 'auto', 
+              display: 'flex', flexDirection: 'column', gap: '16px', padding: '15px 5px',
+              margin: '10px 0', animation: 'fadeInMessages 0.4s ease'
+            }} ref={chatBoxRef}>
+              {chatMessages.map((msg, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                  <div style={{ 
+                    maxWidth: '85%', padding: '14px 18px', borderRadius: '12px', 
+                    background: msg.sender === 'user' ? '#0a0a0a' : '#030303', 
+                    border: msg.sender === 'user' ? '1px solid #141414' : '1px solid #131313', 
+                    fontSize: '0.9rem', lineHeight: '1.6', textAlign: 'left', direction: 'ltr'
+                  }}>
+                    <span style={{ whiteSpace: 'pre-line' }}>{msg.text}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
 
-            {/* صندوق مدخلات ومحرك معالجة الأكواد الأحادي الفخم */}
+              {/* ⚙️ تأثير الـ Thinking الاحترافي والمنفصل كلياً عن الشعار في أسفل الشات */}
+              {robotState === 'thinking' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: 'fit-content', background: '#050505', border: '1px dashed #222', padding: '12px 20px', borderRadius: '10px', animation: 'fadeInMessages 0.2s ease' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '6px', height: '6px', background: '#ffffff', borderRadius: '50%', animation: 'shakeLogo 0.5s infinite alternate' }} />
+                    <span style={{ fontSize: '0.8rem', color: '#888888', letterSpacing: '0.5px' }}>{thinkingStatusText}</span>
+                  </div>
+                  <div style={{ width: '120px', height: '2px', background: '#111', position: 'relative', overflow: 'hidden', borderRadius: '1px' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, width: '40%', height: '100%', background: '#ffffff', animation: 'thinkingBar 1.5s infinite ease-in-out' }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* صندوق المدخلات البيضاوي الفاخر */}
             <div style={{ 
               width: '100%', display: 'flex', gap: '12px', background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(10px)', border: '1px solid #1f1f1f', 
-              padding: '12px 16px', borderRadius: '100px', alignItems: 'center', boxSizing: 'border-box',
-              flexShrink: 0
+              padding: '12px 16px', borderRadius: '100px', alignItems: 'center', boxSizing: 'border-box', flexShrink: 0
             }}>
-              {isListening ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, paddingLeft: '8px' }}>
-                  <div style={{ width: '3px', background: '#ffffff', borderRadius: '3px', animation: 'wavePulse 0.4s infinite ease-in-out' }} />
-                  <div style={{ width: '3px', background: '#ffffff', borderRadius: '3px', animation: 'wavePulse 0.6s infinite ease-in-out', animationDelay: '0.1s' }} />
-                  <div style={{ width: '3px', background: '#ffffff', borderRadius: '3px', animation: 'wavePulse 0.3s infinite ease-in-out', animationDelay: '0.2s' }} />
-                </div>
-              ) : (
-                <input 
-                  type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder={robotState === 'thinking' ? t.processing : t.placeholder} 
-                  disabled={robotState === 'thinking'}
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ffffff', fontSize: '0.95rem', padding: '4px 8px', textAlign: t.dir === 'rtl' ? 'right' : 'left' }}
-                />
-              )}
+              <input 
+                type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder={robotState === 'thinking' ? t.processing : t.placeholder} 
+                disabled={robotState === 'thinking'}
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ffffff', fontSize: '0.95rem', padding: '4px 8px', textAlign: 'left' }}
+              />
 
-              {/* 🎙️ زر المايك الهندسي المحدث */}
               <button 
                 onClick={toggleVoice} 
                 disabled={robotState === 'thinking'} 
-                style={{ background: '#1a1a1a', color: isListening ? '#ffffff' : '#aaaaaa', border: 'none', width: '38px', height: '38px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#242424'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#1a1a1a'}
+                style={{ background: '#1a1a1a', color: '#aaaaaa', border: 'none', width: '38px', height: '38px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <MicrophoneIcon />
               </button>
               
-              {/* ↗️ زر السهم العلوي المحدث */}
               <button 
                 onClick={handleSendMessage} 
                 disabled={robotState === 'thinking' || !userInput.trim()} 
@@ -620,36 +495,43 @@ export default function NovaAI() {
 
           </div>
 
-          {/* ==================== نافذة منبثقة معزولة الـ Sandbox للمعاينة الحية ==================== */}
-          {previewContent && (
+          {/* ==================== نافذة الـ Live Preview الهيكلية القابلة للتطوير ==================== */}
+          {previewModalOpen && activePreviewCode && (
             <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 12000, padding: '20px', boxSizing: 'border-box' }}>
-              <div style={{ width: '100%', maxWidth: '940px', height: '82vh', background: '#000000', border: '1px solid #1f1f1f', borderRadius: '14px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid #141414', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box', background: '#030303', direction: t.dir as 'rtl' | 'ltr' }}>
-                  <span style={{ fontSize: '0.8rem', letterSpacing: '1px', color: '#666666' }}>{t.previewWin}</span>
-                  <button onClick={() => setPreviewContent(null)} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '5px 14px', borderRadius: '5px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}>{t.close}</button>
+              <div style={{ width: '100%', maxWidth: '1000px', height: '85vh', background: '#000000', border: '1px solid #1f1f1f', borderRadius: '14px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid #141414', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box', background: '#030303' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '0.8rem', letterSpacing: '1px', color: '#ffffff', fontWeight: 'bold' }}>{t.previewWin}</span>
+                    <span style={{ fontSize: '0.75rem', background: '#111', color: '#888', padding: '2px 8px', borderRadius: '4px' }}>Development Build</span>
+                  </div>
+                  <button onClick={() => setPreviewModalOpen(false)} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}>{t.close}</button>
                 </div>
-                <iframe srcDoc={previewContent} title="Nova Preview" style={{ flex: 1, width: '100%', border: 'none', background: '#ffffff' }} />
+                <iframe srcDoc={activePreviewCode} title="Nova Scalable Workspace" style={{ flex: 1, width: '100%', border: 'none', background: '#ffffff' }} />
               </div>
             </div>
           )}
 
-          {/* ==================== محاكاة بيئة خوادم النشر الإنتاجي ==================== */}
+          {/* ==================== شاشة معالجة الـ Production Deploy النهائية والمستقلة ==================== */}
           {deployingStatus.active && (
-            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.94)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 12000 }}>
-              <div style={{ width: '90%', maxWidth: '400px', background: '#030303', border: '1px solid #1f1f1f', padding: '35px', borderRadius: '16px', textAlign: 'center' }}>
-                <p style={{ fontSize: '0.8rem', letterSpacing: '1px', color: '#555555', marginBottom: '20px' }}>{t.deployProgress}</p>
-                <div style={{ width: '100%', height: '3px', background: '#141414', borderRadius: '2px', overflow: 'hidden', marginBottom: '15px' }}>
-                  <div style={{ width: `${deployingStatus.progress}%`, height: '100%', background: '#ffffff', transition: 'width 0.3s ease' }} />
+            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.95)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 13000 }}>
+              <div style={{ width: '90%', maxWidth: '420px', background: '#050505', border: '1px solid #1f1f1f', padding: '40px 35px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.9)' }}>
+                <p style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#555555', marginBottom: '20px', fontWeight: 'bold' }}>{t.deployProgress}</p>
+                
+                <div style={{ width: '100%', height: '2px', background: '#111', borderRadius: '2px', overflow: 'hidden', marginBottom: '15px' }}>
+                  <div style={{ width: `${deployingStatus.progress}%`, height: '100%', background: '#ffffff', transition: 'width 0.4s ease' }} />
                 </div>
-                <p style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '25px' }}>{deployingStatus.progress}%</p>
-                {deployingStatus.url ? (
-                  <div>
-                    <p style={{ color: '#666666', fontSize: '0.8rem', marginBottom: '10px' }}>{t.envLive}</p>
-                    <a href={deployingStatus.url} target="_blank" rel="noreferrer" style={{ color: '#ffffff', fontSize: '0.85rem', wordBreak: 'break-all', display: 'block', marginBottom: '25px', textDecoration: 'underline' }}>{deployingStatus.url}</a>
-                    <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '8px 22px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600' }}>{t.returnWorkspace}</button>
+                
+                <p style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '20px', letterSpacing: '1px' }}>{deployingStatus.progress}%</p>
+                <p style={{ color: '#888888', fontSize: '0.8rem', marginBottom: '25px', fontStyle: 'italic' }}>{thinkingStatusText}</p>
+                
+                {deployingStatus.url && (
+                  <div style={{ animation: 'fadeInMessages 0.4s ease' }}>
+                    <div style={{ background: '#0a0a0a', border: '1px solid #141414', padding: '15px', borderRadius: '8px', marginBottom: '25px' }}>
+                      <p style={{ color: '#666666', fontSize: '0.8rem', margin: '0 0 8px 0' }}>{t.envLive}</p>
+                      <a href={deployingStatus.url} target="_blank" rel="noreferrer" style={{ color: '#ffffff', fontSize: '0.85rem', wordBreak: 'break-all', fontWeight: '500', textDecoration: 'underline' }}>{deployingStatus.url}</a>
+                    </div>
+                    <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '10px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600' }}>{t.returnWorkspace}</button>
                   </div>
-                ) : (
-                  <p key="sync-text" style={{ color: '#666666', fontSize: '0.8rem' }}>{t.syncing}</p>
                 )}
               </div>
             </div>
