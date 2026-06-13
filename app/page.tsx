@@ -13,52 +13,43 @@ const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   </svg>
 );
 
-// 🌐 أيقونة اللغة الهندسية النظيفة كبديل للإيموجي
+// 🌐 أيقونة اللغة المحدثة والمطابقة للصورة
 const LanguageIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
     <circle cx="12" cy="12" r="10" />
     <line x1="2" y1="12" x2="22" y2="12" />
     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
   </svg>
 );
 
-// 🎙️ أيقونة الميكروفون المحدثة طبق الأصل من المرفقات
+// 🎙️ أيقونة الميكروفون المحدثة طبق الأصل من المرفقات للزر الدائري السفلي
 const MicrophoneIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
     <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
     <line x1="12" y1="19" x2="12" y2="22" />
   </svg>
 );
 
-// ↗️ أيقونة سهم الإرسال المحدثة والمطابقة للصورة
+// ↗️ أيقونة سهم الإرسال العلوي المحدثة والمطابقة للصورة للزر البيضاوي السفلي
 const SendIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="19" x2="12" y2="5" />
     <polyline points="5 12 12 5 19 12" />
   </svg>
 );
 
-// قاموس الترجمة الكامل لغات المنظومة
+// 🚪 أيقونة الخروج المحدثة والمطابقة للصورة بدلاً من الإيموجي القديم
+const LogoutIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+// قاموس الترجمة الكامل (تمت إزالة اللغة العربية ليصبح النظام متكاملاً باللغات المتبقية)
 const translations = {
-  ar: {
-    securityKey: "مطلوب مفتاح الأمان",
-    accessAccount: "الدخول إلى حساب النظام",
-    processing: "جاري معالجة بنية البناء...",
-    placeholder: "اسأل عن أي شيء أو صف صفحتك...",
-    livePreview: "معاينة مباشرة",
-    prodDeploy: "نشر الإنتاج",
-    previewWin: "نافذة المعاينة (بيئة معزولة)",
-    close: "إغلاق",
-    deployProgress: "جاري نشر الإنتاج في السحابة",
-    envLive: "✓ البيئة الحية في:",
-    returnWorkspace: "العودة إلى مساحة العمل",
-    syncing: "جاري المزامنة مع خوادم السحاب...",
-    signOut: "Logout",
-    language: "Language",
-    profile: "الحساب",
-    dir: "rtl"
-  },
   en: {
     securityKey: "SECURITY KEY REQUIRED",
     accessAccount: "ACCESS SYSTEM ACCOUNT",
@@ -157,11 +148,10 @@ export default function NovaAI() {
   const [isExitingPassword, setIsExitingPassword] = useState(false);
   const [robotIsShaking, setRobotIsShaking] = useState(false);
   
-  // نظام اللغات والاختيار الافتراضي
-  const [lang, setLang] = useState<'ar' | 'en' | 'es' | 'fr' | 'de' | 'tr'>('ar');
+  // جعل اللغة الإنجليزية هي الافتراضية بعد حذف العربية
+  const [lang, setLang] = useState<'en' | 'es' | 'fr' | 'de' | 'tr'>('en');
   const t = translations[lang];
 
-  // الحساب والقوائم المنسدلة للـ UI
   const [user, setUser] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
@@ -172,7 +162,6 @@ export default function NovaAI() {
   const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; codeBlock?: string }>>([]);
   const [isChatActive, setIsChatActive] = useState(false); 
 
-  // المحتوى الافتراضي للـ Sandbox البيئية المعزولة
   const defaultCode = `<!DOCTYPE html><html><head><style>body { background: #000; color: #fff; font-family: sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }</style></head><body><div><h1>Nova AI Workspace</h1></div></body></html>`;
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [deployingStatus, setDeployingStatus] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
@@ -181,7 +170,6 @@ export default function NovaAI() {
   const recognitionRef = useRef<any>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // مراقبة جلسة الجلسات للمستخدم من Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -205,7 +193,6 @@ export default function NovaAI() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // إغلاق القوائم المنبثقة عند الضغط خارجها
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -217,13 +204,12 @@ export default function NovaAI() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // إعدادات الـ Web Speech API للإدخال الصوتي المتكامل
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const rec = new SpeechRecognition();
-        rec.lang = lang === 'ar' ? 'ar-SA' : 'en-US';
+        rec.lang = 'en-US';
         rec.interimResults = false;
 
         rec.onstart = () => {
@@ -244,7 +230,6 @@ export default function NovaAI() {
     }
   }, [lang]);
 
-  // عمل Scroll تلقائي لأسفل الشات عند استقبال مدخلات جديدة
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
@@ -332,7 +317,7 @@ export default function NovaAI() {
       margin: 0, padding: 0, position: 'relative', overflow: 'hidden'
     }}>
       
-      {/* ==================== 🧠 الأنيميشن والتصاميم المونوكروم الفاخرة عبر الـ CSS ==================== */}
+      {/* ==================== 🧠 تأثير الخلفية الجرونج المتحركة والأنيميشن عبر الـ CSS ==================== */}
       <style>{`
         @keyframes floatLogo {
           0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 4px rgba(255,255,255,0.05)); }
@@ -355,6 +340,44 @@ export default function NovaAI() {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        
+        /* حركة الخلفية المحدثة للسديم والدخان */
+        @keyframes grungeVisualNutrition {
+          0% { transform: scale(1) rotate(0deg) translate(0, 0); }
+          50% { transform: scale(1.12) rotate(4deg) translate(-2%, 2%); }
+          100% { transform: scale(1.05) rotate(-3deg) translate(2%, -2%); }
+        }
+
+        .animated-grunge-bg {
+          position: fixed;
+          top: -30%;
+          left: -30%;
+          width: 160%;
+          height: 160%;
+          background-image: url('image_efdcc5.png'); /* اسم ملف الخلفية الخاصة بك */
+          background-position: center;
+          background-size: cover;
+          background-repeat: repeat;
+          opacity: 0.35;
+          filter: contrast(135%) brightness(60%) grayscale(20%);
+          z-index: -2;
+          animation: grungeVisualNutrition 40s ease-in-out infinite alternate;
+          transform-origin: center;
+          pointer-events: none;
+          will-change: transform;
+        }
+
+        .bg-vignette-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: radial-gradient(circle, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 85%);
+          z-index: -1;
+          pointer-events: none;
+        }
+
         .supabase-auth-container { background: #000000 !important; padding: 5px; }
         .supabase-auth-container button {
           border-radius: 8px !important; font-weight: 600 !important;
@@ -372,7 +395,11 @@ export default function NovaAI() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
       `}</style>
 
-      {/* ==================== 🛠️ شريط الأدوات العلوي الأحادي (أزرار الزاوية والمطورين) ==================== */}
+      {/* 🌌 دمج الخلفية وطبقة التظليل السينمائي داخل الـ DOM */}
+      <div className="animated-grunge-bg"></div>
+      <div className="bg-vignette-overlay"></div>
+
+      {/* ==================== 🛠️ شريط الأدوات العلوي الأحادي ==================== */}
       {step === 'main' && user && (
         <div style={{ 
           position: 'absolute', top: '24px', 
@@ -381,7 +408,6 @@ export default function NovaAI() {
           zIndex: 11000, pointerEvents: 'none'
         }}>
           
-          {/* أزرار العمليات الكبرى المضافة فوق بالزاوية جنب بعض */}
           <div style={{ display: 'flex', gap: '10px', pointerEvents: 'auto', direction: 'ltr' }}>
             <button 
               onClick={() => setPreviewContent(getLatestCodeBlock())}
@@ -401,7 +427,6 @@ export default function NovaAI() {
             </button>
           </div>
 
-          {/* نظام القائمة المنسدلة البروفايل والألسنة اللغوية */}
           <div ref={menuRef} style={{ pointerEvents: 'auto', position: 'relative' }}>
             <button 
               onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }}
@@ -426,7 +451,7 @@ export default function NovaAI() {
                   onMouseEnter={(e) => e.currentTarget.style.background = '#0d0d0d'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                     <LanguageIcon />
                     <span>{t.language}</span>
                   </div>
@@ -436,7 +461,6 @@ export default function NovaAI() {
                 {isLangMenuOpen && (
                   <div style={{ background: '#000000', border: '1px solid #1f1f1f', borderRadius: '8px', marginTop: '4px', padding: '4px' }}>
                     {[
-                      { code: 'ar', label: 'العربية' },
                       { code: 'en', label: 'English' },
                       { code: 'es', label: 'Español' },
                       { code: 'fr', label: 'Français' },
@@ -462,11 +486,12 @@ export default function NovaAI() {
 
                 <button 
                   onClick={() => supabase.auth.signOut()}
-                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4444', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500' }}
+                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4444', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#140505'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <span style={{ color: '#ff6b6b', letterSpacing: '0.5px' }}>[→ {t.signOut}</span>
+                  <LogoutIcon />
+                  <span style={{ color: '#ff6b6b', letterSpacing: '0.5px' }}>{t.signOut}</span>
                 </button>
               </div>
             )}
@@ -479,8 +504,8 @@ export default function NovaAI() {
       {step === 'password' && (
         <div style={{ 
           animation: isExitingPassword ? 'screenFadeOut 0.5s ease forwards' : 'none', 
-          textAlign: 'center', width: '90%', maxWidth: '360px', background: '#000000', 
-          border: '1px solid #141414', padding: '45px 30px', borderRadius: '16px' 
+          textAlign: 'center', width: '90%', maxWidth: '360px', background: 'rgba(0, 0, 0, 0.6)', 
+          backdropFilter: 'blur(10px)', border: '1px solid #141414', padding: '45px 30px', borderRadius: '16px', zIndex: 10
         }}>
           <div style={{ margin: '0 auto 25px auto', display: 'flex', justifyContent: 'center', animation: robotIsShaking ? 'shakeLogo 0.15s infinite' : 'floatLogo 4s infinite ease-in-out' }}>
             <NovaLogoIcon size={110} />
@@ -496,7 +521,7 @@ export default function NovaAI() {
 
       {/* ==================== [2] بوابة التحقق وبوابات الحساب الذكية ==================== */}
       {step === 'oauth' && (
-        <div style={{ width: '90%', maxWidth: '370px', background: '#000000', border: '1px solid #141414', padding: '35px 25px', borderRadius: '16px', boxSizing: 'border-box' }}>
+        <div style={{ width: '90%', maxWidth: '370px', background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(10px)', border: '1px solid #141414', padding: '35px 25px', borderRadius: '16px', boxSizing: 'border-box', zIndex: 10 }}>
           <div style={{ margin: '0 auto 20px auto', display: 'flex', justifyContent: 'center', animation: 'floatLogo 4s infinite ease-in-out' }}>
             <NovaLogoIcon size={85} />
           </div>
@@ -511,7 +536,7 @@ export default function NovaAI() {
       {step === 'main' && (
         <div style={{ 
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column', 
-          justifyContent: 'center', alignItems: 'center', padding: '30px 20px', boxSizing: 'border-box'
+          justifyContent: 'center', alignItems: 'center', padding: '30px 20px', boxSizing: 'border-box', zIndex: 10
         }}>
           
           <div style={{
@@ -523,7 +548,6 @@ export default function NovaAI() {
             transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
           }}>
 
-            {/* متحكم ديناميكية الشعار الهندسي وحجمه */}
             <div style={{
               transform: isChatActive ? 'scale(0.6)' : 'scale(1)',
               marginBottom: isChatActive ? '5px' : '25px',
@@ -534,7 +558,6 @@ export default function NovaAI() {
               <NovaLogoIcon size={isChatActive ? 90 : 140} />
             </div>
 
-            {/* حاوية رسائل محادثات ومخرجات المطورين */}
             {isChatActive && (
               <div className="custom-scrollbar" style={{ 
                 width: '100%', flex: 1, overflowY: 'auto', 
@@ -558,7 +581,7 @@ export default function NovaAI() {
 
             {/* صندوق مدخلات ومحرك معالجة الأكواد الأحادي الفخم */}
             <div style={{ 
-              width: '100%', display: 'flex', gap: '12px', background: '#000000', border: '1px solid #1f1f1f', 
+              width: '100%', display: 'flex', gap: '12px', background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(10px)', border: '1px solid #1f1f1f', 
               padding: '12px 16px', borderRadius: '100px', alignItems: 'center', boxSizing: 'border-box',
               flexShrink: 0
             }}>
@@ -577,22 +600,22 @@ export default function NovaAI() {
                 />
               )}
 
-              {/* زر المايك المحدث الدائري طبق الأصل من الصور */}
+              {/* 🎙️ زر المايك الهندسي المحدث المماثل للمرفقات بدلاً من الإيموجي القديم */}
               <button 
                 onClick={toggleVoice} 
                 disabled={robotState === 'thinking'} 
-                style={{ background: '#1a1a1a', color: isListening ? '#ffffff' : '#aaaaaa', border: 'none', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                style={{ background: '#1a1a1a', color: isListening ? '#ffffff' : '#aaaaaa', border: 'none', width: '38px', height: '38px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                 onMouseEnter={(e) => e.currentTarget.style.background = '#242424'}
                 onMouseLeave={(e) => e.currentTarget.style.background = '#1a1a1a'}
               >
                 <MicrophoneIcon />
               </button>
               
-              {/* زر السهم البيضاوي المحدث المماثل للصور الفاخرة */}
+              {/* ↗️ زر السهم العلوي المحدث والمطابق للتغذية البصرية للمرفقات بدلاً من الإيموجي القديم */}
               <button 
                 onClick={handleSendMessage} 
                 disabled={robotState === 'thinking' || !userInput.trim()} 
-                style={{ background: userInput.trim() ? '#ffffff' : '#1a1a1a', color: userInput.trim() ? '#000000' : '#444444', border: 'none', width: '54px', height: '36px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                style={{ background: userInput.trim() ? '#ffffff' : '#1a1a1a', color: userInput.trim() ? '#000000' : '#444444', border: 'none', width: '56px', height: '38px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
               >
                 <SendIcon />
               </button>
@@ -613,7 +636,7 @@ export default function NovaAI() {
             </div>
           )}
 
-          {/* ==================== محاكاة بيئة خوادم النشر الإنتاجي (Production Cloud) ==================== */}
+          {/* ==================== محاكاة بيئة خوادم النشر الإنتاجي ==================== */}
           {deployingStatus.active && (
             <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.94)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 12000 }}>
               <div style={{ width: '90%', maxWidth: '400px', background: '#030303', border: '1px solid #1f1f1f', padding: '35px', borderRadius: '16px', textAlign: 'center' }}>
@@ -626,14 +649,15 @@ export default function NovaAI() {
                   <div>
                     <p style={{ color: '#666666', fontSize: '0.8rem', marginBottom: '10px' }}>{t.envLive}</p>
                     <a href={deployingStatus.url} target="_blank" rel="noreferrer" style={{ color: '#ffffff', fontSize: '0.85rem', wordBreak: 'break-all', display: 'block', marginBottom: '25px', textDecoration: 'underline' }}>{deployingStatus.url}</a>
-                    <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '8px 22px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>{t.returnWorkspace}</button>
+                    <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '8px 22px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600' }}>{t.returnWorkspace}</button>
                   </div>
                 ) : (
-                  <p style={{ fontSize: '0.75rem', color: '#333333' }}>{t.syncing}</p>
+                  <p style={{ color: '#666666', fontSize: '0.8rem', key: 'sync-text' }}>{t.syncing}</p>
                 )}
               </div>
             </div>
           )}
+
         </div>
       )}
 
