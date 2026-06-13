@@ -5,7 +5,7 @@ import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../lib/supabase';
 
-// 🌟 شعارك النجمي الهندسي الفخم مدمج كـ SVG
+// 🌟 شعار Nova الهندسي الفخم مدمج كـ SVG ومتوافق مع الهوية البصرية
 const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M100 15 L122 55 L165 45 L145 82 L185 100 L145 118 L165 155 L122 145 L100 185 L78 145 L35 155 L55 118 L15 100 L55 82 L35 45 L78 55 Z" stroke="#ffffff" strokeWidth="5" strokeLinejoin="round" fill="none"/>
@@ -13,7 +13,7 @@ const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   </svg>
 );
 
-// قاموس الترجمة للغات المختلفة لتغيير الموقع بالكامل
+// قاموس الترجمة الكامل لغات المنظومة
 const translations = {
   ar: {
     securityKey: "مطلوب مفتاح الأمان",
@@ -131,11 +131,11 @@ export default function NovaAI() {
   const [isExitingPassword, setIsExitingPassword] = useState(false);
   const [robotIsShaking, setRobotIsShaking] = useState(false);
   
-  // نظام اللغات المحدثة
+  // نظام اللغات والاختيار الافتراضي
   const [lang, setLang] = useState<'ar' | 'en' | 'es' | 'fr' | 'de' | 'tr'>('ar');
   const t = translations[lang];
 
-  // بيانات المستخدم والقوائم المنسدلة
+  // الحساب والقوائم المنسدلة للـ UI
   const [user, setUser] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
@@ -146,6 +146,8 @@ export default function NovaAI() {
   const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; codeBlock?: string }>>([]);
   const [isChatActive, setIsChatActive] = useState(false); 
 
+  // المحتوى الافتراضي للـ Sandbox البيئية المعزولة
+  const defaultCode = `<!DOCTYPE html><html><head><style>body { background: #000; color: #fff; font-family: sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }</style></head><body><div><h1>Nova AI Workspace</h1></div></body></html>`;
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [deployingStatus, setDeployingStatus] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
   
@@ -153,7 +155,7 @@ export default function NovaAI() {
   const recognitionRef = useRef<any>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // الفحص التلقائي وتخطي الحواجز للمسجلين دخول مسبقاً وجلب بيانات الإيميل والصورة
+  // مراقبة جلسة الجلسات للمستخدم من Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -177,7 +179,7 @@ export default function NovaAI() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // إغلاق القوائم المنسدلة عند الضغط خارجها
+  // إغلاق القوائم المنبثقة عند الضغط خارجها
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -189,7 +191,7 @@ export default function NovaAI() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // تحويل الصوت إلى نص
+  // إعدادات الـ Web Speech API للإدخال الصوتي المتكامل
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -216,6 +218,7 @@ export default function NovaAI() {
     }
   }, [lang]);
 
+  // عمل Scroll تلقائي لأسفل الشات عند استقبال مدخلات جديدة
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
@@ -256,14 +259,14 @@ export default function NovaAI() {
         ...prev,
         {
           sender: 'bot',
-          text: `⚡ NOVA COMPILER:\nGenerated complete responsive interface architecture based on your specification.\n\nYou can now preview the live layout or instantly trigger a production cloud deployment below:`,
+          text: `⚡ NOVA COMPILER:\nGenerated complete responsive interface architecture based on your specification. Click Preview or Deploy on the top corner to view your live app.`,
           codeBlock: `<!DOCTYPE html>\n<html>\n<head>\n<style>\nbody { background: #000; color: #fff; font-family: sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }\n.card { border: 1px solid #222; padding: 40px; border-radius: 12px; text-align: center; }\n</style>\n</head>\n<body>\n<div class="card">\n<h1>Nova Deployed App</h1>\n<p>Production environment successfully running on localized server grid.</p>\n</div>\n</body>\n</html>`
         }
       ]);
     }, 1500);
   };
 
-  const triggerDeployment = (index: number) => {
+  const triggerDeployment = () => {
     setDeployingStatus({ active: true, progress: 0, url: null });
     const interval = setInterval(() => {
       setDeployingStatus((prev) => {
@@ -286,6 +289,14 @@ export default function NovaAI() {
     setRobotState('normal');
   };
 
+  const getLatestCodeBlock = () => {
+    const codeMsgs = chatMessages.filter(m => m.codeBlock);
+    if (codeMsgs.length > 0) {
+      return codeMsgs[codeMsgs.length - 1].codeBlock || defaultCode;
+    }
+    return defaultCode;
+  };
+
   return (
     <div style={{ 
       direction: t.dir as 'rtl' | 'ltr', 
@@ -295,147 +306,179 @@ export default function NovaAI() {
       margin: 0, padding: 0, position: 'relative', overflow: 'hidden'
     }}>
       
+      {/* ==================== 🧠 الأنيميشن والتصاميم المونوكروم الفاخرة عبر الـ CSS ==================== */}
       <style>{`
         @keyframes floatLogo {
-          0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 4px rgba(255,255,255,0.1)); }
-          50% { transform: translateY(-8px); filter: drop-shadow(0 0 15px rgba(255,255,255,0.25)); }
+          0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 4px rgba(255,255,255,0.05)); }
+          50% { transform: translateY(-6px); filter: drop-shadow(0 0 12px rgba(255,255,255,0.15)); }
         }
         @keyframes shakeLogo {
           0%, 100% { transform: translateX(0); }
-          20%, 60% { transform: translateX(-6px); }
-          40%, 80% { transform: translateX(6px); }
+          20%, 60% { transform: translateX(-5px); }
+          40%, 80% { transform: translateX(5px); }
         }
         @keyframes pulseLogoThinking {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(255,255,255,0.4)); }
+          0%, 100% { opacity: 0.5; transform: scale(0.98); }
+          50% { opacity: 1; transform: scale(1.02); filter: drop-shadow(0 0 20px rgba(255,255,255,0.3)); }
         }
         @keyframes wavePulse {
           0%, 100% { height: 6px; }
-          50% { height: 24px; }
+          50% { height: 20px; }
+        }
+        @keyframes fadeInMessages {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .supabase-auth-container { background: #000000 !important; padding: 5px; }
         .supabase-auth-container button {
           border-radius: 8px !important; font-weight: 600 !important;
           background: #ffffff !important; color: #000000 !important;
           border: 1px solid #ffffff !important; padding: 10px !important;
+          transition: all 0.2s ease !important;
         }
+        .supabase-auth-container button:hover { opacity: 0.9; }
         .supabase-auth-container input {
           border-radius: 8px !important; text-align: center !important;
           background-color: #000000 !important; color: #ffffff !important;
-          border: 1px solid #222222 !important; padding: 12px !important;
+          border: 1px solid #1f1f1f !important; padding: 12px !important;
         }
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #222222; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
       `}</style>
 
-      {/* ==================== 👤 نظام قائمة الحساب واللغات في الزاوية العلوية ==================== */}
+      {/* ==================== 🛠️ شريط الأدوات العلوي الأحادي (أزرار الزاوية والمطورين) ==================== */}
       {step === 'main' && user && (
-        <div ref={menuRef} style={{ position: 'absolute', top: '20px', right: t.dir === 'rtl' ? 'auto' : '20px', left: t.dir === 'rtl' ? '20px' : 'auto', zIndex: 11000 }}>
-          {/* زر الصورة الشخصية الدائري */}
-          <button 
-            onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }}
-            style={{ background: '#111', border: '1px solid #222', width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 0 }}
-          >
-            {user.user_metadata?.avatar_url ? (
-              <img src={user.user_metadata.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>{user.email?.charAt(0).toUpperCase()}</span>
-            )}
-          </button>
+        <div style={{ 
+          position: 'absolute', top: '24px', 
+          left: '24px', right: '24px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          zIndex: 11000, pointerEvents: 'none'
+        }}>
+          
+          {/* أزرار العمليات الكبرى المضافة فوق بالزاوية جنب بعض */}
+          <div style={{ display: 'flex', gap: '10px', pointerEvents: 'auto', direction: 'ltr' }}>
+            <button 
+              onClick={() => setPreviewContent(getLatestCodeBlock())}
+              style={{ background: '#0a0a0a', border: '1px solid #1f1f1f', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#141414'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#0a0a0a'}
+            >
+              {t.livePreview}
+            </button>
+            <button 
+              onClick={triggerDeployment}
+              style={{ background: '#ffffff', border: 'none', color: '#000000', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', transition: 'opacity 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+            >
+              {t.prodDeploy}
+            </button>
+          </div>
 
-          {/* القائمة المنسدلة الرئيسية لقائمة الحساب */}
-          {isMenuOpen && (
-            <div style={{ position: 'absolute', top: '50px', right: t.dir === 'rtl' ? 'auto' : '0', left: t.dir === 'rtl' ? '0' : 'auto', background: '#0a0a0a', border: '1px solid #1f1f1f', borderRadius: '12px', width: '220px', padding: '8px', boxSizing: 'border-box', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid #111', marginBottom: '6px' }}>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#666', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</p>
-              </div>
-
-              {/* زر خيار اللغة التفاعلي */}
-              <button 
-                onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
-                style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#111'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <span>{t.language}</span>
-                <span style={{ fontSize: '0.7rem', color: '#666' }}>{lang.toUpperCase()} ❯</span>
-              </button>
-
-              {/* قائمة اللغات الفرعية الجانبية الممتدة */}
-              {isLangMenuOpen && (
-                <div style={{ background: '#0d0d0d', border: '1px solid #222', borderRadius: '8px', marginTop: '4px', padding: '4px' }}>
-                  {[
-                    { code: 'ar', label: 'العربية' },
-                    { code: 'en', label: 'English' },
-                    { code: 'es', label: 'Español' },
-                    { code: 'fr', label: 'Français' },
-                    { code: 'de', label: 'Deutsch' },
-                    { code: 'tr', label: 'Türkçe' }
-                  ].map((language) => (
-                    <button
-                      key={language.code}
-                      onClick={() => {
-                        setLang(language.code as any);
-                        setIsLangMenuOpen(false);
-                        setIsMenuOpen(false);
-                      }}
-                      style={{ width: '100%', background: lang === language.code ? '#222' : 'transparent', border: 'none', color: '#fff', padding: '8px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '0.85rem' }}
-                    >
-                      {language.label}
-                    </button>
-                  ))}
-                </div>
+          {/* نظام القائمة المنسدلة البروفايل والألسنة اللغوية */}
+          <div ref={menuRef} style={{ pointerEvents: 'auto', position: 'relative' }}>
+            <button 
+              onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }}
+              style={{ background: '#0a0a0a', border: '1px solid #1f1f1f', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 0 }}
+            >
+              {user.user_metadata?.avatar_url ? (
+                <img src={user.user_metadata.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>{user.email?.charAt(0).toUpperCase()}</span>
               )}
+            </button>
 
-              <hr style={{ border: 'none', borderTop: '1px solid #111', margin: '6px 0' }} />
+            {isMenuOpen && (
+              <div style={{ position: 'absolute', top: '48px', [t.dir === 'rtl' ? 'left' : 'right']: 0, background: '#050505', border: '1px solid #1f1f1f', borderRadius: '12px', width: '220px', padding: '6px', boxSizing: 'border-box', boxShadow: '0 10px 40px rgba(0,0,0,0.7)' }}>
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid #141414', marginBottom: '4px' }}>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#666666', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</p>
+                </div>
 
-              {/* زر تسجيل الخروج داخل القائمة */}
-              <button 
-                onClick={() => supabase.auth.signOut()}
-                style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4444', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#1a0505'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                {t.signOut}
-              </button>
-            </div>
-          )}
+                <button 
+                  onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#0d0d0d'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <span>{t.language}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#444444' }}>{lang.toUpperCase()} ❯</span>
+                </button>
+
+                {isLangMenuOpen && (
+                  <div style={{ background: '#000000', border: '1px solid #1f1f1f', borderRadius: '8px', marginTop: '4px', padding: '4px' }}>
+                    {[
+                      { code: 'ar', label: 'العربية' },
+                      { code: 'en', label: 'English' },
+                      { code: 'es', label: 'Español' },
+                      { code: 'fr', label: 'Français' },
+                      { code: 'de', label: 'Deutsch' },
+                      { code: 'tr', label: 'Türkçe' }
+                    ].map((language) => (
+                      <button
+                        key={language.code}
+                        onClick={() => {
+                          setLang(language.code as any);
+                          setIsLangMenuOpen(false);
+                          setIsMenuOpen(false);
+                        }}
+                        style={{ width: '100%', background: lang === language.code ? '#141414' : 'transparent', border: 'none', color: '#ffffff', padding: '8px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '0.8rem' }}
+                      >
+                        {language.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <hr style={{ border: 'none', borderTop: '1px solid #141414', margin: '4px 0' }} />
+
+                <button 
+                  onClick={() => supabase.auth.signOut()}
+                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4444', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#140505'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  {t.signOut}
+                </button>
+              </div>
+            )}
+          </div>
+
         </div>
       )}
 
-      {/* ==================== [1] شاشة كلمة المرور ==================== */}
+      {/* ==================== [1] شاشة بوابة فحص كلمة المرور الفاخرة ==================== */}
       {step === 'password' && (
         <div style={{ 
           animation: isExitingPassword ? 'screenFadeOut 0.5s ease forwards' : 'none', 
           textAlign: 'center', width: '90%', maxWidth: '360px', background: '#000000', 
-          border: '1px solid #111111', padding: '45px 30px', borderRadius: '16px' 
+          border: '1px solid #141414', padding: '45px 30px', borderRadius: '16px' 
         }}>
           <div style={{ margin: '0 auto 25px auto', display: 'flex', justifyContent: 'center', animation: robotIsShaking ? 'shakeLogo 0.15s infinite' : 'floatLogo 4s infinite ease-in-out' }}>
             <NovaLogoIcon size={110} />
           </div>
-          <p style={{ fontSize: '0.8rem', color: '#555555', margin: '0 0 20px 0', letterSpacing: '1.5px', fontWeight: '600' }}>{t.securityKey}</p>
+          <p style={{ fontSize: '0.75rem', color: '#555555', margin: '0 0 20px 0', letterSpacing: '1.5px', fontWeight: '600' }}>{t.securityKey}</p>
           <input 
             type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && checkPassword()} 
             placeholder="••••••••" 
-            style={{ width: '100%', padding: '12px', fontSize: '1rem', color: '#fff', textAlign: 'center', border: '1px solid #222222', borderRadius: '10px', outline: 'none', boxSizing: 'border-box', background: '#000000', letterSpacing: '2px' }} 
+            style={{ width: '100%', padding: '12px', fontSize: '1rem', color: '#ffffff', textAlign: 'center', border: '1px solid #1f1f1f', borderRadius: '10px', outline: 'none', boxSizing: 'border-box', background: '#000000', letterSpacing: '2px' }} 
           />
         </div>
       )}
 
-      {/* ==================== [2] بوابة الحسابات ==================== */}
+      {/* ==================== [2] بوابة التحقق وبوابات الحساب الذكية ==================== */}
       {step === 'oauth' && (
-        <div style={{ width: '90%', maxWidth: '370px', background: '#000000', border: '1px solid #111111', padding: '35px 25px', borderRadius: '16px', boxSizing: 'border-box' }}>
+        <div style={{ width: '90%', maxWidth: '370px', background: '#000000', border: '1px solid #141414', padding: '35px 25px', borderRadius: '16px', boxSizing: 'border-box' }}>
           <div style={{ margin: '0 auto 20px auto', display: 'flex', justifyContent: 'center', animation: 'floatLogo 4s infinite ease-in-out' }}>
             <NovaLogoIcon size={85} />
           </div>
-          <p style={{ fontSize: '0.8rem', color: '#ffffff', marginBottom: '25px', letterSpacing: '1px', fontWeight: '600', textAlign: 'center' }}>{t.accessAccount}</p>
+          <p style={{ fontSize: '0.75rem', color: '#ffffff', marginBottom: '25px', letterSpacing: '1px', fontWeight: '600', textAlign: 'center' }}>{t.accessAccount}</p>
           <div className="supabase-auth-container" style={{ direction: 'ltr' }}>
             <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={['google', 'github']} theme="dark" showLinks={true} />
           </div>
         </div>
       )}
 
-      {/* ==================== [3] شاشة المحادثة المتمحورة والذكية بالمنتصف ==================== */}
+      {/* ==================== [3] شاشة محرك الشات المتمحور الذكي ==================== */}
       {step === 'main' && (
         <div style={{ 
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column', 
@@ -448,53 +491,46 @@ export default function NovaAI() {
             display: 'flex', flexDirection: 'column',
             justifyContent: isChatActive ? 'space-between' : 'center',
             alignItems: 'center',
-            transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+            transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
           }}>
 
-            {/* الشعار */}
+            {/* متحكم ديناميكية الشعار الهندسي وحجمه */}
             <div style={{
-              transform: isChatActive ? 'scale(0.65)' : 'scale(1)',
-              marginBottom: isChatActive ? '10px' : '30px',
+              transform: isChatActive ? 'scale(0.6)' : 'scale(1)',
+              marginBottom: isChatActive ? '5px' : '25px',
               animation: robotState === 'thinking' ? 'pulseLogoThinking 0.4s infinite ease-in-out' : 'floatLogo 4s infinite ease-in-out',
-              transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+              transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
               flexShrink: 0
             }}>
-              <NovaLogoIcon size={isChatActive ? 100 : 145} />
+              <NovaLogoIcon size={isChatActive ? 90 : 140} />
             </div>
 
-            {/* صندوق رسائل الشات بالنص */}
+            {/* حاوية رسائل محادثات ومخرجات المطورين */}
             {isChatActive && (
               <div className="custom-scrollbar" style={{ 
                 width: '100%', flex: 1, overflowY: 'auto', 
                 display: 'flex', flexDirection: 'column', gap: '16px', padding: '15px 5px',
-                margin: '10px 0', animation: 'fadeInMessages 0.5s ease'
+                margin: '10px 0', animation: 'fadeInMessages 0.4s ease'
               }} ref={chatBoxRef}>
                 {chatMessages.map((msg, idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
                     <div style={{ 
-                      maxWidth: '85%', padding: '14px 18px', borderRadius: '10px', 
-                      background: msg.sender === 'user' ? '#0d0d0d' : '#000000', 
-                      border: msg.sender === 'user' ? '1px solid #1a1a1a' : '1px solid #111111', 
-                      fontSize: '0.95rem', lineHeight: '1.5', textAlign: 'left', direction: 'ltr'
+                      maxWidth: '85%', padding: '14px 18px', borderRadius: '12px', 
+                      background: msg.sender === 'user' ? '#0a0a0a' : '#000000', 
+                      border: msg.sender === 'user' ? '1px solid #141414' : '1px solid #1f1f1f', 
+                      fontSize: '0.9rem', lineHeight: '1.5', textAlign: 'left', direction: 'ltr'
                     }}>
                       <span style={{ whiteSpace: 'pre-line' }}>{msg.text}</span>
-                      
-                      {msg.codeBlock && (
-                        <div style={{ marginTop: '15px', display: 'flex', gap: '10px', borderTop: '1px solid #111111', paddingTop: '12px' }}>
-                          <button onClick={() => setPreviewContent(msg.codeBlock || null)} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem' }}>{t.livePreview}</button>
-                          <button onClick={() => triggerDeployment(idx)} style={{ background: 'transparent', color: '#ffffff', border: '1px solid #333333', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem' }}>{t.prodDeploy}</button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* صندوق المدخلات والكتابة الفاخر */}
+            {/* صندوق مدخلات ومحرك معالجة الأكواد الأحادي الفخم */}
             <div style={{ 
               width: '100%', display: 'flex', gap: '12px', background: '#000000', border: '1px solid #1f1f1f', 
-              padding: '12px 16px', borderRadius: '12px', alignItems: 'center', boxSizing: 'border-box',
+              padding: '12px 16px', borderRadius: '14px', alignItems: 'center', boxSizing: 'border-box',
               flexShrink: 0
             }}>
               {isListening ? (
@@ -512,42 +548,42 @@ export default function NovaAI() {
                 />
               )}
 
-              <button onClick={toggleVoice} disabled={robotState === 'thinking'} style={{ background: 'transparent', color: isListening ? '#ffffff' : '#444444', border: 'none', width: '30px', height: '30px', cursor: 'pointer', fontSize: '1rem' }}>🎙️</button>
-              <button onClick={handleSendMessage} disabled={robotState === 'thinking' || !userInput.trim()} style={{ background: userInput.trim() ? '#ffffff' : '#000000', color: userInput.trim() ? '#000000' : '#444444', border: userInput.trim() ? 'none' : '1px solid #222222', width: '36px', height: '36px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold', transform: t.dir === 'rtl' ? 'scaleX(-1)' : 'none' }}>↗</button>
+              <button onClick={toggleVoice} disabled={robotState === 'thinking'} style={{ background: 'transparent', color: isListening ? '#ffffff' : '#555555', border: 'none', width: '30px', height: '30px', cursor: 'pointer', fontSize: '1rem' }}>🎙️</button>
+              <button onClick={handleSendMessage} disabled={robotState === 'thinking' || !userInput.trim()} style={{ background: userInput.trim() ? '#ffffff' : '#000000', color: userInput.trim() ? '#000000' : '#555555', border: userInput.trim() ? 'none' : '1px solid #1f1f1f', width: '36px', height: '36px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold', transform: t.dir === 'rtl' ? 'scaleX(-1)' : 'none', transition: 'all 0.2s' }}>↗</button>
             </div>
 
           </div>
 
-          {/* ==================== نافذة منبثقة للمعاينة المباشرة ==================== */}
+          {/* ==================== نافذة منبثقة معزولة الـ Sandbox للمعاينة الحية ==================== */}
           {previewContent && (
             <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 12000, padding: '20px', boxSizing: 'border-box' }}>
-              <div style={{ width: '100%', maxWidth: '900px', height: '80vh', background: '#000000', border: '1px solid #222222', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid #111111', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box', background: '#050505', direction: t.dir as 'rtl' | 'ltr' }}>
-                  <span style={{ fontSize: '0.85rem', letterSpacing: '1px', color: '#888' }}>{t.previewWin}</span>
-                  <button onClick={() => setPreviewContent(null)} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>{t.close}</button>
+              <div style={{ width: '100%', maxWidth: '940px', height: '82vh', background: '#000000', border: '1px solid #1f1f1f', borderRadius: '14px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid #141414', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box', background: '#030303', direction: t.dir as 'rtl' | 'ltr' }}>
+                  <span style={{ fontSize: '0.8rem', letterSpacing: '1px', color: '#666666' }}>{t.previewWin}</span>
+                  <button onClick={() => setPreviewContent(null)} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '5px 14px', borderRadius: '5px', cursor: 'pointer', fontWeight: '700', fontSize: '0.75rem' }}>{t.close}</button>
                 </div>
                 <iframe srcDoc={previewContent} title="Nova Preview" style={{ flex: 1, width: '100%', border: 'none', background: '#ffffff' }} />
               </div>
             </div>
           )}
 
-          {/* ==================== شاشة محاكاة الـ Cloud Deploy الفورية للإنتاج ==================== */}
+          {/* ==================== محاكاة بيئة خوادم النشر الإنتاجي (Production Cloud) ==================== */}
           {deployingStatus.active && (
-            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.92)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 12000 }}>
-              <div style={{ width: '90%', maxWidth: '400px', background: '#050505', border: '1px solid #222222', padding: '35px', borderRadius: '16px', textAlign: 'center' }}>
-                <p style={{ fontSize: '0.85rem', letterSpacing: '1px', color: '#666', marginBottom: '20px' }}>{t.deployProgress}</p>
-                <div style={{ width: '100%', height: '4px', background: '#111111', borderRadius: '2px', overflow: 'hidden', marginBottom: '15px' }}>
+            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.94)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 12000 }}>
+              <div style={{ width: '90%', maxWidth: '400px', background: '#030303', border: '1px solid #1f1f1f', padding: '35px', borderRadius: '16px', textAlign: 'center' }}>
+                <p style={{ fontSize: '0.8rem', letterSpacing: '1px', color: '#555555', marginBottom: '20px' }}>{t.deployProgress}</p>
+                <div style={{ width: '100%', height: '3px', background: '#141414', borderRadius: '2px', overflow: 'hidden', marginBottom: '15px' }}>
                   <div style={{ width: `${deployingStatus.progress}%`, height: '100%', background: '#ffffff', transition: 'width 0.3s ease' }} />
                 </div>
                 <p style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '25px' }}>{deployingStatus.progress}%</p>
                 {deployingStatus.url ? (
                   <div>
-                    <p style={{ color: '#888', fontSize: '0.85rem', marginBottom: '10px' }}>{t.envLive}</p>
-                    <a href={deployingStatus.url} target="_blank" rel="noreferrer" style={{ color: '#ffffff', fontSize: '0.9rem', wordBreak: 'break-all', display: 'block', marginBottom: '25px', textDecoration: 'underline' }}>{deployingStatus.url}</a>
-                    <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>{t.returnWorkspace}</button>
+                    <p style={{ color: '#666666', fontSize: '0.8rem', marginBottom: '10px' }}>{t.envLive}</p>
+                    <a href={deployingStatus.url} target="_blank" rel="noreferrer" style={{ color: '#ffffff', fontSize: '0.85rem', wordBreak: 'break-all', display: 'block', marginBottom: '25px', textDecoration: 'underline' }}>{deployingStatus.url}</a>
+                    <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '8px 22px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>{t.returnWorkspace}</button>
                   </div>
                 ) : (
-                  <p style={{ fontSize: '0.8rem', color: '#444' }}>{t.syncing}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#333333' }}>{t.syncing}</p>
                 )}
               </div>
             </div>
