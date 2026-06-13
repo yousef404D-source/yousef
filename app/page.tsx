@@ -48,7 +48,7 @@ const LogoutIcon = () => (
   </svg>
 );
 
-// قاموس الترجمة الكامل (تمت إزالة اللغة العربية ليصبح النظام متكاملاً باللغات المتبقية)
+// قاموس الترجمة الكامل (بدون اللغة العربية وباتجاه لفتراضي لليسار ltr)
 const translations = {
   en: {
     securityKey: "SECURITY KEY REQUIRED",
@@ -148,7 +148,6 @@ export default function NovaAI() {
   const [isExitingPassword, setIsExitingPassword] = useState(false);
   const [robotIsShaking, setRobotIsShaking] = useState(false);
   
-  // جعل اللغة الإنجليزية هي الافتراضية بعد حذف العربية
   const [lang, setLang] = useState<'en' | 'es' | 'fr' | 'de' | 'tr'>('en');
   const t = translations[lang];
 
@@ -341,7 +340,6 @@ export default function NovaAI() {
           to { opacity: 1; transform: translateY(0); }
         }
         
-        /* حركة الخلفية المحدثة للسديم والدخان */
         @keyframes grungeVisualNutrition {
           0% { transform: scale(1) rotate(0deg) translate(0, 0); }
           50% { transform: scale(1.12) rotate(4deg) translate(-2%, 2%); }
@@ -354,7 +352,7 @@ export default function NovaAI() {
           left: -30%;
           width: 160%;
           height: 160%;
-          background-image: url('image_efdcc5.png'); /* اسم ملف الخلفية الخاصة بك */
+          background-image: url('image_efdcc5.png');
           background-position: center;
           background-size: cover;
           background-repeat: repeat;
@@ -395,7 +393,6 @@ export default function NovaAI() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
       `}</style>
 
-      {/* 🌌 دمج الخلفية وطبقة التظليل السينمائي داخل الـ DOM */}
       <div className="animated-grunge-bg"></div>
       <div className="bg-vignette-overlay"></div>
 
@@ -600,7 +597,7 @@ export default function NovaAI() {
                 />
               )}
 
-              {/* 🎙️ زر المايك الهندسي المحدث المماثل للمرفقات بدلاً من الإيموجي القديم */}
+              {/* 🎙️ زر المايك الهندسي المحدث */}
               <button 
                 onClick={toggleVoice} 
                 disabled={robotState === 'thinking'} 
@@ -611,7 +608,7 @@ export default function NovaAI() {
                 <MicrophoneIcon />
               </button>
               
-              {/* ↗️ زر السهم العلوي المحدث والمطابق للتغذية البصرية للمرفقات بدلاً من الإيموجي القديم */}
+              {/* ↗️ زر السهم العلوي المحدث */}
               <button 
                 onClick={handleSendMessage} 
                 disabled={robotState === 'thinking' || !userInput.trim()} 
@@ -652,7 +649,7 @@ export default function NovaAI() {
                     <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '8px 22px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600' }}>{t.returnWorkspace}</button>
                   </div>
                 ) : (
-                  <p style={{ color: '#666666', fontSize: '0.8rem', key: 'sync-text' }}>{t.syncing}</p>
+                  <p key="sync-text" style={{ color: '#666666', fontSize: '0.8rem' }}>{t.syncing}</p>
                 )}
               </div>
             </div>
