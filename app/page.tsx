@@ -13,6 +13,32 @@ const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   </svg>
 );
 
+// 🌐 أيقونة اللغة الهندسية النظيفة كبديل للإيموجي
+const LanguageIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+
+// 🎙️ أيقونة الميكروفون المحدثة طبق الأصل من المرفقات
+const MicrophoneIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+    <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+    <line x1="12" y1="19" x2="12" y2="22" />
+  </svg>
+);
+
+// ↗️ أيقونة سهم الإرسال المحدثة والمطابقة للصورة
+const SendIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="19" x2="12" y2="5" />
+    <polyline points="5 12 12 5 19 12" />
+  </svg>
+);
+
 // قاموس الترجمة الكامل لغات المنظومة
 const translations = {
   ar: {
@@ -20,17 +46,17 @@ const translations = {
     accessAccount: "الدخول إلى حساب النظام",
     processing: "جاري معالجة بنية البناء...",
     placeholder: "اسأل عن أي شيء أو صف صفحتك...",
-    livePreview: "💻 معاينة مباشرة",
-    prodDeploy: "🚀 نشر الإنتاج",
+    livePreview: "معاينة مباشرة",
+    prodDeploy: "نشر الإنتاج",
     previewWin: "نافذة المعاينة (بيئة معزولة)",
     close: "إغلاق",
     deployProgress: "جاري نشر الإنتاج في السحابة",
     envLive: "✓ البيئة الحية في:",
     returnWorkspace: "العودة إلى مساحة العمل",
     syncing: "جاري المزامنة مع خوادم السحاب...",
-    signOut: "تسجيل الخروج",
-    language: "🌐 اللغة",
-    profile: "👤 الحساب",
+    signOut: "Logout",
+    language: "Language",
+    profile: "الحساب",
     dir: "rtl"
   },
   en: {
@@ -38,17 +64,17 @@ const translations = {
     accessAccount: "ACCESS SYSTEM ACCOUNT",
     processing: "Processing build architecture...",
     placeholder: "Ask anything or describe your landing page...",
-    livePreview: "💻 Live Preview",
-    prodDeploy: "🚀 Production Deploy",
+    livePreview: "Live Preview",
+    prodDeploy: "Production Deploy",
     previewWin: "PREVIEW WINDOW (SANDBOX)",
     close: "Close",
     deployProgress: "PRODUCTION DEPLOYMENT IN PROGRESS",
     envLive: "✓ Environment Live at:",
     returnWorkspace: "Return to Workspace",
     syncing: "Synchronizing repository to cloud grid...",
-    signOut: "Sign Out",
-    language: "🌐 Language",
-    profile: "👤 Profile",
+    signOut: "Logout",
+    language: "Language",
+    profile: "Profile",
     dir: "ltr"
   },
   es: {
@@ -56,17 +82,17 @@ const translations = {
     accessAccount: "ACCEDER A LA CUENTA DEL SISTEMA",
     processing: "Procesando arquitectura de compilación...",
     placeholder: "Pregunta cualquier cosa o describe tu página...",
-    livePreview: "💻 Vista previa en vivo",
-    prodDeploy: "🚀 Despliegue de producción",
+    livePreview: "Vista previa en vivo",
+    prodDeploy: "Despliegue de producción",
     previewWin: "VENTANA DE VISTA PREVIA (SANDBOX)",
     close: "Cerrar",
     deployProgress: "DESPLIEGUE DE PRODUCCIÓN EN PROGRESO",
     envLive: "✓ Entorno en vivo en:",
     returnWorkspace: "Volver al espacio de trabajo",
     syncing: "Sincronizando repositorio con la nube...",
-    signOut: "Cerrar sesión",
-    language: "🌐 Idioma",
-    profile: "👤 Perfil",
+    signOut: "Logout",
+    language: "Language",
+    profile: "Perfil",
     dir: "ltr"
   },
   fr: {
@@ -74,17 +100,17 @@ const translations = {
     accessAccount: "ACCÉDER AU COMPTE SYSTÈME",
     processing: "Traitement de l'architecture de build...",
     placeholder: "Demandez n'importe quoi ou décrivez votre page...",
-    livePreview: "💻 Aperçu en direct",
-    prodDeploy: "🚀 Déploiement Production",
+    livePreview: "Aperçu en direct",
+    prodDeploy: "Déploiement Production",
     previewWin: "FENÊTRE D'APERÇU (SANDBOX)",
     close: "Fermer",
     deployProgress: "DÉPLOIEMENT PRODUCTION EN COURS",
     envLive: "✓ Environnement en direct sur:",
     returnWorkspace: "Retour à l'espace de travail",
     syncing: "Synchronisation du dépôt vers le cloud...",
-    signOut: "Se déconnecter",
-    language: "🌐 Langue",
-    profile: "👤 Profil",
+    signOut: "Logout",
+    language: "Language",
+    profile: "Profil",
     dir: "ltr"
   },
   de: {
@@ -92,17 +118,17 @@ const translations = {
     accessAccount: "SYSTEMKONTO ZUGREIFEN",
     processing: "Build-Architektur wird verarbeitet...",
     placeholder: "Fragen Sie alles oder beschreiben Sie Ihre Seite...",
-    livePreview: "💻 Live-Vorschau",
-    prodDeploy: "🚀 Produktions-Deploy",
+    livePreview: "Live-Vorschau",
+    prodDeploy: "Produktions-Deploy",
     previewWin: "VORSCHAU-FENSTER (SANDBOX)",
     close: "Schließen",
     deployProgress: "PRODUKTIONS-DEPLOYMENT REGE REGE",
     envLive: "✓ Umgebung Live unter:",
     returnWorkspace: "Zurück zum Arbeitsbereich",
     syncing: "Repository mit Cloud-Grid synchronisieren...",
-    signOut: "Abmelden",
-    language: "🌐 Sprache",
-    profile: "👤 Profil",
+    signOut: "Logout",
+    language: "Language",
+    profile: "Profil",
     dir: "ltr"
   },
   tr: {
@@ -110,17 +136,17 @@ const translations = {
     accessAccount: "SİSTEM HESABINA ERİŞİM",
     processing: "Derleme mimarisi işleniyor...",
     placeholder: "Herhangi bir şey sorun veya sayfanızı tanımlayın...",
-    livePreview: "💻 Canlı Önizleme",
-    prodDeploy: "🚀 Üretim Dağıtımı",
+    livePreview: "Canlı Önizleme",
+    prodDeploy: "Üretim Dağıtımı",
     previewWin: "ÖNİZLEME PENCERESİ (SANDBOX)",
     close: "Kapat",
     deployProgress: "ÜRETİM DAĞITIMI DEVAM EDİYOR",
     envLive: "✓ Canlı Ortam Adresi:",
     returnWorkspace: "Çalışma Alanına Dön",
     syncing: "Depo bulut sunucularıyla senkronize ediliyor...",
-    signOut: "Çıkış Yap",
-    language: "🌐 Dil",
-    profile: "👤 Profil",
+    signOut: "Logout",
+    language: "Language",
+    profile: "Profil",
     dir: "ltr"
   }
 };
@@ -396,11 +422,14 @@ export default function NovaAI() {
 
                 <button 
                   onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
-                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: t.dir === 'rtl' ? 'right' : 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem', display: 'flex', gap: '8px', alignItems: 'center' }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#0d0d0d'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <span>{t.language}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                    <LanguageIcon />
+                    <span>{t.language}</span>
+                  </div>
                   <span style={{ fontSize: '0.7rem', color: '#444444' }}>{lang.toUpperCase()} ❯</span>
                 </button>
 
@@ -437,7 +466,7 @@ export default function NovaAI() {
                   onMouseEnter={(e) => e.currentTarget.style.background = '#140505'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  {t.signOut}
+                  <span style={{ color: '#ff6b6b', letterSpacing: '0.5px' }}>[→ {t.signOut}</span>
                 </button>
               </div>
             )}
@@ -530,11 +559,11 @@ export default function NovaAI() {
             {/* صندوق مدخلات ومحرك معالجة الأكواد الأحادي الفخم */}
             <div style={{ 
               width: '100%', display: 'flex', gap: '12px', background: '#000000', border: '1px solid #1f1f1f', 
-              padding: '12px 16px', borderRadius: '14px', alignItems: 'center', boxSizing: 'border-box',
+              padding: '12px 16px', borderRadius: '100px', alignItems: 'center', boxSizing: 'border-box',
               flexShrink: 0
             }}>
               {isListening ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, paddingLeft: '8px' }}>
                   <div style={{ width: '3px', background: '#ffffff', borderRadius: '3px', animation: 'wavePulse 0.4s infinite ease-in-out' }} />
                   <div style={{ width: '3px', background: '#ffffff', borderRadius: '3px', animation: 'wavePulse 0.6s infinite ease-in-out', animationDelay: '0.1s' }} />
                   <div style={{ width: '3px', background: '#ffffff', borderRadius: '3px', animation: 'wavePulse 0.3s infinite ease-in-out', animationDelay: '0.2s' }} />
@@ -544,12 +573,29 @@ export default function NovaAI() {
                   type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder={robotState === 'thinking' ? t.processing : t.placeholder} 
                   disabled={robotState === 'thinking'}
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ffffff', fontSize: '0.95rem', textAlign: t.dir === 'rtl' ? 'right' : 'left' }}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ffffff', fontSize: '0.95rem', padding: '4px 8px', textAlign: t.dir === 'rtl' ? 'right' : 'left' }}
                 />
               )}
 
-              <button onClick={toggleVoice} disabled={robotState === 'thinking'} style={{ background: 'transparent', color: isListening ? '#ffffff' : '#555555', border: 'none', width: '30px', height: '30px', cursor: 'pointer', fontSize: '1rem' }}>🎙️</button>
-              <button onClick={handleSendMessage} disabled={robotState === 'thinking' || !userInput.trim()} style={{ background: userInput.trim() ? '#ffffff' : '#000000', color: userInput.trim() ? '#000000' : '#555555', border: userInput.trim() ? 'none' : '1px solid #1f1f1f', width: '36px', height: '36px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold', transform: t.dir === 'rtl' ? 'scaleX(-1)' : 'none', transition: 'all 0.2s' }}>↗</button>
+              {/* زر المايك المحدث الدائري طبق الأصل من الصور */}
+              <button 
+                onClick={toggleVoice} 
+                disabled={robotState === 'thinking'} 
+                style={{ background: '#1a1a1a', color: isListening ? '#ffffff' : '#aaaaaa', border: 'none', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#242424'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#1a1a1a'}
+              >
+                <MicrophoneIcon />
+              </button>
+              
+              {/* زر السهم البيضاوي المحدث المماثل للصور الفاخرة */}
+              <button 
+                onClick={handleSendMessage} 
+                disabled={robotState === 'thinking' || !userInput.trim()} 
+                style={{ background: userInput.trim() ? '#ffffff' : '#1a1a1a', color: userInput.trim() ? '#000000' : '#444444', border: 'none', width: '54px', height: '36px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+              >
+                <SendIcon />
+              </button>
             </div>
 
           </div>
