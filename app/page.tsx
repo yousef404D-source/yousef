@@ -46,6 +46,7 @@ export default function NovaAI() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const [userInput, setUserInput] = useState('');
+  const [lastUserPrompt, setLastUserPrompt] = useState(''); // حفظ الطلب الأخير لإرساله للـ Deploy الحقيقي
   const [robotState, setRobotState] = useState<'normal' | 'thinking' | 'listening'>('normal');
   const [thinkingStatusText, setThinkingStatusText] = useState('جاري تحليل طلبك...');
   
@@ -57,7 +58,6 @@ export default function NovaAI() {
 
   const [currentProjectState, setCurrentProjectState] = useState<'idle' | 'asking_details' | 'ready_to_build'>('idle');
   const [showWorkspaceButtons, setShowWorkspaceButtons] = useState(false); 
-  const [activePreviewCode, setActivePreviewCode] = useState<string | null>(null);
   
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [deployingStatus, setDeployingStatus] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
@@ -127,6 +127,7 @@ export default function NovaAI() {
     setCurrentLang(detectedLang);
 
     setChatMessages((prev) => [...prev, { sender: 'user', text: userText }]);
+    setLastUserPrompt(userText); // حفظ النص البرمجي الحالي ليتم تمريره لعملية الرفع
     setUserInput('');
     setRobotState('thinking');
     setThinkingStatusText(detectedLang === 'ar' ? 'جاري تحليل تفاصيل طلبك...' : 'Analyzing input request...');
@@ -139,15 +140,13 @@ export default function NovaAI() {
           setRobotState('normal');
           setCurrentProjectState('ready_to_build');
           
-          setActivePreviewCode(`<!DOCTYPE html><html><head><style>body { background: #050505; color: #fff; font-family: sans-serif; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; margin:0; } .box { border: 1px dashed #333; padding: 40px; border-radius: 12px; text-align:center; box-shadow: 0 4px 30px rgba(0,0,0,0.5); }</style></head><body><div class="box"><h1>Custom Workspace Preview</h1><p>Architected perfectly around your custom prompt: "${userText}"</p><p style="color:#888; font-size:0.9rem;">This workspace is fully scalable. You can request changes or click Production Deploy anytime.</p></div></body></html>`);
-          
           setChatMessages((prev) => [
             ...prev,
             {
               sender: 'bot',
               text: detectedLang === 'ar' 
-                ? `🎯 تم تحميل تفاصيلك ومواصفاتك المخصصة بنجاح!\n\nلقد قمت ببناء نسخة معاينة حية متكاملة بناءً على رغبتك. تظهر لك الآن أزرار التحكم "Preview" و "Deploy" في الشريط العلوي. إذا كنت تريد تعديل أي شيء أخبرني هنا، وإذا كان ممتازاً اضغط على "Deploy" لجعله موقعاً حقيقياً.`
-                : `🎯 Dynamic specifications loaded successfully!\n\nI have structured a comprehensive Live Preview according to your details. The "Preview" and "Deploy" toggles are now active at the top. If you need any code iterations, just let me know here. If it's perfect, click "Deploy" to publish it live.`
+                ? `🎯 تم تحميل المواصفات المخصصة بنجاح!\n\nلقد قمت بتهيئة بيئة الإنتاج للبدء. يظهر لك الآن زر التحكم "Deploy" في الشريط العلوي لتوليد الموقع الحقيقي ورفعه بالكامل على حسابك في Vercel. اضغط عليه للبدء بالرفع الفوري.`
+                : `🎯 Dynamic specifications loaded successfully!\n\nI have configured the internal compiler environment. The "Deploy" toggle is now active at the top. Click it to initiate real generation and deployment directly into your Vercel instance.`
             }
           ]);
           return;
@@ -165,7 +164,7 @@ export default function NovaAI() {
             {
               sender: 'bot',
               text: detectedLang === 'ar'
-                ? `💡 لقد لاحظت أنك تريد إنشاء منصة ويب جديدة. قبل أن أبدأ في كتابة الأكواد البرمجية للموقع وتوليدها، هل هناك أي تفاصيل إضافية أو شروط محددة تود إضافتها？ (مثل: ألوان معينة تفضلها، أقسام تريد رؤيتها، مميزات خاصة بالموقع، أو هوية بصرية معينة)`
+                ? `💡 لقد لاحظت أنك تريد إنشاء منصة ويب جديدة. قبل أن أبدأ في كتابة الأكواد البرمجية للموقع وتوليدها، هل هناك أي تفاصيل إضافية أو شروط محددة تود إضافتها؟ (مثل: ألوان معينة تفضلها، أقسام تريد رؤيتها، مميزات خاصة بالموقع، أو هوية بصرية معينة)`
                 : `💡 I detected that you want to engineer a new web platform. Before we compile the architecture, are there any custom details or technical requirements you want included? (e.g., Specific color schemes, UI sections, responsive layouts, or branding style)`
             }
           ]);
@@ -185,45 +184,45 @@ export default function NovaAI() {
     }, 1200);
   };
 
-  const triggerDeployment = () => {
-    if (!activePreviewCode) return;
+  // 🚀 استدعاء الرفع والإنتاج الحقيقي الفعلي بإرسال الـ prompt إلى السيرفر
+  const triggerDeployment = async () => {
+    if (!lastUserPrompt) return;
     
-    setDeployingStatus({ active: true, progress: 0, url: null });
-    
-    const stepsAr = [
-      { p: 20, t: 'جاري فحص وتدقيق هيكلة الأكواد المصدرية...' },
-      { p: 45, t: 'جاري تجميع وحزم ملفات المشروع والإنتاج...' },
-      { p: 70, t: 'جاري حجز الخوادم السحابية الآمنة لـ Nova...' },
-      { p: 90, t: 'جاري ربط النطاقات وتوليد الرابط النهائي الحقيقي...' },
-      { p: 100, t: 'الموقع حقيقي والآن على شبكة الإنترنت!' }
-    ];
+    setDeployingStatus({ active: true, progress: 15, url: null });
+    setThinkingStatusText(currentLang === 'ar' ? 'جاري إرسال طلبك ومخاطبة وساطة ذكاء OpenAI لتصميم الهيكل واكتشاف النمط...' : 'Calling OpenAI Models to construct structured modular architecture...');
 
-    const stepsEn = [
-      { p: 20, t: 'Parsing source code elements...' },
-      { p: 45, t: 'Bundling distribution assets...' },
-      { p: 70, t: 'Provisioning secure cloud infrastructure...' },
-      { p: 90, t: 'Binding dynamic URL endpoints...' },
-      { p: 100, t: 'Production site online!' }
-    ];
+    try {
+      // تحديث نسبي مظهر العداد لتجربة المستخدم الحية أثناء معالجة الخادم للبيانات
+      const interval = setInterval(() => {
+        setDeployingStatus(prev => {
+          if (prev.progress >= 85) { clearInterval(interval); return prev; }
+          return { ...prev, progress: prev.progress + 5 };
+        });
+      }, 1500);
 
-    const targetSteps = currentLang === 'ar' ? stepsAr : stepsEn;
+      const res = await fetch('/api/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: lastUserPrompt })
+      });
 
-    let currentStepIdx = 0;
-    const interval = setInterval(() => {
-      if (currentStepIdx < targetSteps.length) {
-        const current = targetSteps[currentStepIdx];
-        setDeployingStatus(prev => ({ ...prev, progress: current.p }));
-        setThinkingStatusText(current.t);
-        currentStepIdx++;
-      } else {
-        clearInterval(interval);
-        setDeployingStatus(prev => ({
-          ...prev,
-          progress: 100,
-          url: `https://nova-production-grid-${Math.floor(1000 + Math.random() * 9000)}.vercel.app`
-        }));
+      clearInterval(interval);
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Deployment server failed.');
       }
-    }, 900);
+
+      setDeployingStatus({
+        active: true,
+        progress: 100,
+        url: data.url
+      });
+      setThinkingStatusText(currentLang === 'ar' ? 'الموقع حقيقي والآن حي ومباشر على شبكة الإنترنت!' : 'Production site live and operating online!');
+    } catch (err: any) {
+      setDeployingStatus({ active: true, progress: 0, url: null });
+      setThinkingStatusText(currentLang === 'ar' ? `فشل الرفع: ${err.message || 'Error occurred.'}` : `Deployment Failed: ${err.message || 'Error occurred.'}`);
+    }
   };
 
   return (
@@ -259,7 +258,6 @@ export default function NovaAI() {
           to { opacity: 1; transform: scale(1); }
         }
         
-        /* 🌊 تحريك خلفية التغذية البصرية بشكل دوراني ممتد ومموج هادئ */
         @keyframes visualNutritionAnimation {
           0% { transform: scale(1.1) rotate(0deg); }
           50% { transform: scale(1.15) rotate(2deg); }
@@ -273,7 +271,6 @@ export default function NovaAI() {
           background-position: center; 
           background-size: cover;
           opacity: 0.45; 
-          filter: contrast(115%) brightness(105%) mix-blend-mode(multiply);
           z-index: -2; 
           animation: visualNutritionAnimation 28s ease-in-out infinite;
           pointer-events: none; 
@@ -290,11 +287,10 @@ export default function NovaAI() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #dcd6cd; border-radius: 4px; }
       `}</style>
 
-      {/* 🖼️ صورة التغذية البصرية المدمجة بالبيج والمتحركة */}
       <div className="animated-visual-bg"></div>
       <div className="bg-vignette-overlay"></div>
 
-      {/* ==================== 🛠️ شريط التحكم العلوي المتطور والأزرار مخفية بالبداية ==================== */}
+      {/* ==================== 🛠️ شريط التحكم العلوي المتطور ==================== */}
       {step === 'main' && user && (
         <div style={{ 
           position: 'absolute', top: '24px', left: '24px', right: '24px',
@@ -305,45 +301,24 @@ export default function NovaAI() {
           <div style={{ display: 'flex', gap: '10px', pointerEvents: 'auto', direction: 'ltr' }}>
             {showWorkspaceButtons && (
               <div style={{ display: 'flex', gap: '10px', animation: 'fadeInButtons 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
-                {/* برفيو مكتوب فيه Preview فقط باللون الأبيض والخط داكن متناسق */}
-                <button 
-                  onClick={() => activePreviewCode && setPreviewModalOpen(true)}
-                  disabled={!activePreviewCode}
-                  style={{ 
-                    background: '#ffffff', 
-                    border: '1px solid #d0c9be', 
-                    color: '#111111', 
-                    padding: '8px 20px', 
-                    borderRadius: '8px', 
-                    cursor: activePreviewCode ? 'pointer' : 'not-allowed', 
-                    fontSize: '0.85rem', 
-                    fontWeight: '600', 
-                    transition: 'all 0.2s',
-                    opacity: activePreviewCode ? 1 : 0.5,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                  }}
-                >
-                  Preview
-                </button>
-                {/* دبلوي مكتوب فيه Deploy فقط وباللون الأزرق المميز */}
                 <button 
                   onClick={triggerDeployment}
-                  disabled={!activePreviewCode}
+                  disabled={!lastUserPrompt}
                   style={{ 
                     background: '#0070f3', 
                     border: 'none', 
                     color: '#ffffff', 
-                    padding: '8px 20px', 
+                    padding: '8px 24px', 
                     borderRadius: '8px', 
-                    cursor: activePreviewCode ? 'pointer' : 'not-allowed', 
+                    cursor: lastUserPrompt ? 'pointer' : 'not-allowed', 
                     fontSize: '0.85rem', 
                     fontWeight: '600', 
                     transition: 'all 0.2s',
-                    opacity: activePreviewCode ? 1 : 0.5,
-                    boxShadow: activePreviewCode ? '0 4px 14px rgba(0, 112, 243, 0.25)' : 'none'
+                    opacity: lastUserPrompt ? 1 : 0.5,
+                    boxShadow: lastUserPrompt ? '0 4px 14px rgba(0, 112, 243, 0.25)' : 'none'
                   }}
                 >
-                  Deploy
+                  {currentLang === 'ar' ? 'رفع الموقع إلى فِرسيل (Deploy)' : 'Production Deploy'}
                 </button>
               </div>
             )}
@@ -376,7 +351,7 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [1] شاشة فحص كلمة المرور الفاخرة بالثيم البيج الناعم ==================== */}
+      {/* ==================== [1] بوابة فحص كلمة المرور ==================== */}
       {step === 'password' && (
         <div style={{ 
           animation: isExitingPassword ? 'screenFadeOut 0.5s ease forwards' : 'none', 
@@ -398,7 +373,7 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [2] بوابة التحقق وحسابات المستخدم ==================== */}
+      {/* ==================== [2] بوابة الحساب والتحقق ==================== */}
       {step === 'oauth' && (
         <div style={{ width: '90%', maxWidth: '370px', background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid #e5ded4', padding: '35px 25px', borderRadius: '24px', boxSizing: 'border-box', zIndex: 10, direction: 'ltr', boxShadow: '0 20px 40px rgba(0,0,0,0.05)' }}>
           <div style={{ margin: '0 auto 20px auto', display: 'flex', justifyContent: 'center', animation: 'floatLogo 4s infinite ease-in-out' }}>
@@ -413,7 +388,7 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [3] شاشة محرك الشات ومساحة المحادثة الذكية ==================== */}
+      {/* ==================== [3] شاشة محرك الشات ومساحة المحادثة الرئيسي ==================== */}
       {step === 'main' && (
         <div style={{ 
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column', 
@@ -432,7 +407,7 @@ export default function NovaAI() {
               </div>
             </div>
 
-            {/* مساحة رسائل الدردشة الانسيابية بالثيم الجديد المتوافق مع البيج */}
+            {/* مساحة رسائل الدردشة */}
             <div className="custom-scrollbar" style={{ 
               width: '100%', flex: 1, overflowY: 'auto', 
               display: 'flex', flexDirection: 'column', gap: '16px', padding: '15px 5px',
@@ -455,7 +430,7 @@ export default function NovaAI() {
                 </div>
               ))}
 
-              {/* تأثير جاري التفكير (Thinking Status) المتناغم مع لغة الدردشة */}
+              {/* تأثير جاري التفكير (Thinking Status) */}
               {robotState === 'thinking' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: 'fit-content', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(8px)', border: '1px dashed #cdc5b6', padding: '12px 20px', borderRadius: '14px', animation: 'fadeInMessages 0.2s ease', alignSelf: 'flex-start' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: currentLang === 'ar' ? 'row-reverse' : 'row' }}>
@@ -469,7 +444,7 @@ export default function NovaAI() {
               )}
             </div>
 
-            {/* صندوق مدخلات المحادثة الرئيسي */}
+            {/* صندوق مدخلات المحادثة */}
             <div style={{ 
               width: '100%', display: 'flex', gap: '12px', background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(12px)', border: '1px solid #dcd5c9', 
               padding: '10px 16px', borderRadius: '100px', alignItems: 'center', boxSizing: 'border-box', flexShrink: 0,
@@ -502,30 +477,14 @@ export default function NovaAI() {
 
           </div>
 
-          {/* ==================== نافذة الـ Live Preview الهيكلية للمشاريع ==================== */}
-          {previewModalOpen && activePreviewCode && (
-            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 12000, padding: '20px', boxSizing: 'border-box' }}>
-              <div style={{ width: '100%', maxWidth: '1000px', height: '85vh', background: '#ffffff', border: '1px solid #dcd5c9', borderRadius: '18px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 30px 70px rgba(0,0,0,0.15)' }}>
-                <div style={{ padding: '14px 20px', borderBottom: '1px solid #f0eae0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box', background: '#faf8f5', flexDirection: currentLang === 'ar' ? 'row-reverse' : 'row' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexDirection: currentLang === 'ar' ? 'row-reverse' : 'row' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#111111', fontWeight: '700', letterSpacing: '0.5px' }}>{currentLang === 'ar' ? 'نافذة المعاينة الحية (Sandbox)' : 'PREVIEW WINDOW (SANDBOX)'}</span>
-                    <span style={{ fontSize: '0.7rem', background: '#eae3d8', color: '#555555', padding: '3px 8px', borderRadius: '4px', fontWeight: '600' }}>Development Build</span>
-                  </div>
-                  <button onClick={() => setPreviewModalOpen(false)} style={{ background: '#111111', color: '#ffffff', border: 'none', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', transition: 'opacity 0.2s' }}>{currentLang === 'ar' ? 'إغلاق المعاينة' : 'Close Preview'}</button>
-                </div>
-                <iframe srcDoc={activePreviewCode} title="Nova Scalable Workspace" style={{ flex: 1, width: '100%', border: 'none', background: '#ffffff' }} />
-              </div>
-            </div>
-          )}
-
-          {/* ==================== شاشة معالجة الـ Production Deploy النهائية والمستقلة ==================== */}
+          {/* ==================== شاشة معالجة الـ Production Deploy الحقيقية التابعة لـ Vercel ==================== */}
           {deployingStatus.active && (
             <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(244, 240, 234, 0.95)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 13000 }}>
               <div style={{ width: '90%', maxWidth: '420px', background: '#ffffff', border: '1px solid #dcd5c9', padding: '40px 35px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 25px 60px rgba(0,0,0,0.06)' }}>
-                <p style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#777777', marginBottom: '20px', fontWeight: '700' }}>{currentLang === 'ar' ? 'جاري بناء ورفع الموقع الإنتاجي النهائي' : 'COMPILING PRODUCTION BUILD'}</p>
+                <p style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#777777', marginBottom: '20px', fontWeight: '700' }}>{currentLang === 'ar' ? 'بناء ورفع الموقع للإنتاج عبر VERCEL API' : 'VERCEL PRODUCTION DEPLOYMENT'}</p>
                 
                 <div style={{ width: '100%', height: '3px', background: '#eae3d8', borderRadius: '4px', overflow: 'hidden', marginBottom: '15px' }}>
-                  <div style={{ width: `${deployingStatus.progress}%`, height: '100%', background: '#0070f3', transition: 'width 0.3s ease' }} />
+                  <div style={{ width: `${deployingStatus.progress}%`, height: '100%', background: deployingStatus.url ? '#0070f3' : '#666', transition: 'width 0.3s ease' }} />
                 </div>
                 
                 <p style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '15px', color: '#111111' }}>{deployingStatus.progress}%</p>
@@ -534,7 +493,7 @@ export default function NovaAI() {
                 {deployingStatus.url && (
                   <div style={{ animation: 'fadeInMessages 0.4s ease' }}>
                     <div style={{ background: '#faf8f5', border: '1px solid #eadecf', padding: '16px', borderRadius: '12px', marginBottom: '25px' }}>
-                      <p style={{ color: '#555555', fontSize: '0.8rem', margin: '0 0 8px 0', fontWeight: '500' }}>{currentLang === 'ar' ? '✓ البيئة الإنتاجية للموقع تعمل الآن على الرابط التالي:' : '✓ Production Environment Live at:'}</p>
+                      <p style={{ color: '#555555', fontSize: '0.8rem', margin: '0 0 8px 0', fontWeight: '500' }}>{currentLang === 'ar' ? '✓ تم رفع الموقع بنجاح ورابط حسابك في Vercel يعمل الآن عـلى:' : '✓ Deployment Success! Live production URL at:'}</p>
                       <a href={deployingStatus.url} target="_blank" rel="noreferrer" style={{ color: '#0070f3', fontSize: '0.88rem', wordBreak: 'break-all', fontWeight: '600', textDecoration: 'underline' }}>{deployingStatus.url}</a>
                     </div>
                     <button onClick={() => setDeployingStatus({ active: false, progress: 0, url: null })} style={{ width: '100%', background: '#111111', color: '#ffffff', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '600', transition: 'background 0.2s' }}>{currentLang === 'ar' ? 'العودة لمساحة العمل' : 'Return to Workspace'}</button>

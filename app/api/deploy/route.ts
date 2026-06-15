@@ -9,13 +9,11 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    console.log("🚀 NOVA AI STARTED");
+    console.log("🚀 NOVA AI STARTED PRODUCTION DEPLOY");
 
-    /* ---------------- 🔒 SUPABASE ADMIN CHECK (UPDATED) ---------------- */
-    // جلب ملفات تعريف الارتباط بشكل متوافق مع خوادم Next.js الحديثة
+    /* ---------------- 🔒 SUPABASE ADMIN CHECK ---------------- */
     const cookieStore = await cookies();
     
-    // بناء اتصال السيرفر المحدث والمتوافق لمنع أخطاء الـ Compiler
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -30,7 +28,7 @@ export async function POST(req: Request) {
                 cookieStore.set(name, value, options)
               );
             } catch {
-              // يمكن تجاهل هذا الخطأ بأمان إذا تم استدعاء التابع من داخل مكوّن خادم (Server Component)
+              // تجاهل الخطأ إذا تم الاستدعاء من داخل Server Component
             }
           },
         },
@@ -62,6 +60,7 @@ export async function POST(req: Request) {
 
     /* -------------------------------------------------------- */
 
+    // جلب الـ prompt الحقيقي الذي كتبه المستخدم في الواجهة
     const { prompt } = await req.json();
     if (!prompt) {
       return Response.json({ success: false, error: "Prompt is required" }, { status: 400 });
@@ -90,7 +89,12 @@ IMPORTANT RULES:
       ],
     });
 
-    const jsx = completion.choices[0].message.content || "";
+    let jsx = completion.choices[0].message.content || "";
+    
+    // تنظيف المخرجات من أي علامات تعليق برمجية قد تضعها OpenAI تلقائياً
+    if (jsx.startsWith("```")) {
+      jsx = jsx.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "");
+    }
 
     /* ---------------- STRUCTURING FILES FOR VERCEL ---------------- */
     const projectName = "nova-ai-" + crypto.randomUUID().slice(0, 8);
@@ -123,11 +127,12 @@ IMPORTANT RULES:
 
     /* ---------------- VERCEL API DEPLOYMENT ---------------- */
     const response = await axios.post(
-      "https://api.vercel.com/v13/deployments",
+      "[https://api.vercel.com/v13/deployments](https://api.vercel.com/v13/deployments)",
       { name: projectName, files, projectSettings: { framework: "nextjs" } },
       { headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } }
     );
 
+    // إرجاع نجاح العملية مع الرابط الفعلي المباشر
     return Response.json({ success: true, url: "https://" + response.data.url });
 
   } catch (error: any) {
