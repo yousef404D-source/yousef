@@ -5,7 +5,7 @@ import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../lib/supabase';
 
-// ==================== 🎨 الأيقونات والهوية البصرية الفرعونية المتطورة ====================
+// ==================== 🎨 Advanced Egyptian & Cosmic Quantum Icons ====================
 const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M100 15 L122 55 L165 45 L145 82 L185 100 L145 118 L165 155 L122 145 L100 185 L78 145 L35 155 L55 118 L15 100 L55 82 L35 45 L78 55 Z" stroke="#ffffff" strokeWidth="5" strokeLinejoin="round" fill="none"/>
@@ -65,12 +65,16 @@ const LogoutIcon = () => (
   </svg>
 );
 
+// 🌐 Multi-language Matrix configuration (Arabic Removed)
 const LANGUAGES = [
-  { code: 'ar', name: 'العربية' },
-  { code: 'en', name: 'English' }
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'ja', name: '日本語' },
+  { code: 'zh', name: '中文' }
 ];
 
-// ==================== 🚀 المكون الهيكلي الرئيسي للبوابة ====================
 export default function NovaAI() {
   const [step, setStep] = useState<'password' | 'oauth' | 'main'>('password');
   const [password, setPassword] = useState('');
@@ -80,7 +84,7 @@ export default function NovaAI() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [lang, setLang] = useState<string>('ar');
+  const [lang, setLang] = useState<string>('en');
 
   const [profileData, setProfileData] = useState({
     displayName: 'yousef Baker',
@@ -91,7 +95,7 @@ export default function NovaAI() {
   const [userInput, setUserInput] = useState('');
   const [lastGeneratedPreview, setLastGeneratedPreview] = useState<string>(''); 
   const [robotState, setRobotState] = useState<'normal' | 'thinking'>('normal');
-  const [thinkingStatusText, setThinkingStatusText] = useState('جاري المعالجة...');
+  const [thinkingStatusText, setThinkingStatusText] = useState('Processing framework metrics...');
   
   const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; hasPreview?: boolean }>>([]);
   const [showDeployButton, setShowDeployButton] = useState(false); 
@@ -163,7 +167,6 @@ export default function NovaAI() {
     }
   };
 
-  // 🤖 معالجة إرسال الشات وتوليد المعاينة المحلية فقط
   const handleSendMessage = async () => {
     if (!userInput.trim()) return;
 
@@ -171,10 +174,10 @@ export default function NovaAI() {
     setChatMessages((prev) => [...prev, { sender: 'user', text: userText }]);
     setUserInput('');
     setRobotState('thinking');
-    setThinkingStatusText(lang === 'ar' ? 'جاري نسج المعاينة التفاعلية للموقع محلياً...' : 'Weaving localized responsive preview...');
+    setThinkingStatusText('Weaving localized responsive preview architecture...');
 
     const lowerText = userText.toLowerCase();
-    const isBuildIntent = lowerText.includes('build') || lowerText.includes('create') || lowerText.includes('website') || lowerText.includes('make') || lowerText.includes('موقع') || lowerText.includes('انشاء') || lowerText.includes('صمم') || lowerText.includes('ابني') || lowerText.includes('برمج');
+    const isBuildIntent = lowerText.includes('build') || lowerText.includes('create') || lowerText.includes('website') || lowerText.includes('make');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -200,9 +203,7 @@ export default function NovaAI() {
     } catch (err) {
       setTimeout(() => {
         setRobotState('normal');
-        const fallbackText = lang === 'ar' 
-          ? '⚙️ [واجهة معاينة تفاعلية (Preview Workspace)]:\nتم بناء هيكل التصميم والأكواد الخاصة بالموقع محلياً بنجاح في البرفيو. يرجى مراجعته بدقة، وعند الاستقرار عليه اضغط على زر "Deploy" بالأعلى ليتم تحويله إلى موقع إنتاج حقيقي.'
-          : '⚙️ [Local Preview Workspace]:\nThe architecture has been calculated locally in your preview container. Review the elements, then click Deploy to finalize production delivery.';
+        const fallbackText = '⚙️ [Local Preview Workspace]:\nThe layout architecture has been compiled locally in your sandbox ecosystem. Review the interactive features, then click the "Publish Live" button to deploy onto public production nodes.';
         
         setLastGeneratedPreview(fallbackText);
         if (isBuildIntent) setShowDeployButton(true);
@@ -211,12 +212,11 @@ export default function NovaAI() {
     }
   };
 
-  // 🔥 زر الأمر التنفيذي الحقيقي (Deploy) - يرسل البرفيو الحالي لنوفا ويستقبل الرابط المباشر للموقع
   const triggerProductionDeployment = async () => {
     if (!lastGeneratedPreview) return;
     
     setDeployingStatus({ active: true, progress: 5, url: null });
-    setThinkingStatusText(lang === 'ar' ? 'يتم الآن إرسال كود البرفيو وتوجيهه لخوادم نوفا للبناء الحي...' : 'Dispatching active preview code block to Nova deployment cloud...');
+    setThinkingStatusText('Dispatching active preview code block to Nova deployment cloud...');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -250,14 +250,14 @@ export default function NovaAI() {
 
   return (
     <div style={{ 
-      direction: lang === 'ar' ? 'rtl' : 'ltr', 
+      direction: 'ltr', 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', 
       display: 'flex', justifyContent: 'center', alignItems: 'center', 
       height: '100vh', width: '100vw', background: '#020204', color: '#ffffff', 
       margin: 0, padding: 0, position: 'relative', overflow: 'hidden'
     }}>
       
-      {/* 🏛️ المحرك البصري الفرعوني للخلفية وجزيئات الطاقة الصاعدة */}
+      {/* 🏛️ Cosmic Energy Background Particle Engines */}
       <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, pointerEvents: 'none', zIndex: 1, overflow: 'hidden' }}>
         <AnkhIcon style={{ position: 'absolute', top: '15%', left: '10%', animation: 'floatArtifact 8s infinite ease-in-out' }} />
         <EyeOfHorusIcon style={{ position: 'absolute', top: '25%', right: '12%', animation: 'floatArtifact 11s infinite ease-in-out 1s' }} />
@@ -274,7 +274,6 @@ export default function NovaAI() {
         @keyframes deployCircleRotate { 0% { transform: rotate(0deg); border-top-color: #0070f3; } 100% { transform: rotate(360deg); border-top-color: #00df89; } }
         @keyframes shakeInput { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); } 20%, 40%, 60%, 80% { transform: translateX(10px); } }
         
-        /* 🌀 تأثير حركات التفكير المطور (Quantum Energy Rotation) */
         @keyframes quantumOrbit {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
@@ -290,10 +289,10 @@ export default function NovaAI() {
         .fade-step-active { opacity: 1; transform: scale(1); z-index: 10; }
       `}</style>
 
-      {/* ==================== 🛠️ شريط النظام العلوي المستقل ==================== */}
+      {/* ==================== 🛠️ Unified System Control Bar ==================== */}
       {step === 'main' && user && (
         <div style={{ position: 'absolute', top: '24px', left: '24px', right: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 11000 }}>
-          <div ref={menuRef} style={{ display: 'flex', alignItems: 'center', gap: '12px', order: lang === 'ar' ? 1 : 2, position: 'relative' }}>
+          <div ref={menuRef} style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
             <button 
               onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }}
               style={{ background: '#0a0a0c', border: '1px solid #1a1a22', width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
@@ -303,31 +302,43 @@ export default function NovaAI() {
               </div>
             </button>
             {isMenuOpen && (
-              <div style={{ position: 'absolute', top: '48px', right: lang === 'ar' ? 0 : 'auto', left: lang === 'en' ? 0 : 'auto', background: '#0a0a0c', border: '1px solid #1a1a22', borderRadius: '12px', width: '220px', padding: '6px', zIndex: 12000 }}>
-                <div style={{ padding: '10px 12px', borderBottom: '1px solid #1a1a22', textAlign: lang === 'ar' ? 'right' : 'left' }}>
+              <div style={{ position: 'absolute', top: '48px', left: 0, background: '#0a0a0c', border: '1px solid #1a1a22', borderRadius: '12px', width: '220px', padding: '6px', zIndex: 12000 }}>
+                <div style={{ padding: '10px 12px', borderBottom: '1px solid #1a1a22', textAlign: 'left' }}>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: '#ffffff', fontWeight: '600' }}>{profileData.displayName}</p>
                   <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#777788', wordBreak: 'break-all' }}>{profileData.email}</p>
                 </div>
-                <button onClick={() => { setIsSettingsModalOpen(true); setIsMenuOpen(false); }} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: lang === 'ar' ? 'right' : 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexDirection: lang === 'ar' ? 'row' : 'row-reverse' }}><AccountSettingsIcon /> <span style={{ flex: 1 }}>Account Settings</span></button>
-                <button onClick={(e) => { e.stopPropagation(); setIsLangMenuOpen(!isLangMenuOpen); }} style={{ width: '100%', background: isLangMenuOpen ? '#1a1a22' : 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: lang === 'ar' ? 'right' : 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: lang === 'ar' ? 'row' : 'row-reverse' }}><LanguageIcon /> <span style={{ flex: 1, display: 'flex', justifyContent: 'space-between', width: '100%', flexDirection: lang === 'ar' ? 'row-reverse' : 'row' }}><span>Language</span><span style={{ fontSize: '0.75rem', color: '#888899' }}>{currentLanguageName} ▾</span></span></button>
-                <button onClick={() => supabase.auth.signOut()} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4d4d', padding: '10px 12px', textAlign: lang === 'ar' ? 'right' : 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: lang === 'ar' ? 'row' : 'row-reverse' }}><LogoutIcon /> <span style={{ color: '#ff4d4d' }}>Logout</span></button>
+                <button onClick={() => { setIsSettingsModalOpen(true); setIsMenuOpen(false); }} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}><AccountSettingsIcon /> <span style={{ flex: 1 }}>Account Settings</span></button>
+                
+                {/* Multi-language selection layer */}
+                <div style={{ position: 'relative' }}>
+                  <button onClick={(e) => { e.stopPropagation(); setIsLangMenuOpen(!isLangMenuOpen); }} style={{ width: '100%', background: isLangMenuOpen ? '#1a1a22' : 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}><LanguageIcon /> <span style={{ flex: 1, display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>Language</span><span style={{ fontSize: '0.75rem', color: '#888899' }}>{currentLanguageName} ▾</span></span></button>
+                  {isLangMenuOpen && (
+                    <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: '8px', background: '#0a0a0c', border: '1px solid #1a1a22', borderRadius: '12px', width: '160px', padding: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+                      {LANGUAGES.map((l) => (
+                        <button key={l.code} onClick={() => { setLang(l.code); setIsLangMenuOpen(false); setIsMenuOpen(false); }} style={{ width: '100%', background: lang === l.code ? '#1a1a22' : 'transparent', border: 'none', color: '#ffffff', padding: '8px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.8rem', display: 'block' }}>{l.name}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={() => supabase.auth.signOut()} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4d4d', padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}><LogoutIcon /> <span style={{ color: '#ff4d4d' }}>Logout</span></button>
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '10px', direction: 'ltr', order: lang === 'ar' ? 2 : 1 }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
             {showDeployButton && (
               <button 
                 onClick={triggerProductionDeployment} 
                 style={{ background: '#00df89', border: 'none', color: '#000000', padding: '10px 24px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: '0 0 15px rgba(0, 223, 137, 0.4)' }}
               >
-                {lang === 'ar' ? '🚀 تحويل البرفيو إلى موقع حقيقي' : '🚀 Publish Live'}
+                🚀 Publish Live
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* ==================== [1] حائط الباسورد ==================== */}
+      {/* ==================== [1] Firewall Security Access ==================== */}
       {step === 'password' && (
         <div className="fade-step-enter fade-step-active" style={{ textAlign: 'center', width: '90%', maxWidth: '360px', background: '#050507', border: '1px solid #14141c', padding: '45px 30px', borderRadius: '24px', animation: robotIsShaking ? 'shakeInput 0.4s ease-in-out' : 'none' }}>
           <div style={{ margin: '0 auto 25px auto', display: 'flex', justifyContent: 'center', animation: 'floatLogo 4s infinite ease-in-out' }}>
@@ -338,7 +349,7 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [2] حائط تسجيل الدخول السحابي ==================== */}
+      {/* ==================== [2] Cloud Gate Identity ==================== */}
       {step === 'oauth' && (
         <div className="fade-step-enter fade-step-active" style={{ width: '90%', maxWidth: '370px', background: '#050507', border: '1px solid #14141c', padding: '35px 25px', borderRadius: '24px' }}>
           <p style={{ fontSize: '0.75rem', color: '#ffffff', marginBottom: '25px', letterSpacing: '1px', fontWeight: '700', textAlign: 'center' }}>ACCESS SYSTEM ACCOUNT</p>
@@ -346,7 +357,7 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ==================== [3] شاشة الشات ومساحة المعاينة التفاعلية ==================== */}
+      {/* ==================== [3] Workspace Main Terminal Area ==================== */}
       {step === 'main' && (
         <div className="fade-step-enter fade-step-active" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '30px 20px', boxSizing: 'border-box' }}>
           <div style={{ width: '100%', maxWidth: '720px', height: '83vh', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
@@ -357,10 +368,10 @@ export default function NovaAI() {
                   <NovaLogoIcon size={75} />
                 </div>
                 <h2 style={{ fontSize: '1.6rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
-                  {lang === 'ar' ? `مرحباً، ${profileData.displayName}` : `Welcome, ${profileData.displayName}`}
+                  Welcome, {profileData.displayName}
                 </h2>
                 <p style={{ color: '#555566', fontSize: '0.88rem', marginTop: '6px' }}>
-                  {lang === 'ar' ? 'اطلب موقعك الآن، سيتم عرضه هنا كمعاينة وتعديله بحرية قبل رفعه لايف!' : 'Request your web architecture, a fully interactive preview will render locally first.'}
+                  Request your layout matrix. A secure local container preview will render instantly.
                 </p>
               </div>
             )}
@@ -374,21 +385,21 @@ export default function NovaAI() {
                       background: msg.sender === 'user' ? '#0a0a0f' : '#050507', 
                       border: msg.hasPreview ? '1px solid rgba(0, 112, 243, 0.4)' : msg.sender === 'user' ? '1px solid #1a1a26' : '1px solid #111116', 
                       boxShadow: msg.hasPreview ? '0 0 15px rgba(0, 112, 243, 0.1)' : 'none',
-                      color: '#ffffff', fontSize: '0.92rem', lineHeight: '1.6', textAlign: lang === 'ar' ? 'right' : 'left' 
+                      color: '#ffffff', fontSize: '0.92rem', lineHeight: '1.6', textAlign: 'left' 
                     }}>
                       <span style={{ whiteSpace: 'pre-line' }}>{msg.text}</span>
                       
                       {msg.hasPreview && (
                         <div style={{ marginTop: '12px', background: '#000000', border: '1px solid #1a1a24', borderRadius: '8px', padding: '10px', fontSize: '0.8rem', color: '#888899', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ width: '6px', height: '6px', background: '#0070f3', borderRadius: '50%' }} />
-                          {lang === 'ar' ? 'واجهة معاينة تفاعلية (Local Preview Container)' : 'Local Sandbox Preview Container'}
+                          Local Sandbox Preview Container
                         </div>
                       )}
                     </div>
                   </div>
                 ))}
 
-                {/* 🌀 المكون المتطور لأنيميشن التفكير الجديد (Quantum Particles Loop) */}
+                {/* 🌀 Quantum Orbit Thinking Animation */}
                 {robotState === 'thinking' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: '#050507', border: '1px solid #111116', padding: '12px 20px', borderRadius: '16px', alignSelf: 'flex-start' }}>
                     <div style={{ width: '22px', height: '22px', position: 'relative', animation: 'quantumOrbit 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite' }}>
@@ -404,22 +415,22 @@ export default function NovaAI() {
               <div style={{ flex: 1 }} />
             )}
 
-            {/* ⌨️ شريط صندوق الإدخال الذكي */}
-            <div style={{ width: '100%', display: 'flex', gap: '10px', background: '#050507', border: '1px solid #15151c', padding: '10px 16px', borderRadius: '100px', alignItems: 'center', flexDirection: lang === 'ar' ? 'row-reverse' : 'row', mt: 'auto', zIndex: 100 }}>
+            {/* ⌨️ Smart Input System Bar */}
+            <div style={{ width: '100%', display: 'flex', gap: '10px', background: '#050507', border: '1px solid #15151c', padding: '10px 16px', borderRadius: '100px', alignItems: 'center', marginTop: 'auto', zIndex: 100 }}>
               <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><MicrophoneIcon /></button>
               <input 
                 ref={inputRef}
                 type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder={lang === 'ar' ? 'اصنع لي موقع شركة تقنية بمميزات...' : 'Build a custom application framework...'} 
+                placeholder="Build a sleek tech company dashboard matrix..." 
                 disabled={robotState === 'thinking'}
-                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ffffff', fontSize: '0.95rem', padding: '6px 8px', textAlign: lang === 'ar' ? 'right' : 'left' }}
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ffffff', fontSize: '0.95rem', padding: '6px 8px', textAlign: 'left' }}
               />
               <button onClick={handleSendMessage} disabled={robotState === 'thinking' || !userInput.trim()} style={{ background: userInput.trim() ? '#ffffff' : '#111115', border: 'none', width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><UpArrowIcon /></button>
             </div>
 
           </div>
 
-          {/* ==================== ⚙️ شاشة الإعدادات المدمجة ==================== */}
+          {/* ==================== ⚙️ Global Infrastructure Preferences ==================== */}
           {isSettingsModalOpen && (
             <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.95)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 20000 }}>
               <div className="fade-step-enter fade-step-active" style={{ width: '90%', maxWidth: '650px', background: '#050505', border: '1px solid #15151c', borderRadius: '12px', overflow: 'hidden' }}>
@@ -436,7 +447,7 @@ export default function NovaAI() {
             </div>
           )}
 
-          {/* ==================== 🚀 شاشة تحويل البرفيو وإنشاء الرابط الفعلي المباشر ==================== */}
+          {/* ==================== 🚀 Production Deployment Terminal Overlay ==================== */}
           {deployingStatus.active && (
             <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.98)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 13000 }}>
               <div className="fade-step-enter fade-step-active" style={{ width: '90%', maxWidth: '420px', background: '#050507', border: '1px solid #15151c', padding: '45px 35px', borderRadius: '28px', textAlign: 'center' }}>
@@ -453,13 +464,13 @@ export default function NovaAI() {
                       <span style={{ color: '#00df89', fontSize: '1.5rem', fontWeight: 'bold' }}>✓</span>
                     </div>
                     <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: '#ffffff', margin: '0 0 8px 0' }}>
-                      {lang === 'ar' ? 'تم الرفع بنجاح!' : 'Deployment Complete!'}
+                      Deployment Complete!
                     </h3>
                     <p style={{ color: '#666677', fontSize: '0.82rem', margin: '0 0 25px 0' }}>
-                      {lang === 'ar' ? 'قامت خوادم نوفا بتحويل الكود التخيلي إلى موقع ويب حقيقي مباشر على هذا الرابط:' : 'Nova infrastructure has compiled and mapped your preview code build to a live live server production URL:'}
+                      Nova infrastructure has compiled and mapped your preview code build to a live server production URL:
                     </p>
                     
-                    {/* 🔗 صندوق استلام الرابط الحي التفاعلي المستلم من السيرفر */}
+                    {/* Live Production Secured Link Output */}
                     <div style={{ background: '#000000', border: '1px solid #1a1a26', borderRadius: '12px', padding: '14px', marginBottom: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <a href={deployingStatus.url || '#'} target="_blank" rel="noreferrer" style={{ color: '#0070f3', fontSize: '0.92rem', wordBreak: 'break-all', fontWeight: '600', textDecoration: 'none', transition: 'color 0.2s' }}>
                         {deployingStatus.url} ↗
@@ -470,7 +481,7 @@ export default function NovaAI() {
                       onClick={() => { setDeployingStatus({ active: false, progress: 0, url: null }); setShowDeployButton(false); }} 
                       style={{ width: '100%', background: '#ffffff', color: '#000000', border: 'none', padding: '14px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}
                     >
-                      {lang === 'ar' ? 'العودة لمساحة العمل والشات' : 'Back to Workspace'}
+                      Back to Workspace
                     </button>
                   </div>
                 )}
