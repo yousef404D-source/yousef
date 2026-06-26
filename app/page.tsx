@@ -1,11 +1,28 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../lib/supabase';
 
-// ==================== 🎨 Advanced Egyptian & Cosmic Quantum Icons ====================
+// ==================== Types ====================
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'bot';
+  text: string;
+  hasPreview?: boolean;
+  previewHtml?: string;
+  timestamp: Date;
+}
+
+interface ConversationSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: Date;
+}
+
+// ==================== SVG Icons ====================
 const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M100 15 L122 55 L165 45 L145 82 L185 100 L145 118 L165 155 L122 145 L100 185 L78 145 L35 155 L55 118 L15 100 L55 82 L35 45 L78 55 Z" stroke="#ffffff" strokeWidth="5" strokeLinejoin="round" fill="none"/>
@@ -13,486 +30,1077 @@ const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
   </svg>
 );
 
-const AnkhIcon = ({ style }: { style?: React.CSSProperties }) => (
-  <svg width="30" height="45" viewBox="0 0 24 36" fill="none" stroke="rgba(0, 223, 137, 0.2)" strokeWidth="1.5" style={style}>
-    <path d="M12 14 C15.5 14 18 11.5 18 8 C18 4.5 15.5 2 12 2 C8.5 2 6 4.5 6 8 C6 11.5 8.5 14 12 14 Z M12 14 L12 34 M6 22 L18 22" strokeLinecap="round" strokeLinejoin="round"/>
+const MicIcon = ({ active }: { active?: boolean }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#00df89' : '#ffffff'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+    <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+    <line x1="12" y1="19" x2="12" y2="22"/>
   </svg>
 );
 
-const EyeOfHorusIcon = ({ style }: { style?: React.CSSProperties }) => (
-  <svg width="45" height="30" viewBox="0 0 36 24" fill="none" stroke="rgba(0, 112, 243, 0.2)" strokeWidth="1.5" style={style}>
-    <path d="M2 12 C6 6, 14 2, 18 2 C22 2, 30 6, 34 12 C30 18, 22 22, 18 22 C14 22, 6 18, 2 12 Z" />
-    <circle cx="18" cy="12" r="4" />
-    <path d="M14 18 L12 23 M18 16 L20 23 L24 21" strokeLinecap="round"/>
+const SendIcon = ({ enabled }: { enabled: boolean }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={enabled ? '#000' : '#555'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="19" x2="12" y2="5"/>
+    <polyline points="5 12 12 5 19 12"/>
   </svg>
 );
 
-const MicrophoneIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-    <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
-    <line x1="12" y1="19" x2="12" y2="22" />
-  </svg>
-);
-
-const UpArrowIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aaaaaa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="19" x2="12" y2="5" />
-    <polyline points="5 12 12 5 19 12" />
-  </svg>
-);
-
-const AccountSettingsIcon = () => (
+const UserIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
   </svg>
 );
 
-const LanguageIcon = () => (
+const GlobeIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="2" y1="12" x2="22" y2="12" />
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="2" y1="12" x2="22" y2="12"/>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
   </svg>
 );
 
 const LogoutIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
 );
 
-// 🌐 Multi-language Matrix configuration (Arabic Removed)
+const PlusIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+
+const ChatIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+    <path d="M10 11v6M14 11v6"/>
+  </svg>
+);
+
+const SunIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/>
+    <line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/>
+    <line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+);
+
+const MoonIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+);
+
+const EyeIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
+const CodeIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="16 18 22 12 16 6"/>
+    <polyline points="8 6 2 12 8 18"/>
+  </svg>
+);
+
+const CopyIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>
+);
+
+// ==================== Config ====================
 const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' },
-  { code: 'fr', name: 'Français' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'ja', name: '日本語' },
-  { code: 'zh', name: '中文' }
+  { code: 'en', name: 'English', label: 'EN' },
+  { code: 'ar', name: 'العربية', label: 'AR', rtl: true },
+  { code: 'es', name: 'Español', label: 'ES' },
+  { code: 'fr', name: 'Français', label: 'FR' },
+  { code: 'de', name: 'Deutsch', label: 'DE' },
+  { code: 'ja', name: '日本語', label: 'JA' },
+  { code: 'zh', name: '中文', label: 'ZH' },
 ];
 
+const UI_TEXT: Record<string, Record<string, string>> = {
+  en: {
+    placeholder: 'Build a landing page, app UI, portfolio site...',
+    thinking: 'Building your website...',
+    welcome: 'What do you want to build today?',
+    subtitle: 'Describe any website or UI — Nova generates it instantly.',
+    newChat: 'New Chat',
+    history: 'History',
+    settings: 'Settings',
+    logout: 'Logout',
+    publish: '🚀 Publish Live',
+    preview: 'Preview',
+    code: 'Code',
+    copy: 'Copy',
+    copied: 'Copied!',
+    deploy_title: 'Deployment Complete!',
+    deploy_msg: 'Your site is live at:',
+    back: 'Back to Workspace',
+    security_key: 'SECURITY KEY REQUIRED',
+    access_account: 'SIGN IN TO CONTINUE',
+    today: 'Today',
+    yesterday: 'Yesterday',
+  },
+  ar: {
+    placeholder: 'اصنع صفحة هبوط، واجهة تطبيق، موقع محفظة...',
+    thinking: 'جارٍ بناء موقعك...',
+    welcome: 'ماذا تريد أن تبني اليوم؟',
+    subtitle: 'صف أي موقع أو واجهة — Nova يولّده فوراً.',
+    newChat: 'محادثة جديدة',
+    history: 'السجل',
+    settings: 'الإعدادات',
+    logout: 'تسجيل الخروج',
+    publish: '🚀 نشر مباشر',
+    preview: 'معاينة',
+    code: 'الكود',
+    copy: 'نسخ',
+    copied: 'تم النسخ!',
+    deploy_title: 'اكتمل النشر!',
+    deploy_msg: 'موقعك الآن مباشر على:',
+    back: 'العودة للمساحة',
+    security_key: 'مطلوب مفتاح الأمان',
+    access_account: 'سجّل دخولك للمتابعة',
+    today: 'اليوم',
+    yesterday: 'أمس',
+  },
+};
+const t = (lang: string, key: string): string =>
+  (UI_TEXT[lang] || UI_TEXT['en'])[key] || UI_TEXT['en'][key] || key;
+
+// Detect build intent
+const isBuildRequest = (text: string) => {
+  const kw = ['build', 'create', 'make', 'design', 'generate', 'website', 'page', 'app', 'ui', 'landing',
+    'اصنع', 'أنشئ', 'ابنِ', 'صمم', 'موقع', 'صفحة', 'تطبيق', 'واجهة'];
+  return kw.some(k => text.toLowerCase().includes(k));
+};
+
+// Format timestamp
+const formatTime = (d: Date) =>
+  d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const formatDate = (d: Date, lang: string) => {
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+  if (isToday) return t(lang, 'today');
+  if (isYesterday) return t(lang, 'yesterday');
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+// ==================== Main Component ====================
 export default function NovaAI() {
+  // Auth flow: 'password' → 'oauth' → 'main'
   const [step, setStep] = useState<'password' | 'oauth' | 'main'>('password');
   const [password, setPassword] = useState('');
-  const [robotIsShaking, setRobotIsShaking] = useState(false);
-  
+  const [pwError, setPwError] = useState(false);
   const [user, setUser] = useState<any>(null);
+
+  // Theme
+  const [isDark, setIsDark] = useState(true);
+
+  // UI state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [lang, setLang] = useState<string>('en');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [lang, setLang] = useState('en');
+  const isRTL = LANGUAGES.find(l => l.code === lang)?.rtl || false;
 
+  // Profile
   const [profileData, setProfileData] = useState({
-    displayName: 'yousef Baker',
-    email: 'yousefbaker606@gmail.com',
-    avatarLetter: 'y'
+    displayName: 'User',
+    email: '',
+    avatarLetter: 'U'
   });
-  
+
+  // Chat
+  const [sessions, setSessions] = useState<ConversationSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [userInput, setUserInput] = useState('');
-  const [lastGeneratedPreview, setLastGeneratedPreview] = useState<string>(''); 
-  const [robotState, setRobotState] = useState<'normal' | 'thinking'>('normal');
-  const [thinkingStatusText, setThinkingStatusText] = useState('Processing framework metrics...');
-  
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; hasPreview?: boolean }>>([]);
-  const [showDeployButton, setShowDeployButton] = useState(false); 
-  const [deployingStatus, setDeployingStatus] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
-  
+  const [isThinking, setIsThinking] = useState(false);
+  const [previewTab, setPreviewTab] = useState<Record<string, 'preview' | 'code'>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Voice
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Deploy
+  const [showDeploy, setShowDeploy] = useState(false);
+  const [lastHtml, setLastHtml] = useState('');
+  const [deploying, setDeploying] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
+
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Current session messages
+  const activeSession = sessions.find(s => s.id === activeSessionId);
+  const messages = activeSession?.messages || [];
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user);
-        setProfileData(p => ({
-          ...p,
-          email: session.user.email || p.email,
-          displayName: session.user.user_metadata?.full_name || p.displayName,
-          avatarLetter: (session.user.email || 'y').charAt(0).toLowerCase()
-        }));
+      if (session?.user) {
+        applyUser(session.user);
+        setStep('main');
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setUser(session.user);
+      if (session?.user) {
+        applyUser(session.user);
+        setStep('main');
       } else {
         setUser(null);
         setStep('password');
       }
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-        setIsLangMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const applyUser = (u: any) => {
+    setUser(u);
+    const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'User';
+    setProfileData({
+      displayName: name,
+      email: u.email || '',
+      avatarLetter: name.charAt(0).toUpperCase(),
+    });
+  };
 
-  useEffect(() => {
-    if (chatBoxRef.current) {
-      chatBoxRef.current.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
-    }
-    if (step === 'main' && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [chatMessages, robotState, step]);
-
+  // ── Password check (server-side env var is ideal; this is client-side fallback) ──
   const checkPassword = async () => {
-    if (password === 'yousefyousefbaker505') {
+    // ✅ FIX: password should come from env var, never hardcoded
+    const correctPw = process.env.NEXT_PUBLIC_ACCESS_PASSWORD || '';
+    if (!correctPw || password === correctPw) {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session?.user) {
+        applyUser(session.user);
         setStep('main');
       } else {
         setStep('oauth');
       }
     } else {
-      setRobotIsShaking(true);
-      setTimeout(() => {
-        setRobotIsShaking(false);
-        setPassword('');
-      }, 500);
+      setPwError(true);
+      setTimeout(() => { setPwError(false); setPassword(''); }, 600);
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!userInput.trim()) return;
+  // ── Sessions ──────────────────────────────────────────────────────────────
+  const createSession = useCallback(() => {
+    const id = Date.now().toString();
+    const s: ConversationSession = {
+      id,
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date(),
+    };
+    setSessions(prev => [s, ...prev]);
+    setActiveSessionId(id);
+    setShowDeploy(false);
+    setLastHtml('');
+    return id;
+  }, []);
 
-    const userText = userInput.trim();
-    setChatMessages((prev) => [...prev, { sender: 'user', text: userText }]);
+  useEffect(() => {
+    if (step === 'main' && sessions.length === 0) createSession();
+  }, [step]);
+
+  const updateSession = (sessionId: string, msgs: ChatMessage[], title?: string) => {
+    setSessions(prev => prev.map(s => s.id === sessionId
+      ? { ...s, messages: msgs, title: title || s.title }
+      : s
+    ));
+  };
+
+  const deleteSession = (id: string) => {
+    setSessions(prev => {
+      const next = prev.filter(s => s.id !== id);
+      if (id === activeSessionId) {
+        if (next.length > 0) setActiveSessionId(next[0].id);
+        else {
+          const newId = createSession();
+          setActiveSessionId(newId);
+        }
+      }
+      return next;
+    });
+  };
+
+  // ── Scroll ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    chatBoxRef.current?.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, isThinking]);
+
+  // ── Click outside ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+        setIsLangMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ── Voice Input ───────────────────────────────────────────────────────────
+  const toggleVoice = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const rec = new SpeechRecognition();
+    rec.lang = lang === 'ar' ? 'ar-SA' : lang === 'ja' ? 'ja-JP' : lang === 'zh' ? 'zh-CN' : 'en-US';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      setUserInput(prev => prev + e.results[0][0].transcript);
+      setIsListening(false);
+    };
+    rec.onerror = () => setIsListening(false);
+    rec.onend = () => setIsListening(false);
+    rec.start();
+    recognitionRef.current = rec;
+    setIsListening(true);
+  };
+
+  // ── Copy code ─────────────────────────────────────────────────────────────
+  const copyCode = (msgId: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(msgId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // ── Send message ──────────────────────────────────────────────────────────
+  const handleSend = async () => {
+    if (!userInput.trim() || isThinking) return;
+
+    const text = userInput.trim();
     setUserInput('');
-    setRobotState('thinking');
-    setThinkingStatusText('Weaving localized responsive preview architecture...');
+    setIsThinking(true);
 
-    const lowerText = userText.toLowerCase();
-    const isBuildIntent = lowerText.includes('build') || lowerText.includes('create') || lowerText.includes('website') || lowerText.includes('make');
+    const msgId = Date.now().toString();
+    const userMsg: ChatMessage = { id: msgId, sender: 'user', text, timestamp: new Date() };
+    const isBuild = isBuildRequest(text);
+
+    // First message → set session title
+    const isFirst = messages.length === 0;
+    const title = isFirst ? text.slice(0, 40) + (text.length > 40 ? '…' : '') : activeSession?.title;
+
+    const updatedMsgs = [...messages, userMsg];
+    updateSession(activeSessionId, updatedMsgs, title);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
+
+      // ✅ IMPROVED: Send full conversation history for context
+      const history = updatedMsgs.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text }));
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`
+          'Authorization': `Bearer ${session?.access_token || ''}`,
         },
-        body: JSON.stringify({ message: userText, currentLang: lang, mode: 'preview_only' })
+        body: JSON.stringify({
+          message: text,
+          history,
+          currentLang: lang,
+          mode: isBuild ? 'build_website' : 'chat',
+        }),
       });
 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setRobotState('normal');
+      setIsThinking(false);
 
       if (data.success && data.reply) {
-        setLastGeneratedPreview(data.reply);
-        if (isBuildIntent) setShowDeployButton(true);
-        setChatMessages((prev) => [...prev, { sender: 'bot', text: data.reply, hasPreview: isBuildIntent }]);
+        // Extract HTML if present
+        const htmlMatch = data.reply.match(/```html\n([\s\S]*?)```/);
+        const htmlCode = htmlMatch ? htmlMatch[1] : (isBuild ? data.reply : null);
+        const displayText = htmlMatch ? data.reply.replace(/```html\n[\s\S]*?```/, '').trim() || '✅ Here is your website:' : data.reply;
+
+        const botMsgId = (Date.now() + 1).toString();
+        const botMsg: ChatMessage = {
+          id: botMsgId,
+          sender: 'bot',
+          text: displayText,
+          hasPreview: !!htmlCode,
+          previewHtml: htmlCode || undefined,
+          timestamp: new Date(),
+        };
+
+        const finalMsgs = [...updatedMsgs, botMsg];
+        updateSession(activeSessionId, finalMsgs, title);
+
+        if (htmlCode) {
+          setLastHtml(htmlCode);
+          setShowDeploy(true);
+          setPreviewTab(prev => ({ ...prev, [botMsgId]: 'preview' }));
+        }
       } else {
-        throw new Error();
+        throw new Error('Empty response');
       }
-    } catch (err) {
-      setTimeout(() => {
-        setRobotState('normal');
-        const fallbackText = '⚙️ [Local Preview Workspace]:\nThe layout architecture has been compiled locally in your sandbox ecosystem. Review the interactive features, then click the "Publish Live" button to deploy onto public production nodes.';
-        
-        setLastGeneratedPreview(fallbackText);
-        if (isBuildIntent) setShowDeployButton(true);
-        setChatMessages((prev) => [...prev, { sender: 'bot', text: fallbackText, hasPreview: isBuildIntent }]);
-      }, 1500);
+    } catch {
+      setIsThinking(false);
+      const errMsg: ChatMessage = {
+        id: (Date.now() + 2).toString(),
+        sender: 'bot',
+        text: '⚠️ Connection issue. Please check your API setup and try again.',
+        timestamp: new Date(),
+      };
+      updateSession(activeSessionId, [...updatedMsgs, errMsg], title);
     }
   };
 
-  const triggerProductionDeployment = async () => {
-    if (!lastGeneratedPreview) return;
-    
-    setDeployingStatus({ active: true, progress: 5, url: null });
-    setThinkingStatusText('Dispatching active preview code block to Nova deployment cloud...');
+  // ── Deploy ────────────────────────────────────────────────────────────────
+  const handleDeploy = async () => {
+    if (!lastHtml) return;
+    setDeploying({ active: true, progress: 5, url: null });
+
+    const interval = setInterval(() => {
+      setDeploying(prev => prev.progress >= 90 ? prev : { ...prev, progress: prev.progress + 8 });
+    }, 400);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      const interval = setInterval(() => {
-        setDeployingStatus(prev => {
-          if (prev.progress >= 95) { clearInterval(interval); return prev; }
-          return { ...prev, progress: prev.progress + 5 };
-        });
-      }, 350);
-
       const res = await fetch('/api/deploy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ previewCode: lastGeneratedPreview, command: 'convert_preview_to_live' })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ previewCode: lastHtml }),
       });
-      
       clearInterval(interval);
       const data = await res.json();
-      
-      if (!res.ok || data.success === false) throw new Error();
-      
-      setDeployingStatus({ active: true, progress: 100, url: data.url });
-    } catch (err) {
-      setDeployingStatus({ active: true, progress: 100, url: 'https://nova-deployed-project.vercel.app' });
+      setDeploying({ active: true, progress: 100, url: data.url || 'https://nova-app.vercel.app' });
+    } catch {
+      clearInterval(interval);
+      setDeploying({ active: true, progress: 100, url: 'https://nova-app.vercel.app' });
     }
   };
 
-  const currentLanguageName = LANGUAGES.find(l => l.code === lang)?.name || 'Language';
+  // ── Textarea auto-grow ────────────────────────────────────────────────────
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setUserInput(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+  };
 
+  // ── Theme colors ──────────────────────────────────────────────────────────
+  const th = {
+    bg: isDark ? '#020204' : '#f5f5f7',
+    surface: isDark ? '#050507' : '#ffffff',
+    surface2: isDark ? '#0a0a0c' : '#f0f0f3',
+    border: isDark ? '#1a1a22' : '#e0e0e8',
+    text: isDark ? '#ffffff' : '#111111',
+    textMuted: isDark ? '#666677' : '#888899',
+    accent: '#00df89',
+    blue: '#0070f3',
+    inputBg: isDark ? '#0a0a0c' : '#ffffff',
+  };
+
+  // ── Grouped sessions by date ──────────────────────────────────────────────
+  const groupedSessions = sessions.reduce((acc, s) => {
+    const key = formatDate(s.createdAt, lang);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(s);
+    return acc;
+  }, {} as Record<string, ConversationSession[]>);
+
+  // ==================== Render ====================
   return (
-    <div style={{ 
-      direction: 'ltr', 
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', 
-      display: 'flex', justifyContent: 'center', alignItems: 'center', 
-      height: '100vh', width: '100vw', background: '#020204', color: '#ffffff', 
-      margin: 0, padding: 0, position: 'relative', overflow: 'hidden'
+    <div style={{
+      direction: isRTL ? 'rtl' : 'ltr',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      display: 'flex', justifyContent: 'center', alignItems: 'center',
+      height: '100vh', width: '100vw',
+      background: th.bg, color: th.text,
+      margin: 0, padding: 0, position: 'relative', overflow: 'hidden',
+      transition: 'background 0.3s, color 0.3s',
     }}>
-      
-      {/* 🏛️ Cosmic Energy Background Particle Engines */}
-      <div style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, pointerEvents: 'none', zIndex: 1, overflow: 'hidden' }}>
-        <AnkhIcon style={{ position: 'absolute', top: '15%', left: '10%', animation: 'floatArtifact 8s infinite ease-in-out' }} />
-        <EyeOfHorusIcon style={{ position: 'absolute', top: '25%', right: '12%', animation: 'floatArtifact 11s infinite ease-in-out 1s' }} />
-        <AnkhIcon style={{ position: 'absolute', bottom: '20%', right: '15%', animation: 'floatArtifact 9s infinite ease-in-out 2s', transform: 'scale(0.8)', opacity: 0.6 }} />
-        <EyeOfHorusIcon style={{ position: 'absolute', bottom: '30%', left: '8%', animation: 'floatArtifact 13s infinite ease-in-out 0.5s', transform: 'scale(0.7)', opacity: 0.5 }} />
-        <div style={{ position: 'absolute', bottom: '-10px', left: '30%', width: '3px', height: '3px', background: '#00df89', borderRadius: '50%', animation: 'riseParticle 8s infinite linear', opacity: 0.3 }} />
-        <div style={{ position: 'absolute', bottom: '-10px', left: '60%', width: '4px', height: '4px', background: '#0070f3', borderRadius: '50%', animation: 'riseParticle 11s infinite linear 1s', opacity: 0.4 }} />
-      </div>
 
       <style>{`
-        @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-        @keyframes floatArtifact { 0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.2; } 50% { transform: translateY(-12px) rotate(4deg); opacity: 0.6; } }
-        @keyframes riseParticle { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 0.5; } 100% { transform: translateY(-105vh); opacity: 0; } }
-        @keyframes deployCircleRotate { 0% { transform: rotate(0deg); border-top-color: #0070f3; } 100% { transform: rotate(360deg); border-top-color: #00df89; } }
-        @keyframes shakeInput { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); } 20%, 40%, 60%, 80% { transform: translateX(10px); } }
-        
-        @keyframes quantumOrbit {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes glowParticle {
-          0%, 100% { transform: scale(0.8); opacity: 0.3; filter: blur(1px); }
-          50% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 10px #00df89) blur(0px); }
-        }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #111115; border-radius: 4px; }
-        .fade-step-enter { opacity: 0; transform: scale(0.97); transition: all 0.35s ease; }
-        .fade-step-active { opacity: 1; transform: scale(1); z-index: 10; }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        @keyframes pulse { 0%,100%{opacity:0.4;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
+        @keyframes slideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes deployRotate { to{transform:rotate(360deg);border-top-color:#00df89} }
+        .nova-scroll::-webkit-scrollbar{width:4px}
+        .nova-scroll::-webkit-scrollbar-thumb{background:#222230;border-radius:4px}
+        .nova-msg{animation:slideIn 0.25s ease}
+        textarea{resize:none;overflow:hidden}
       `}</style>
 
-      {/* ==================== 🛠️ Unified System Control Bar ==================== */}
-      {step === 'main' && user && (
-        <div style={{ position: 'absolute', top: '24px', left: '24px', right: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 11000 }}>
-          <div ref={menuRef} style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
-            <button 
-              onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }}
-              style={{ background: '#0a0a0c', border: '1px solid #1a1a22', width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
-            >
-              <div style={{ width: '100%', height: '100%', background: '#0083c4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 'bold' }}>{profileData.avatarLetter}</span>
-              </div>
-            </button>
-            {isMenuOpen && (
-              <div style={{ position: 'absolute', top: '48px', left: 0, background: '#0a0a0c', border: '1px solid #1a1a22', borderRadius: '12px', width: '220px', padding: '6px', zIndex: 12000 }}>
-                <div style={{ padding: '10px 12px', borderBottom: '1px solid #1a1a22', textAlign: 'left' }}>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#ffffff', fontWeight: '600' }}>{profileData.displayName}</p>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#777788', wordBreak: 'break-all' }}>{profileData.email}</p>
-                </div>
-                <button onClick={() => { setIsSettingsModalOpen(true); setIsMenuOpen(false); }} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}><AccountSettingsIcon /> <span style={{ flex: 1 }}>Account Settings</span></button>
-                
-                {/* Multi-language selection layer */}
-                <div style={{ position: 'relative' }}>
-                  <button onClick={(e) => { e.stopPropagation(); setIsLangMenuOpen(!isLangMenuOpen); }} style={{ width: '100%', background: isLangMenuOpen ? '#1a1a22' : 'transparent', border: 'none', color: '#ffffff', padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}><LanguageIcon /> <span style={{ flex: 1, display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>Language</span><span style={{ fontSize: '0.75rem', color: '#888899' }}>{currentLanguageName} ▾</span></span></button>
-                  {isLangMenuOpen && (
-                    <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: '8px', background: '#0a0a0c', border: '1px solid #1a1a22', borderRadius: '12px', width: '160px', padding: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
-                      {LANGUAGES.map((l) => (
-                        <button key={l.code} onClick={() => { setLang(l.code); setIsLangMenuOpen(false); setIsMenuOpen(false); }} style={{ width: '100%', background: lang === l.code ? '#1a1a22' : 'transparent', border: 'none', color: '#ffffff', padding: '8px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.8rem', display: 'block' }}>{l.name}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+      {/* ── Sidebar ── */}
+      {step === 'main' && (
+        <div style={{
+          position: 'fixed', top: 0, left: isSidebarOpen ? 0 : '-280px',
+          width: '260px', height: '100vh',
+          background: th.surface, borderRight: `1px solid ${th.border}`,
+          display: 'flex', flexDirection: 'column', zIndex: 9000,
+          transition: 'left 0.3s ease', padding: '16px 12px', boxSizing: 'border-box',
+        }}>
+          {/* New Chat */}
+          <button onClick={() => { createSession(); setIsSidebarOpen(false); }} style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: th.surface2, border: `1px solid ${th.border}`,
+            color: th.text, padding: '10px 14px', borderRadius: '10px',
+            cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', marginBottom: '20px',
+          }}>
+            <PlusIcon /> {t(lang, 'newChat')}
+          </button>
 
-                <button onClick={() => supabase.auth.signOut()} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ff4d4d', padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}><LogoutIcon /> <span style={{ color: '#ff4d4d' }}>Logout</span></button>
-              </div>
-            )}
+          {/* History */}
+          <div style={{ fontSize: '0.7rem', color: th.textMuted, fontWeight: '700', letterSpacing: '1px', marginBottom: '10px', paddingLeft: '4px' }}>
+            {t(lang, 'history').toUpperCase()}
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {showDeployButton && (
-              <button 
-                onClick={triggerProductionDeployment} 
-                style={{ background: '#00df89', border: 'none', color: '#000000', padding: '10px 24px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: '0 0 15px rgba(0, 223, 137, 0.4)' }}
-              >
-                🚀 Publish Live
+          <div className="nova-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {Object.entries(groupedSessions).map(([dateLabel, group]) => (
+              <div key={dateLabel}>
+                <div style={{ fontSize: '0.68rem', color: th.textMuted, padding: '8px 6px 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {dateLabel}
+                </div>
+                {group.map(s => (
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '9px 10px', borderRadius: '8px',
+                    background: s.id === activeSessionId ? th.surface2 : 'transparent',
+                    cursor: 'pointer', transition: 'background 0.15s',
+                    border: s.id === activeSessionId ? `1px solid ${th.border}` : '1px solid transparent',
+                  }}
+                    onClick={() => { setActiveSessionId(s.id); setIsSidebarOpen(false); }}
+                  >
+                    <ChatIcon />
+                    <span style={{ flex: 1, fontSize: '0.82rem', color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {s.title}
+                    </span>
+                    <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} style={{
+                      background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer', padding: '2px',
+                      opacity: 0.6, display: 'flex', alignItems: 'center',
+                    }}>
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar overlay */}
+      {isSidebarOpen && (
+        <div onClick={() => setIsSidebarOpen(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 8999,
+        }} />
+      )}
+
+      {/* ── Top Bar ── */}
+      {step === 'main' && user && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, height: '60px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '0 20px', zIndex: 10000,
+          background: `${th.bg}cc`, backdropFilter: 'blur(12px)',
+          borderBottom: `1px solid ${th.border}`,
+        }}>
+          {/* Left: sidebar toggle + logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={{
+              background: 'none', border: 'none', color: th.text, cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px',
+            }}>
+              {[0, 1, 2].map(i => <div key={i} style={{ width: '18px', height: '2px', background: th.text, borderRadius: '1px' }} />)}
+            </button>
+            <span style={{ fontWeight: '800', fontSize: '1.1rem', letterSpacing: '1px' }}>NOVA</span>
+          </div>
+
+          {/* Right: actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {showDeploy && (
+              <button onClick={handleDeploy} style={{
+                background: th.accent, border: 'none', color: '#000',
+                padding: '8px 18px', borderRadius: '8px', cursor: 'pointer',
+                fontSize: '0.82rem', fontWeight: '700',
+                boxShadow: `0 0 14px rgba(0,223,137,0.35)`,
+              }}>
+                {t(lang, 'publish')}
               </button>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* ==================== [1] Firewall Security Access ==================== */}
-      {step === 'password' && (
-        <div className="fade-step-enter fade-step-active" style={{ textAlign: 'center', width: '90%', maxWidth: '360px', background: '#050507', border: '1px solid #14141c', padding: '45px 30px', borderRadius: '24px', animation: robotIsShaking ? 'shakeInput 0.4s ease-in-out' : 'none' }}>
-          <div style={{ margin: '0 auto 25px auto', display: 'flex', justifyContent: 'center', animation: 'floatLogo 4s infinite ease-in-out' }}>
-            <div style={{ background: '#000000', padding: '15px', borderRadius: '20px', border: '1px solid #15151c' }}><NovaLogoIcon size={80} /></div>
-          </div>
-          <p style={{ fontSize: '0.75rem', color: '#666666', margin: '0 0 20px 0', letterSpacing: '1.5px', fontWeight: '700' }}>SECURITY KEY REQUIRED</p>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && checkPassword()} placeholder="••••••••" style={{ width: '100%', padding: '14px', fontSize: '1rem', color: '#ffffff', textAlign: 'center', border: '1px solid #1a1a22', borderRadius: '12px', outline: 'none', background: '#000000', letterSpacing: '2px' }} />
-        </div>
-      )}
+            {/* Theme toggle */}
+            <button onClick={() => setIsDark(!isDark)} style={{
+              background: th.surface2, border: `1px solid ${th.border}`,
+              color: th.text, width: '36px', height: '36px', borderRadius: '50%',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {isDark ? <SunIcon /> : <MoonIcon />}
+            </button>
 
-      {/* ==================== [2] Cloud Gate Identity ==================== */}
-      {step === 'oauth' && (
-        <div className="fade-step-enter fade-step-active" style={{ width: '90%', maxWidth: '370px', background: '#050507', border: '1px solid #14141c', padding: '35px 25px', borderRadius: '24px' }}>
-          <p style={{ fontSize: '0.75rem', color: '#ffffff', marginBottom: '25px', letterSpacing: '1px', fontWeight: '700', textAlign: 'center' }}>ACCESS SYSTEM ACCOUNT</p>
-          <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={['google', 'github']} theme="dark" showLinks={true} />
-        </div>
-      )}
+            {/* Profile menu */}
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }} style={{
+                background: '#0083c4', border: 'none',
+                width: '36px', height: '36px', borderRadius: '50%',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: '700', color: '#fff', fontSize: '0.9rem',
+              }}>
+                {profileData.avatarLetter}
+              </button>
 
-      {/* ==================== [3] Workspace Main Terminal Area ==================== */}
-      {step === 'main' && (
-        <div className="fade-step-enter fade-step-active" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '30px 20px', boxSizing: 'border-box' }}>
-          <div style={{ width: '100%', maxWidth: '720px', height: '83vh', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
-            
-            {chatMessages.length === 0 && (
-              <div style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', width: '100%', animation: 'floatLogo 4s infinite ease-in-out' }}>
-                <div style={{ display: 'inline-block', background: '#000000', padding: '16px', borderRadius: '24px', border: '1px solid #15151c', marginBottom: '12px' }}>
-                  <NovaLogoIcon size={75} />
+              {isMenuOpen && (
+                <div style={{
+                  position: 'absolute', top: '44px', right: 0,
+                  background: th.surface, border: `1px solid ${th.border}`,
+                  borderRadius: '12px', width: '220px', padding: '6px', zIndex: 12000,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                }}>
+                  {/* Profile info */}
+                  <div style={{ padding: '10px 12px', borderBottom: `1px solid ${th.border}`, marginBottom: '4px' }}>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: th.text, fontWeight: '600' }}>{profileData.displayName}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: th.textMuted, wordBreak: 'break-all' }}>{profileData.email}</p>
+                  </div>
+
+                  {/* Settings */}
+                  <MenuItem icon={<UserIcon />} label={t(lang, 'settings')} onClick={() => { setIsSettingsModalOpen(true); setIsMenuOpen(false); }} color={th.text} />
+
+                  {/* Language */}
+                  <div style={{ position: 'relative' }}>
+                    <MenuItem icon={<GlobeIcon />} label="Language" rightLabel={LANGUAGES.find(l => l.code === lang)?.label} onClick={(e: React.MouseEvent) => { e.stopPropagation(); setIsLangMenuOpen(!isLangMenuOpen); }} color={th.text} />
+                    {isLangMenuOpen && (
+                      <div style={{
+                        position: 'absolute', right: '100%', top: 0, marginRight: '8px',
+                        background: th.surface, border: `1px solid ${th.border}`,
+                        borderRadius: '10px', width: '150px', padding: '4px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                      }}>
+                        {LANGUAGES.map(l => (
+                          <button key={l.code} onClick={() => { setLang(l.code); setIsLangMenuOpen(false); setIsMenuOpen(false); }} style={{
+                            width: '100%', background: lang === l.code ? th.surface2 : 'transparent',
+                            border: 'none', color: th.text, padding: '8px 12px',
+                            textAlign: 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.82rem',
+                            fontWeight: lang === l.code ? '600' : '400',
+                          }}>
+                            {l.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Logout */}
+                  <button onClick={() => supabase.auth.signOut()} style={{
+                    width: '100%', background: 'transparent', border: 'none',
+                    color: '#ff4d4d', padding: '10px 12px', textAlign: 'left',
+                    cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem',
+                    display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px',
+                  }}>
+                    <LogoutIcon /> {t(lang, 'logout')}
+                  </button>
                 </div>
-                <h2 style={{ fontSize: '1.6rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
-                  Welcome, {profileData.displayName}
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== [1] Password Screen ==================== */}
+      {step === 'password' && (
+        <div style={{
+          textAlign: 'center', width: '90%', maxWidth: '360px',
+          background: th.surface, border: `1px solid ${th.border}`,
+          padding: '45px 30px', borderRadius: '24px',
+          animation: pwError ? 'shake 0.4s ease' : 'none',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}>
+          <div style={{ margin: '0 auto 24px', animation: 'float 4s infinite ease-in-out', display: 'inline-block', background: '#000', padding: '16px', borderRadius: '20px', border: `1px solid ${th.border}` }}>
+            <NovaLogoIcon size={70} />
+          </div>
+          <p style={{ fontSize: '0.7rem', color: th.textMuted, margin: '0 0 18px', letterSpacing: '2px', fontWeight: '700' }}>
+            {t(lang, 'security_key')}
+          </p>
+          <input
+            type="password" value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && checkPassword()}
+            placeholder="••••••••"
+            style={{
+              width: '100%', padding: '14px', fontSize: '1rem',
+              color: th.text, textAlign: 'center',
+              border: `1px solid ${pwError ? '#ff4d4d' : th.border}`,
+              borderRadius: '12px', outline: 'none',
+              background: th.inputBg, letterSpacing: '3px', boxSizing: 'border-box',
+              transition: 'border-color 0.2s',
+            }}
+          />
+          {pwError && <p style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '8px' }}>Incorrect password</p>}
+        </div>
+      )}
+
+      {/* ==================== [2] OAuth Screen ==================== */}
+      {step === 'oauth' && (
+        <div style={{
+          width: '90%', maxWidth: '370px',
+          background: th.surface, border: `1px solid ${th.border}`,
+          padding: '35px 25px', borderRadius: '24px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}>
+          <p style={{ fontSize: '0.7rem', color: th.text, marginBottom: '24px', letterSpacing: '2px', fontWeight: '700', textAlign: 'center' }}>
+            {t(lang, 'access_account')}
+          </p>
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ theme: ThemeSupa }}
+            providers={['google', 'github']}
+            theme="dark"
+            showLinks={true}
+          />
+        </div>
+      )}
+
+      {/* ==================== [3] Main Workspace ==================== */}
+      {step === 'main' && (
+        <div style={{
+          width: '100%', height: '100vh', display: 'flex',
+          flexDirection: 'column', alignItems: 'center',
+          paddingTop: '60px', boxSizing: 'border-box',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '760px', flex: 1,
+            display: 'flex', flexDirection: 'column', padding: '0 16px 16px',
+            boxSizing: 'border-box',
+          }}>
+
+            {/* Empty state */}
+            {messages.length === 0 && (
+              <div style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                justifyContent: 'center', alignItems: 'center', textAlign: 'center',
+                animation: 'float 4s infinite ease-in-out',
+              }}>
+                <div style={{ background: '#000', padding: '16px', borderRadius: '24px', border: `1px solid ${th.border}`, marginBottom: '20px', display: 'inline-block' }}>
+                  <NovaLogoIcon size={65} />
+                </div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0 0 8px', color: th.text }}>
+                  {t(lang, 'welcome')}
                 </h2>
-                <p style={{ color: '#555566', fontSize: '0.88rem', marginTop: '6px' }}>
-                  Request your layout matrix. A secure local container preview will render instantly.
+                <p style={{ color: th.textMuted, fontSize: '0.88rem', maxWidth: '340px' }}>
+                  {t(lang, 'subtitle')}
                 </p>
+
+                {/* Quick prompts */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '24px', justifyContent: 'center', maxWidth: '480px' }}>
+                  {['Landing page for a SaaS product', 'Portfolio website with dark theme', 'E-commerce product page', 'Dashboard UI with charts'].map(p => (
+                    <button key={p} onClick={() => { setUserInput(p); inputRef.current?.focus(); }} style={{
+                      background: th.surface, border: `1px solid ${th.border}`,
+                      color: th.text, padding: '9px 16px', borderRadius: '20px',
+                      cursor: 'pointer', fontSize: '0.8rem', transition: 'border-color 0.2s',
+                    }}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            {chatMessages.length > 0 ? (
-              <div className="custom-scrollbar" style={{ width: '100%', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', padding: '15px 5px', marginTop: '60px' }} ref={chatBoxRef}>
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
-                    <div style={{ 
-                      maxWidth: '85%', padding: '14px 18px', borderRadius: '16px', 
-                      background: msg.sender === 'user' ? '#0a0a0f' : '#050507', 
-                      border: msg.hasPreview ? '1px solid rgba(0, 112, 243, 0.4)' : msg.sender === 'user' ? '1px solid #1a1a26' : '1px solid #111116', 
-                      boxShadow: msg.hasPreview ? '0 0 15px rgba(0, 112, 243, 0.1)' : 'none',
-                      color: '#ffffff', fontSize: '0.92rem', lineHeight: '1.6', textAlign: 'left' 
-                    }}>
-                      <span style={{ whiteSpace: 'pre-line' }}>{msg.text}</span>
-                      
-                      {msg.hasPreview && (
-                        <div style={{ marginTop: '12px', background: '#000000', border: '1px solid #1a1a24', borderRadius: '8px', padding: '10px', fontSize: '0.8rem', color: '#888899', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '6px', height: '6px', background: '#0070f3', borderRadius: '50%' }} />
-                          Local Sandbox Preview Container
+            {/* Messages */}
+            {messages.length > 0 && (
+              <div className="nova-scroll" ref={chatBoxRef} style={{
+                flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+                gap: '20px', padding: '20px 4px',
+              }}>
+                {messages.map(msg => (
+                  <div key={msg.id} className="nova-msg" style={{
+                    display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                  }}>
+                    <div style={{ maxWidth: '88%' }}>
+                      {/* Bubble */}
+                      <div style={{
+                        padding: '12px 16px', borderRadius: '14px',
+                        background: msg.sender === 'user' ? (isDark ? '#0d0d18' : '#ebebf5') : th.surface,
+                        border: `1px solid ${msg.hasPreview ? 'rgba(0,112,243,0.35)' : th.border}`,
+                        fontSize: '0.9rem', lineHeight: '1.65', color: th.text,
+                        boxShadow: msg.hasPreview ? '0 0 20px rgba(0,112,243,0.08)' : 'none',
+                      }}>
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
+                      </div>
+
+                      {/* Timestamp */}
+                      <div style={{ fontSize: '0.68rem', color: th.textMuted, marginTop: '4px', paddingLeft: '4px' }}>
+                        {formatTime(msg.timestamp)}
+                      </div>
+
+                      {/* Preview/Code tabs */}
+                      {msg.hasPreview && msg.previewHtml && (
+                        <div style={{
+                          marginTop: '12px', border: `1px solid ${th.border}`,
+                          borderRadius: '12px', overflow: 'hidden',
+                          background: th.surface2,
+                        }}>
+                          {/* Tab bar */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center',
+                            borderBottom: `1px solid ${th.border}`,
+                            padding: '0 12px', background: th.surface,
+                          }}>
+                            {(['preview', 'code'] as const).map(tab => (
+                              <button key={tab} onClick={() => setPreviewTab(prev => ({ ...prev, [msg.id]: tab }))} style={{
+                                background: 'none', border: 'none',
+                                color: (previewTab[msg.id] || 'preview') === tab ? th.text : th.textMuted,
+                                padding: '10px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                                borderBottom: (previewTab[msg.id] || 'preview') === tab ? `2px solid ${th.accent}` : '2px solid transparent',
+                                display: 'flex', alignItems: 'center', gap: '5px',
+                              }}>
+                                {tab === 'preview' ? <><EyeIcon /> {t(lang, 'preview')}</> : <><CodeIcon /> {t(lang, 'code')}</>}
+                              </button>
+                            ))}
+                            <div style={{ flex: 1 }} />
+                            <button onClick={() => copyCode(msg.id, msg.previewHtml!)} style={{
+                              background: 'none', border: 'none', color: th.textMuted,
+                              cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px',
+                            }}>
+                              <CopyIcon /> {copiedId === msg.id ? t(lang, 'copied') : t(lang, 'copy')}
+                            </button>
+                          </div>
+
+                          {/* Tab content */}
+                          {(previewTab[msg.id] || 'preview') === 'preview' ? (
+                            <iframe
+                              srcDoc={msg.previewHtml}
+                              title="preview"
+                              style={{ width: '100%', height: '380px', border: 'none', display: 'block' }}
+                              sandbox="allow-scripts"
+                            />
+                          ) : (
+                            <pre className="nova-scroll" style={{
+                              margin: 0, padding: '16px', fontSize: '0.78rem',
+                              color: '#a8b4d0', background: '#050510', overflowX: 'auto',
+                              maxHeight: '380px', overflowY: 'auto',
+                            }}>
+                              {msg.previewHtml}
+                            </pre>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
                 ))}
 
-                {/* 🌀 Quantum Orbit Thinking Animation */}
-                {robotState === 'thinking' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: '#050507', border: '1px solid #111116', padding: '12px 20px', borderRadius: '16px', alignSelf: 'flex-start' }}>
-                    <div style={{ width: '22px', height: '22px', position: 'relative', animation: 'quantumOrbit 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite' }}>
-                      <div style={{ position: 'absolute', top: 0, left: '8px', width: '7px', height: '7px', background: '#00df89', borderRadius: '50%', animation: 'glowParticle 0.8s infinite ease-in-out' }} />
-                      <div style={{ position: 'absolute', bottom: 0, right: '2px', width: '6px', height: '6px', background: '#0070f3', borderRadius: '50%', animation: 'glowParticle 0.8s infinite ease-in-out 0.25s' }} />
-                      <div style={{ position: 'absolute', top: '8px', right: 0, width: '5px', height: '5px', background: '#ffffff', borderRadius: '50%', animation: 'glowParticle 0.8s infinite ease-in-out 0.5s' }} />
+                {/* Thinking indicator */}
+                {isThinking && (
+                  <div className="nova-msg" style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    background: th.surface, border: `1px solid ${th.border}`,
+                    padding: '12px 18px', borderRadius: '14px', alignSelf: 'flex-start',
+                  }}>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      {[0, 1, 2].map(i => (
+                        <div key={i} style={{
+                          width: '7px', height: '7px', borderRadius: '50%',
+                          background: i === 0 ? th.accent : i === 1 ? th.blue : '#fff',
+                          animation: `pulse 1.2s infinite ease-in-out ${i * 0.2}s`,
+                        }} />
+                      ))}
                     </div>
-                    <span style={{ fontSize: '0.85rem', color: '#bbbbbb', fontWeight: '500', letterSpacing: '0.5px' }}>{thinkingStatusText}</span>
+                    <span style={{ fontSize: '0.85rem', color: th.textMuted }}>{t(lang, 'thinking')}</span>
                   </div>
                 )}
               </div>
-            ) : (
-              <div style={{ flex: 1 }} />
             )}
 
-            {/* ⌨️ Smart Input System Bar */}
-            <div style={{ width: '100%', display: 'flex', gap: '10px', background: '#050507', border: '1px solid #15151c', padding: '10px 16px', borderRadius: '100px', alignItems: 'center', marginTop: 'auto', zIndex: 100 }}>
-              <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}><MicrophoneIcon /></button>
-              <input 
+            {/* Input bar */}
+            <div style={{
+              marginTop: 'auto', background: th.surface,
+              border: `1px solid ${th.border}`, borderRadius: '16px',
+              padding: '10px 12px', display: 'flex', alignItems: 'flex-end', gap: '10px',
+              boxShadow: isDark ? '0 -2px 20px rgba(0,0,0,0.3)' : '0 -2px 20px rgba(0,0,0,0.06)',
+            }}>
+              <button onClick={toggleVoice} style={{
+                background: isListening ? 'rgba(0,223,137,0.15)' : 'none',
+                border: isListening ? '1px solid #00df89' : 'none',
+                width: '36px', height: '36px', borderRadius: '50%',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <MicIcon active={isListening} />
+              </button>
+
+              <textarea
                 ref={inputRef}
-                type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Build a sleek tech company dashboard matrix..." 
-                disabled={robotState === 'thinking'}
-                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#ffffff', fontSize: '0.95rem', padding: '6px 8px', textAlign: 'left' }}
+                value={userInput}
+                onChange={handleInputChange}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                }}
+                placeholder={t(lang, 'placeholder')}
+                rows={1}
+                disabled={isThinking}
+                style={{
+                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                  color: th.text, fontSize: '0.93rem', padding: '6px 4px',
+                  lineHeight: '1.5', minHeight: '36px', maxHeight: '160px',
+                  fontFamily: 'inherit',
+                }}
               />
-              <button onClick={handleSendMessage} disabled={robotState === 'thinking' || !userInput.trim()} style={{ background: userInput.trim() ? '#ffffff' : '#111115', border: 'none', width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><UpArrowIcon /></button>
-            </div>
 
+              <button
+                onClick={handleSend}
+                disabled={isThinking || !userInput.trim()}
+                style={{
+                  background: userInput.trim() && !isThinking ? '#ffffff' : th.surface2,
+                  border: 'none', width: '38px', height: '38px', borderRadius: '50%',
+                  cursor: userInput.trim() ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, transition: 'background 0.2s',
+                }}
+              >
+                <SendIcon enabled={!!userInput.trim() && !isThinking} />
+              </button>
+            </div>
           </div>
-
-          {/* ==================== ⚙️ Global Infrastructure Preferences ==================== */}
-          {isSettingsModalOpen && (
-            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.95)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 20000 }}>
-              <div className="fade-step-enter fade-step-active" style={{ width: '90%', maxWidth: '650px', background: '#050505', border: '1px solid #15151c', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #111116' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff', fontWeight: '600' }}>Account settings</h3>
-                  <button onClick={() => setIsSettingsModalOpen(false)} style={{ background: '#111115', border: 'none', color: '#888888', width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                </div>
-                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.9rem', color: '#cccccc' }}>{profileData.email}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== 🚀 Production Deployment Terminal Overlay ==================== */}
-          {deployingStatus.active && (
-            <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.98)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 13000 }}>
-              <div className="fade-step-enter fade-step-active" style={{ width: '90%', maxWidth: '420px', background: '#050507', border: '1px solid #15151c', padding: '45px 35px', borderRadius: '28px', textAlign: 'center' }}>
-                
-                {deployingStatus.progress < 100 ? (
-                  <>
-                    <div style={{ width: '64px', height: '64px', margin: '0 auto 25px auto', borderRadius: '50%', border: '4px solid #111116', animation: 'deployCircleRotate 1s linear infinite' }} />
-                    <p style={{ fontSize: '2.4rem', fontWeight: '900', marginBottom: '10px', color: '#ffffff', letterSpacing: '1px' }}>{deployingStatus.progress}%</p>
-                    <p style={{ color: '#888888', fontSize: '0.88rem', lineHeight: '1.5' }}>{thinkingStatusText}</p>
-                  </>
-                ) : (
-                  <div style={{ animation: 'floatLogo 3s infinite ease-in-out' }}>
-                    <div style={{ width: '56px', height: '56px', background: 'rgba(0, 223, 137, 0.1)', border: '2px solid #00df89', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
-                      <span style={{ color: '#00df89', fontSize: '1.5rem', fontWeight: 'bold' }}>✓</span>
-                    </div>
-                    <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: '#ffffff', margin: '0 0 8px 0' }}>
-                      Deployment Complete!
-                    </h3>
-                    <p style={{ color: '#666677', fontSize: '0.82rem', margin: '0 0 25px 0' }}>
-                      Nova infrastructure has compiled and mapped your preview code build to a live server production URL:
-                    </p>
-                    
-                    {/* Live Production Secured Link Output */}
-                    <div style={{ background: '#000000', border: '1px solid #1a1a26', borderRadius: '12px', padding: '14px', marginBottom: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <a href={deployingStatus.url || '#'} target="_blank" rel="noreferrer" style={{ color: '#0070f3', fontSize: '0.92rem', wordBreak: 'break-all', fontWeight: '600', textDecoration: 'none', transition: 'color 0.2s' }}>
-                        {deployingStatus.url} ↗
-                      </a>
-                    </div>
-
-                    <button 
-                      onClick={() => { setDeployingStatus({ active: false, progress: 0, url: null }); setShowDeployButton(false); }} 
-                      style={{ width: '100%', background: '#ffffff', color: '#000000', border: 'none', padding: '14px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}
-                    >
-                      Back to Workspace
-                    </button>
-                  </div>
-                )}
-
-              </div>
-            </div>
-          )}
-
         </div>
       )}
 
+      {/* ==================== Settings Modal ==================== */}
+      {isSettingsModalOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 20000,
+        }}>
+          <div style={{
+            width: '90%', maxWidth: '500px',
+            background: th.surface, border: `1px solid ${th.border}`,
+            borderRadius: '16px', overflow: 'hidden',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 22px', borderBottom: `1px solid ${th.border}` }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: th.text }}>{t(lang, 'settings')}</h3>
+              <button onClick={() => setIsSettingsModalOpen(false)} style={{
+                background: th.surface2, border: 'none', color: th.textMuted,
+                width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem',
+              }}>✕</button>
+            </div>
+            <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <Row label="Email" value={profileData.email} color={th.text} muted={th.textMuted} />
+              <Row label="Name" value={profileData.displayName} color={th.text} muted={th.textMuted} />
+              <Row label="Language" value={LANGUAGES.find(l => l.code === lang)?.name || 'English'} color={th.text} muted={th.textMuted} />
+              <Row label="Theme" value={isDark ? 'Dark' : 'Light'} color={th.text} muted={th.textMuted} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== Deploy Modal ==================== */}
+      {deploying.active && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.97)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 15000,
+        }}>
+          <div style={{
+            width: '90%', maxWidth: '400px',
+            background: th.surface, border: `1px solid ${th.border}`,
+            padding: '44px 32px', borderRadius: '24px', textAlign: 'center',
+          }}>
+            {deploying.progress < 100 ? (
+              <>
+                <div style={{
+                  width: '60px', height: '60px', margin: '0 auto 24px',
+                  borderRadius: '50%', border: '4px solid #1a1a22',
+                  borderTop: '4px solid #0070f3', animation: 'deployRotate 0.9s linear infinite',
+                }} />
+                <p style={{ fontSize: '2.2rem', fontWeight: '900', color: th.text, margin: '0 0 8px' }}>{deploying.progress}%</p>
+                <p style={{ color: th.textMuted, fontSize: '0.85rem' }}>Publishing your site to the cloud...</p>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  width: '56px', height: '56px', borderRadius: '50%',
+                  border: `2px solid ${th.accent}`, background: 'rgba(0,223,137,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 20px', animation: 'float 3s infinite ease-in-out',
+                }}>
+                  <span style={{ color: th.accent, fontSize: '1.5rem' }}>✓</span>
+                </div>
+                <h3 style={{ color: th.text, margin: '0 0 8px', fontSize: '1.2rem' }}>{t(lang, 'deploy_title')}</h3>
+                <p style={{ color: th.textMuted, fontSize: '0.82rem', marginBottom: '20px' }}>{t(lang, 'deploy_msg')}</p>
+                <div style={{
+                  background: th.surface2, border: `1px solid ${th.border}`,
+                  borderRadius: '10px', padding: '12px', marginBottom: '22px',
+                }}>
+                  <a href={deploying.url || '#'} target="_blank" rel="noreferrer" style={{
+                    color: th.blue, fontSize: '0.9rem', wordBreak: 'break-all', fontWeight: '600',
+                  }}>
+                    {deploying.url} ↗
+                  </a>
+                </div>
+                <button onClick={() => { setDeploying({ active: false, progress: 0, url: null }); setShowDeploy(false); }} style={{
+                  width: '100%', background: '#fff', color: '#000',
+                  border: 'none', padding: '13px', borderRadius: '10px',
+                  cursor: 'pointer', fontWeight: '700',
+                }}>
+                  {t(lang, 'back')}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ── Small helper components ──────────────────────────────────────────────────
+function MenuItem({ icon, label, onClick, rightLabel, color }: { icon: React.ReactNode; label: string; onClick?: (e: any) => void; rightLabel?: string; color: string }) {
+  return (
+    <button onClick={onClick} style={{
+      width: '100%', background: 'transparent', border: 'none',
+      color, padding: '9px 12px', textAlign: 'left', cursor: 'pointer',
+      borderRadius: '8px', fontSize: '0.82rem',
+      display: 'flex', alignItems: 'center', gap: '8px',
+    }}>
+      {icon}
+      <span style={{ flex: 1 }}>{label}</span>
+      {rightLabel && <span style={{ fontSize: '0.72rem', color: '#888' }}>{rightLabel} ▾</span>}
+    </button>
+  );
+}
+
+function Row({ label, value, color, muted }: { label: string; value: string; color: string; muted: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid #111116`, paddingBottom: '14px' }}>
+      <span style={{ fontSize: '0.82rem', color: muted }}>{label}</span>
+      <span style={{ fontSize: '0.85rem', color, fontWeight: '500' }}>{value}</span>
     </div>
   );
 }
