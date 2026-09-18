@@ -1,392 +1,346 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '../lib/supabase';
+import { createClient } from '@/lib/supabase/client';
+import { toPreviewUrl } from '@/lib/utils/preview';
 
 // ==================== Types ====================
 interface ChatMessage {
   id: string;
-  sender: 'user' | 'bot';
+  sender: 'user' | 'assistant';
   text: string;
-  hasPreview?: boolean;
-  previewHtml?: string;
-  timestamp: Date;
-}
-
-interface ConversationSession {
-  id: string;
-  title: string;
-  messages: ChatMessage[];
+  codeBlock?: string;
+  previewUrl?: string;
   createdAt: Date;
 }
 
-// ==================== SVG Icons ====================
-const NovaLogoIcon = ({ size = 100 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M100 15 L122 55 L165 45 L145 82 L185 100 L145 118 L165 155 L122 145 L100 185 L78 145 L35 155 L55 118 L15 100 L55 82 L35 45 L78 55 Z" stroke="#ffffff" strokeWidth="5" strokeLinejoin="round" fill="none"/>
-    <path d="M100 40 L115 70 L148 62 L133 90 L160 100 L133 110 L148 138 L115 130 L100 160 L85 130 L52 138 L67 110 L40 100 L67 90 L52 62 L85 70 Z" stroke="#ffffff" strokeWidth="3" strokeLinejoin="round" fill="none"/>
-  </svg>
-);
+interface Conversation {
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
+// ==================== Design tokens ====================
+// Black + white dominant, blue used only as an accent (user messages,
+// primary actions, focus/active states) — see design brief.
+const th = {
+  bg: '#000000',
+  surface: '#07070a',
+  surface2: '#0f0f14',
+  surface3: '#16161d',
+  border: '#1e1e26',
+  borderStrong: '#2a2a33',
+  text: '#ffffff',
+  textMuted: '#8b8b96',
+  textFaint: '#55555f',
+  blue: '#2563eb',
+  blueBright: '#3b82f6',
+  blueSoft: 'rgba(37,99,235,0.12)',
+};
+
+// ==================== Icons ====================
 const MicIcon = ({ active }: { active?: boolean }) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#00df89' : '#ffffff'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-    <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
-    <line x1="12" y1="19" x2="12" y2="22"/>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? th.blueBright : '#ffffff'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+    <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+    <line x1="12" y1="19" x2="12" y2="22" />
   </svg>
 );
 
 const SendIcon = ({ enabled }: { enabled: boolean }) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={enabled ? '#000' : '#555'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="19" x2="12" y2="5"/>
-    <polyline points="5 12 12 5 19 12"/>
-  </svg>
-);
-
-const UserIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-    <circle cx="12" cy="7" r="4"/>
-  </svg>
-);
-
-const GlobeIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <line x1="2" y1="12" x2="22" y2="12"/>
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-  </svg>
-);
-
-const LogoutIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-    <polyline points="16 17 21 12 16 7"/>
-    <line x1="21" y1="12" x2="9" y2="12"/>
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={enabled ? '#fff' : '#5b5b66'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="19" x2="12" y2="5" />
+    <polyline points="5 12 12 5 19 12" />
   </svg>
 );
 
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="12" y1="5" x2="12" y2="19"/>
-    <line x1="5" y1="12" x2="19" y2="12"/>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 
 const ChatIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
 
 const TrashIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/>
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-    <path d="M10 11v6M14 11v6"/>
-  </svg>
-);
-
-const SunIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5"/>
-    <line x1="12" y1="1" x2="12" y2="3"/>
-    <line x1="12" y1="21" x2="12" y2="23"/>
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-    <line x1="1" y1="12" x2="3" y2="12"/>
-    <line x1="21" y1="12" x2="23" y2="12"/>
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-  </svg>
-);
-
-const MoonIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-  </svg>
-);
-
-const EyeIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-);
-
-const CodeIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="16 18 22 12 16 6"/>
-    <polyline points="8 6 2 12 8 18"/>
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6M14 11v6" />
   </svg>
 );
 
 const CopyIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
 
-// ==================== Config ====================
-const LANGUAGES = [
-  { code: 'en', name: 'English', label: 'EN' },
-  { code: 'ar', name: 'العربية', label: 'AR', rtl: true },
-  { code: 'es', name: 'Español', label: 'ES' },
-  { code: 'fr', name: 'Français', label: 'FR' },
-  { code: 'de', name: 'Deutsch', label: 'DE' },
-  { code: 'ja', name: '日本語', label: 'JA' },
-  { code: 'zh', name: '中文', label: 'ZH' },
-];
+const SparkIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={th.blueBright} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
+  </svg>
+);
 
-const UI_TEXT: Record<string, Record<string, string>> = {
-  en: {
-    placeholder: 'Build a landing page, app UI, portfolio site...',
-    thinking: 'Building your website...',
-    welcome: 'What do you want to build today?',
-    subtitle: 'Describe any website or UI — Nova generates it instantly.',
-    newChat: 'New Chat',
-    history: 'History',
-    settings: 'Settings',
-    logout: 'Logout',
-    publish: '🚀 Publish Live',
-    preview: 'Preview',
-    code: 'Code',
-    copy: 'Copy',
-    copied: 'Copied!',
-    deploy_title: 'Deployment Complete!',
-    deploy_msg: 'Your site is live at:',
-    back: 'Back to Workspace',
-    security_key: 'SECURITY KEY REQUIRED',
-    access_account: 'SIGN IN TO CONTINUE',
-    today: 'Today',
-    yesterday: 'Yesterday',
-  },
-  ar: {
-    placeholder: 'اصنع صفحة هبوط، واجهة تطبيق، موقع محفظة...',
-    thinking: 'جارٍ بناء موقعك...',
-    welcome: 'ماذا تريد أن تبني اليوم؟',
-    subtitle: 'صف أي موقع أو واجهة — Nova يولّده فوراً.',
-    newChat: 'محادثة جديدة',
-    history: 'السجل',
-    settings: 'الإعدادات',
-    logout: 'تسجيل الخروج',
-    publish: '🚀 نشر مباشر',
-    preview: 'معاينة',
-    code: 'الكود',
-    copy: 'نسخ',
-    copied: 'تم النسخ!',
-    deploy_title: 'اكتمل النشر!',
-    deploy_msg: 'موقعك الآن مباشر على:',
-    back: 'العودة للمساحة',
-    security_key: 'مطلوب مفتاح الأمان',
-    access_account: 'سجّل دخولك للمتابعة',
-    today: 'اليوم',
-    yesterday: 'أمس',
-  },
-};
-const t = (lang: string, key: string): string =>
-  (UI_TEXT[lang] || UI_TEXT['en'])[key] || UI_TEXT['en'][key] || key;
-
-// Detect build intent
-const isBuildRequest = (text: string) => {
-  const kw = ['build', 'create', 'make', 'design', 'generate', 'website', 'page', 'app', 'ui', 'landing',
-    'اصنع', 'أنشئ', 'ابنِ', 'صمم', 'موقع', 'صفحة', 'تطبيق', 'واجهة'];
-  return kw.some(k => text.toLowerCase().includes(k));
-};
-
-// Format timestamp
-const formatTime = (d: Date) =>
-  d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-const formatDate = (d: Date, lang: string) => {
+// ==================== Helpers ====================
+const formatDate = (d: Date) => {
   const now = new Date();
   const isToday = d.toDateString() === now.toDateString();
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const isYesterday = d.toDateString() === yesterday.toDateString();
-  if (isToday) return t(lang, 'today');
-  if (isYesterday) return t(lang, 'yesterday');
+  if (isToday) return 'Today';
+  if (isYesterday) return 'Yesterday';
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
-// ==================== Main Component ====================
+const SUGGESTIONS = [
+  'A modern gaming website with a dark neon theme',
+  'A landing page for a coffee subscription brand',
+  'A portfolio site for a photographer',
+  'A SaaS pricing page with three tiers',
+];
+
+// ==================== Ambient background ====================
+// A quiet, intentional field of drifting nodes — the one place motion is
+// spent. Deliberately dim and slow so it reads as depth, not decoration.
+function AmbientField() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = 0, height = 0, raf = 0;
+    let particles: { x: number; y: number; vx: number; vy: number; r: number }[] = [];
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const setup = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      const count = reduceMotion ? 0 : Math.min(60, Math.floor((width * height) / 26000));
+      particles = Array.from({ length: count }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.18,
+        vy: (Math.random() - 0.5) * 0.18,
+        r: Math.random() * 1.3 + 0.5,
+      }));
+    };
+
+    const step = () => {
+      ctx.clearRect(0, 0, width, height);
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+      }
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const a = particles[i], b = particles[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.strokeStyle = `rgba(255,255,255,${0.05 * (1 - dist / 120)})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+      for (const p of particles) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(step);
+    };
+
+    setup();
+    step();
+    window.addEventListener('resize', setup);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', setup);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />;
+}
+
+// ==================== Main ====================
 export default function NovaAI() {
-  // Auth flow: 'password' → 'oauth' → 'main'
-  const [step, setStep] = useState<'password' | 'oauth' | 'main'>('password');
-  const [password, setPassword] = useState('');
-  const [pwError, setPwError] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const getSupabase = () => {
+    if (!supabaseRef.current) supabaseRef.current = createClient();
+    return supabaseRef.current;
+  };
 
-  // Theme
-  const [isDark, setIsDark] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
-  // UI state
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [lang, setLang] = useState('en');
-  const isRTL = LANGUAGES.find(l => l.code === lang)?.rtl || false;
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // Profile
-  const [profileData, setProfileData] = useState({
-    displayName: 'User',
-    email: '',
-    avatarLetter: 'U'
-  });
+  // Whether we've ever left the landing hero for this browser tab. Once
+  // true we stay in "chat mode" even for a fresh/empty conversation — this
+  // is what makes the landing → chat move a one-way transition instead of
+  // something that flickers back every time messages is momentarily empty.
+  const [hasEnteredChat, setHasEnteredChat] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Chat
-  const [sessions, setSessions] = useState<ConversationSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [userInput, setUserInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [previewTab, setPreviewTab] = useState<Record<string, 'preview' | 'code'>>({});
+  const [phase, setPhase] = useState<'idle' | 'planning' | 'building' | 'reviewing'>('idle');
+  const [streamingId, setStreamingId] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Voice
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
-  // Deploy
   const [showDeploy, setShowDeploy] = useState(false);
-  const [lastHtml, setLastHtml] = useState('');
+  const [lastCode, setLastCode] = useState('');
   const [deploying, setDeploying] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
 
+  const [editModeMessageId, setEditModeMessageId] = useState<string | null>(null);
+  const [selectedElement, setSelectedElement] = useState<{ selector: string; tag: string; snippet: string; messageId: string } | null>(null);
+  const iframeRefs = useRef<Record<string, HTMLIFrameElement | null>>({});
+  const healedMessageIds = useRef<Set<string>>(new Set());
+
   const chatBoxRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Current session messages
-  const activeSession = sessions.find(s => s.id === activeSessionId);
-  const messages = activeSession?.messages || [];
-
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Session: sign in anonymously so there is no login screen at all.
+  // This still creates a real, RLS-scoped Supabase user (auth.uid() is
+  // real) — there is simply no account UI. Requires "Allow anonymous
+  // sign-ins" enabled in Supabase → Authentication → Settings. This never
+  // blocks the UI: the composer is interactive immediately, and only the
+  // network calls that truly need a session (send, load history) wait on it.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        applyUser(session.user);
-        setStep('main');
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          if (!cancelled) setSessionReady(true);
+          return;
+        }
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (cancelled) return;
+        if (error || !data.user) {
+          setSessionError(
+            'Could not start a session. Enable "Allow anonymous sign-ins" in Supabase → Authentication → Settings, then reload.'
+          );
+        }
+        setSessionReady(true);
+      } catch {
+        if (!cancelled) {
+          setSessionError('Could not connect to the server. Check your configuration and reload.');
+          setSessionReady(true);
+        }
       }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        applyUser(session.user);
-        setStep('main');
-      } else {
-        setUser(null);
-        setStep('password');
-      }
-    });
-    return () => subscription.unsubscribe();
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  const applyUser = (u: any) => {
-    setUser(u);
-    const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'User';
-    setProfileData({
-      displayName: name,
-      email: u.email || '',
-      avatarLetter: name.charAt(0).toUpperCase(),
-    });
+  // ── Load conversation list ──
+  const loadConversations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/conversations');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) {
+        setConversations(
+          data.conversations.map((c: any) => ({
+            id: c.id, title: c.title, createdAt: new Date(c.created_at), updatedAt: new Date(c.updated_at),
+          }))
+        );
+      }
+    } catch {
+      // Non-critical — history sidebar just stays empty/stale.
+    }
+  }, []);
+
+  useEffect(() => { if (sessionReady) loadConversations(); }, [sessionReady, loadConversations]);
+
+  // ── Load messages for the active conversation ──
+  useEffect(() => {
+    if (!activeConversationId) return;
+    let cancelled = false;
+    setLoadingMessages(true);
+    fetch(`/api/conversations/${activeConversationId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (cancelled || !data.success) return;
+        const loaded = data.messages.map((m: any) => ({
+          id: m.id, sender: m.sender, text: m.text,
+          codeBlock: m.code_block || undefined, previewUrl: m.preview_url || undefined,
+          createdAt: new Date(m.created_at),
+        }));
+        setMessages(loaded);
+        const lastWithCode = [...loaded].reverse().find((m: ChatMessage) => m.codeBlock);
+        if (lastWithCode) {
+          setLastCode(lastWithCode.codeBlock!);
+          setShowDeploy(true);
+        } else {
+          setShowDeploy(false);
+        }
+      })
+      .finally(() => { if (!cancelled) setLoadingMessages(false); });
+    return () => { cancelled = true; };
+  }, [activeConversationId]);
+
+  const startNewChat = () => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setShowDeploy(false);
+    setIsSidebarOpen(false);
+    setHasEnteredChat(false);
   };
 
-  // ── Password check (server-side env var is ideal; this is client-side fallback) ──
-  const checkPassword = async () => {
-    // ✅ FIX: password should come from env var, never hardcoded
-    const correctPw = process.env.NEXT_PUBLIC_ACCESS_PASSWORD || '';
-    if (!correctPw || password === correctPw) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        applyUser(session.user);
-        setStep('main');
-      } else {
-        setStep('oauth');
-      }
-    } else {
-      setPwError(true);
-      setTimeout(() => { setPwError(false); setPassword(''); }, 600);
+  const deleteConversation = async (id: string) => {
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (id === activeConversationId) startNewChat();
+    try {
+      await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+    } catch {
+      // best-effort
     }
   };
 
-  // ── Sessions ──────────────────────────────────────────────────────────────
-  const createSession = useCallback(() => {
-    const id = Date.now().toString();
-    const s: ConversationSession = {
-      id,
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date(),
-    };
-    setSessions(prev => [s, ...prev]);
-    setActiveSessionId(id);
-    setShowDeploy(false);
-    setLastHtml('');
-    return id;
-  }, []);
-
-  useEffect(() => {
-    if (step === 'main' && sessions.length === 0) createSession();
-  }, [step]);
-
-  const updateSession = (sessionId: string, msgs: ChatMessage[], title?: string) => {
-    setSessions(prev => prev.map(s => s.id === sessionId
-      ? { ...s, messages: msgs, title: title || s.title }
-      : s
-    ));
-  };
-
-  const deleteSession = (id: string) => {
-    setSessions(prev => {
-      const next = prev.filter(s => s.id !== id);
-      if (id === activeSessionId) {
-        if (next.length > 0) setActiveSessionId(next[0].id);
-        else {
-          const newId = createSession();
-          setActiveSessionId(newId);
-        }
-      }
-      return next;
-    });
-  };
-
-  // ── Scroll ────────────────────────────────────────────────────────────────
+  // ── Scroll ──
   useEffect(() => {
     chatBoxRef.current?.scrollTo({ top: chatBoxRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isThinking]);
 
-  // ── Click outside ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsMenuOpen(false);
-        setIsLangMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  // ── Voice Input ───────────────────────────────────────────────────────────
+  // ── Voice input ──
   const toggleVoice = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
+    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
     const rec = new SpeechRecognition();
-    rec.lang = lang === 'ar' ? 'ar-SA' : lang === 'ja' ? 'ja-JP' : lang === 'zh' ? 'zh-CN' : 'en-US';
+    rec.lang = 'en-US';
     rec.continuous = false;
     rec.interimResults = false;
-    rec.onresult = (e: any) => {
-      setUserInput(prev => prev + e.results[0][0].transcript);
-      setIsListening(false);
-    };
+    rec.onresult = (e: any) => { setUserInput(prev => prev + e.results[0][0].transcript); setIsListening(false); };
     rec.onerror = () => setIsListening(false);
     rec.onend = () => setIsListening(false);
     rec.start();
@@ -394,98 +348,265 @@ export default function NovaAI() {
     setIsListening(true);
   };
 
-  // ── Copy code ─────────────────────────────────────────────────────────────
   const copyCode = (msgId: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(msgId);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // ── Send message ──────────────────────────────────────────────────────────
-  const handleSend = async () => {
-    if (!userInput.trim() || isThinking) return;
+  // ── Click-to-edit / self-heal: listen for messages from generated-site iframes ──
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      const data = e.data;
+      if (!data || typeof data !== 'object') return;
 
-    const text = userInput.trim();
-    setUserInput('');
-    setIsThinking(true);
-
-    const msgId = Date.now().toString();
-    const userMsg: ChatMessage = { id: msgId, sender: 'user', text, timestamp: new Date() };
-    const isBuild = isBuildRequest(text);
-
-    // First message → set session title
-    const isFirst = messages.length === 0;
-    const title = isFirst ? text.slice(0, 40) + (text.length > 40 ? '…' : '') : activeSession?.title;
-
-    const updatedMsgs = [...messages, userMsg];
-    updateSession(activeSessionId, updatedMsgs, title);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      // ✅ IMPROVED: Send full conversation history for context
-      const history = updatedMsgs.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text }));
-
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
-          message: text,
-          history,
-          currentLang: lang,
-          mode: isBuild ? 'build_website' : 'chat',
-        }),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setIsThinking(false);
-
-      if (data.success && data.reply) {
-        // Extract HTML if present
-        const htmlMatch = data.reply.match(/```html\n([\s\S]*?)```/);
-        const htmlCode = htmlMatch ? htmlMatch[1] : (isBuild ? data.reply : null);
-        const displayText = htmlMatch ? data.reply.replace(/```html\n[\s\S]*?```/, '').trim() || '✅ Here is your website:' : data.reply;
-
-        const botMsgId = (Date.now() + 1).toString();
-        const botMsg: ChatMessage = {
-          id: botMsgId,
-          sender: 'bot',
-          text: displayText,
-          hasPreview: !!htmlCode,
-          previewHtml: htmlCode || undefined,
-          timestamp: new Date(),
-        };
-
-        const finalMsgs = [...updatedMsgs, botMsg];
-        updateSession(activeSessionId, finalMsgs, title);
-
-        if (htmlCode) {
-          setLastHtml(htmlCode);
-          setShowDeploy(true);
-          setPreviewTab(prev => ({ ...prev, [botMsgId]: 'preview' }));
-        }
-      } else {
-        throw new Error('Empty response');
+      if (data.type === 'nova-element-selected' && editModeMessageId) {
+        setSelectedElement({ selector: data.selector, tag: data.tag, snippet: data.snippet, messageId: editModeMessageId });
+        iframeRefs.current[editModeMessageId]?.contentWindow?.postMessage({ type: 'nova-set-edit-mode', enabled: false }, '*');
+        setEditModeMessageId(null);
       }
-    } catch {
-      setIsThinking(false);
-      const errMsg: ChatMessage = {
-        id: (Date.now() + 2).toString(),
-        sender: 'bot',
-        text: '⚠️ Connection issue. Please check your API setup and try again.',
-        timestamp: new Date(),
-      };
-      updateSession(activeSessionId, [...updatedMsgs, errMsg], title);
+
+      if (data.type === 'nova-runtime-error') {
+        const entry = Object.entries(iframeRefs.current).find(([, el]) => el?.contentWindow === e.source);
+        if (entry) {
+          const [msgId] = entry;
+          if (!healedMessageIds.current.has(msgId)) {
+            healedMessageIds.current.add(msgId);
+            selfHeal(msgId, data.message);
+          }
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editModeMessageId, messages, activeConversationId]);
+
+  const toggleEditMode = (messageId: string) => {
+    const next = editModeMessageId === messageId ? null : messageId;
+    if (editModeMessageId) {
+      iframeRefs.current[editModeMessageId]?.contentWindow?.postMessage({ type: 'nova-set-edit-mode', enabled: false }, '*');
+    }
+    setEditModeMessageId(next);
+    setSelectedElement(null);
+    if (next) {
+      iframeRefs.current[next]?.contentWindow?.postMessage({ type: 'nova-set-edit-mode', enabled: true }, '*');
     }
   };
 
-  // ── Deploy ────────────────────────────────────────────────────────────────
+  // ── Self-healing: silently ask Nova to fix a runtime error it detected ──
+  const selfHeal = async (messageId: string, errorMessage: string) => {
+    const idx = messages.findIndex(m => m.id === messageId);
+    if (idx === -1) return;
+    const target = messages[idx];
+    if (!target.codeBlock) return;
+
+    const contextMessages = messages.slice(0, idx + 1).map(m => ({ sender: m.sender, text: m.text, codeBlock: m.codeBlock }));
+    contextMessages.push({
+      sender: 'user' as const,
+      text: `The site produced this runtime error when loaded in the browser: "${errorMessage}". Find the cause and fix it. Return the complete corrected site.`,
+      codeBlock: undefined,
+    });
+
+    try {
+      const res = await fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: contextMessages, conversationId: activeConversationId }),
+      });
+      if (!res.ok || !res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let raw = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        raw += decoder.decode(value, { stream: true });
+      }
+
+      const codeMatch = raw.match(/<<<NOVA_FINAL_CODE_START>>>\n([\s\S]*?)\n<<<NOVA_FINAL_CODE_END>>>/);
+      const fixedCode = codeMatch ? codeMatch[1] : null;
+      if (fixedCode) {
+        const previewUrl = toPreviewUrl(fixedCode);
+        setMessages(prev => prev.map(m => m.id === messageId
+          ? { ...m, codeBlock: fixedCode, previewUrl, text: m.text + '\n\n✓ Nova detected and automatically fixed a runtime issue.' }
+          : m
+        ));
+        setLastCode(fixedCode);
+      }
+    } catch (err) {
+      console.error('self-heal failed', err);
+    }
+  };
+
+  // ── Send message ──
+  // CRITICAL PATH: everything visible — leaving the landing screen, showing
+  // the user's message, showing "Thinking" — happens synchronously, before
+  // any network request. Conversation creation and the AI call both run
+  // afterward, asynchronously; the UI never waits on them.
+  const handleSend = () => {
+    const text = userInput.trim();
+    if (!text || isThinking) return;
+
+    setErrorBanner(null);
+    const pointedElement = selectedElement;
+    setUserInput('');
+    setSelectedElement(null);
+    if (inputRef.current) inputRef.current.style.height = 'auto';
+
+    // 1) Instant transition — no await before this point.
+    if (!hasEnteredChat) {
+      setIsTransitioning(true);
+      setHasEnteredChat(true);
+      window.setTimeout(() => setIsTransitioning(false), 420);
+    }
+
+    const userMsg: ChatMessage = { id: `local-${Date.now()}`, sender: 'user', text, createdAt: new Date() };
+    const streamId = `local-${Date.now() + 1}`;
+
+    // 2) User message + Thinking appear immediately.
+    setMessages(prev => [...prev, userMsg]);
+    setIsThinking(true);
+    setPhase('planning');
+
+    // 3) Everything that touches the network happens after the paint,
+    // fully asynchronously — this function itself does not await anything.
+    void runSend(text, userMsg, streamId, pointedElement);
+  };
+
+  const runSend = async (
+    text: string,
+    userMsg: ChatMessage,
+    streamId: string,
+    pointedElement: typeof selectedElement
+  ) => {
+    let conversationId = activeConversationId;
+
+    try {
+      // Kick off conversation creation and the AI request without letting
+      // either block the other unnecessarily. We still need the real
+      // conversationId before persistence on the server can happen, but the
+      // user has already seen their message and the Thinking state.
+      if (!conversationId) {
+        const title = text.slice(0, 40) + (text.length > 40 ? '…' : '');
+        const createRes = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        });
+        const createData = await createRes.json().catch(() => ({}));
+        if (!createRes.ok || !createData.success) {
+          throw new Error(createData.error || 'Could not start a new chat.');
+        }
+        conversationId = createData.conversation.id;
+        setActiveConversationId(conversationId);
+        setConversations(prev => [
+          { id: conversationId!, title, createdAt: new Date(), updatedAt: new Date() },
+          ...prev,
+        ]);
+      }
+
+      const outgoingText = pointedElement
+        ? `[User is pointing at this specific element in the current site — apply the requested change to it]\nSelector: ${pointedElement.selector}\nCurrent markup: ${pointedElement.snippet}\n\nRequested change: ${text}`
+        : text;
+
+      const historyForApi = [...messages, userMsg].map((m, i, arr) => ({
+        sender: m.sender,
+        text: i === arr.length - 1 ? outgoingText : m.text,
+        codeBlock: m.codeBlock,
+      }));
+
+      const res = await fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: historyForApi, conversationId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Something went wrong. Please try again.');
+      }
+      if (!res.body) throw new Error('No response from the server. Please try again.');
+
+      setStreamingId(streamId);
+      setMessages(prev => [...prev, { id: streamId, sender: 'assistant', text: '', createdAt: new Date() }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let raw = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        raw += decoder.decode(value, { stream: true });
+
+        const statusMatches = [...raw.matchAll(/<<<NOVA_STATUS:(\w+)>>>/g)];
+        if (statusMatches.length) {
+          setPhase(statusMatches[statusMatches.length - 1][1].toLowerCase() as any);
+        }
+
+        let display = raw.replace(/<<<NOVA_STATUS:\w+>>>/g, '');
+        const finalStartIdx = display.indexOf('<<<NOVA_FINAL_CODE_START>>>');
+        if (finalStartIdx !== -1) display = display.slice(0, finalStartIdx);
+        setMessages(prev => prev.map(m => m.id === streamId ? { ...m, text: display } : m));
+      }
+
+      let textOnly = raw.replace(/<<<NOVA_STATUS:\w+>>>/g, '');
+      const codeMatch = textOnly.match(/<<<NOVA_FINAL_CODE_START>>>\n([\s\S]*?)\n<<<NOVA_FINAL_CODE_END>>>/);
+      let finalCode = codeMatch ? codeMatch[1] : '';
+      const finalStartIdx2 = textOnly.indexOf('<<<NOVA_FINAL_CODE_START>>>');
+      if (finalStartIdx2 !== -1) textOnly = textOnly.slice(0, finalStartIdx2);
+
+      let cleanText = textOnly;
+      if (!finalCode) {
+        const oldMatch = textOnly.match(/```html([\s\S]*?)```/);
+        if (oldMatch && oldMatch[1]) {
+          finalCode = oldMatch[1].trim();
+          cleanText = textOnly.replace(/```html([\s\S]*?)```/, '').trim();
+        }
+      } else {
+        cleanText = textOnly.replace(/```html([\s\S]*?)```/, '').trim();
+      }
+      if (!cleanText) cleanText = finalCode ? 'Your site is ready — check the preview.' : textOnly;
+
+      const previewUrl = finalCode ? toPreviewUrl(finalCode) : undefined;
+
+      setMessages(prev => prev.map(m => m.id === streamId
+        ? { ...m, text: cleanText, codeBlock: finalCode || undefined, previewUrl }
+        : m
+      ));
+      setStreamingId(null);
+      setIsThinking(false);
+      setPhase('idle');
+
+      if (finalCode) {
+        setLastCode(finalCode);
+        setShowDeploy(true);
+      }
+
+      loadConversations();
+    } catch (err) {
+      setIsThinking(false);
+      setStreamingId(null);
+      setPhase('idle');
+      setErrorBanner(err instanceof Error ? err.message : 'Connection issue. Please try again.');
+    }
+  };
+
+  const retryLast = () => {
+    setErrorBanner(null);
+    const lastUser = [...messages].reverse().find(m => m.sender === 'user');
+    if (!lastUser) return;
+    setIsThinking(true);
+    setPhase('planning');
+    const streamId = `local-${Date.now()}`;
+    void runSend(lastUser.text, lastUser, streamId, null);
+  };
+
+  // ── Deploy ──
   const handleDeploy = async () => {
-    if (!lastHtml) return;
+    if (!lastCode) return;
     setDeploying({ active: true, progress: 5, url: null });
 
     const interval = setInterval(() => {
@@ -493,614 +614,423 @@ export default function NovaAI() {
     }, 400);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/deploy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ previewCode: lastHtml }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: lastCode, conversationId: activeConversationId }),
       });
-      clearInterval(interval);
       const data = await res.json();
-      setDeploying({ active: true, progress: 100, url: data.url || 'https://nova-app.vercel.app' });
-    } catch {
       clearInterval(interval);
-      setDeploying({ active: true, progress: 100, url: 'https://nova-app.vercel.app' });
+      if (!res.ok || !data.success) throw new Error(data.error || 'Deployment failed');
+      setDeploying({ active: true, progress: 100, url: data.url });
+    } catch (err) {
+      clearInterval(interval);
+      setDeploying({ active: false, progress: 0, url: null });
+      setErrorBanner(err instanceof Error ? err.message : 'Deployment failed. Please try again.');
     }
   };
 
-  // ── Textarea auto-grow ────────────────────────────────────────────────────
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setUserInput(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
   };
 
-  // ── Theme colors ──────────────────────────────────────────────────────────
-  const th = {
-    bg: isDark ? '#020204' : '#f5f5f7',
-    surface: isDark ? '#050507' : '#ffffff',
-    surface2: isDark ? '#0a0a0c' : '#f0f0f3',
-    border: isDark ? '#1a1a22' : '#e0e0e8',
-    text: isDark ? '#ffffff' : '#111111',
-    textMuted: isDark ? '#666677' : '#888899',
-    accent: '#00df89',
-    blue: '#0070f3',
-    inputBg: isDark ? '#0a0a0c' : '#ffffff',
-  };
-
-  // ── Grouped sessions by date ──────────────────────────────────────────────
-  const groupedSessions = sessions.reduce((acc, s) => {
-    const key = formatDate(s.createdAt, lang);
+  const groupedConversations = conversations.reduce((acc, c) => {
+    const key = formatDate(c.updatedAt);
     if (!acc[key]) acc[key] = [];
-    acc[key].push(s);
+    acc[key].push(c);
     return acc;
-  }, {} as Record<string, ConversationSession[]>);
+  }, {} as Record<string, Conversation[]>);
 
-  // ==================== Render ====================
+  const showLanding = !hasEnteredChat && messages.length === 0;
+
   return (
     <div style={{
-      direction: isRTL ? 'rtl' : 'ltr',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      display: 'flex', justifyContent: 'center', alignItems: 'center',
-      height: '100vh', width: '100vw',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif',
+      height: '100dvh', width: '100vw',
       background: th.bg, color: th.text,
       margin: 0, padding: 0, position: 'relative', overflow: 'hidden',
-      transition: 'background 0.3s, color 0.3s',
     }}>
-
+      <AmbientField />
       <style>{`
-        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
-        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
         @keyframes spin { to{transform:rotate(360deg)} }
-        @keyframes pulse { 0%,100%{opacity:0.4;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
-        @keyframes slideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes deployRotate { to{transform:rotate(360deg);border-top-color:#00df89} }
-        .nova-scroll::-webkit-scrollbar{width:4px}
-        .nova-scroll::-webkit-scrollbar-thumb{background:#222230;border-radius:4px}
-        .nova-msg{animation:slideIn 0.25s ease}
+        @keyframes pulse { 0%,100%{opacity:0.35;transform:scale(0.75)} 50%{opacity:1;transform:scale(1.15)} }
+        @keyframes slideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeOut { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-8px)} }
+        @keyframes heroIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes deployRotate { to{transform:rotate(360deg);border-top-color:${th.blueBright}} }
+        .nova-scroll::-webkit-scrollbar{width:5px}
+        .nova-scroll::-webkit-scrollbar-thumb{background:${th.surface3};border-radius:4px}
+        .nova-msg{animation:slideIn 0.28s ease}
+        .nova-hero{animation:heroIn 0.5s cubic-bezier(0.16,1,0.3,1)}
+        .nova-hero-exit{animation:fadeOut 0.32s ease forwards}
         textarea{resize:none;overflow:hidden}
+        .nova-chip{transition:border-color 0.18s ease, color 0.18s ease, background 0.18s ease}
+        .nova-chip:hover{border-color:${th.blue}66;color:#fff;background:${th.blueSoft}}
+        .nova-send:not(:disabled):hover{background:${th.blueBright} !important}
+        .nova-conv-row:hover{background:${th.surface2}}
+        @media (prefers-reduced-motion: reduce){
+          .nova-msg,.nova-hero,.nova-hero-exit{animation:none !important}
+        }
       `}</style>
 
       {/* ── Sidebar ── */}
-      {step === 'main' && (
-        <div style={{
-          position: 'fixed', top: 0, left: isSidebarOpen ? 0 : '-280px',
-          width: '260px', height: '100vh',
-          background: th.surface, borderRight: `1px solid ${th.border}`,
-          display: 'flex', flexDirection: 'column', zIndex: 9000,
-          transition: 'left 0.3s ease', padding: '16px 12px', boxSizing: 'border-box',
+      <div style={{
+        position: 'fixed', top: 0, left: isSidebarOpen ? 0 : '-272px',
+        width: '260px', height: '100dvh',
+        background: th.surface, borderRight: `1px solid ${th.border}`,
+        display: 'flex', flexDirection: 'column', zIndex: 9000,
+        transition: 'left 0.28s cubic-bezier(0.16,1,0.3,1)', padding: '16px 12px', boxSizing: 'border-box',
+      }}>
+        <button onClick={startNewChat} style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          background: th.surface2, border: `1px solid ${th.border}`,
+          color: th.text, padding: '10px 14px', borderRadius: '10px',
+          cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, marginBottom: '20px',
         }}>
-          {/* New Chat */}
-          <button onClick={() => { createSession(); setIsSidebarOpen(false); }} style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            background: th.surface2, border: `1px solid ${th.border}`,
-            color: th.text, padding: '10px 14px', borderRadius: '10px',
-            cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', marginBottom: '20px',
-          }}>
-            <PlusIcon /> {t(lang, 'newChat')}
-          </button>
+          <PlusIcon /> New chat
+        </button>
 
-          {/* History */}
-          <div style={{ fontSize: '0.7rem', color: th.textMuted, fontWeight: '700', letterSpacing: '1px', marginBottom: '10px', paddingLeft: '4px' }}>
-            {t(lang, 'history').toUpperCase()}
-          </div>
-          <div className="nova-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {Object.entries(groupedSessions).map(([dateLabel, group]) => (
-              <div key={dateLabel}>
-                <div style={{ fontSize: '0.68rem', color: th.textMuted, padding: '8px 6px 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {dateLabel}
-                </div>
-                {group.map(s => (
-                  <div key={s.id} style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '9px 10px', borderRadius: '8px',
-                    background: s.id === activeSessionId ? th.surface2 : 'transparent',
-                    cursor: 'pointer', transition: 'background 0.15s',
-                    border: s.id === activeSessionId ? `1px solid ${th.border}` : '1px solid transparent',
-                  }}
-                    onClick={() => { setActiveSessionId(s.id); setIsSidebarOpen(false); }}
-                  >
-                    <ChatIcon />
-                    <span style={{ flex: 1, fontSize: '0.82rem', color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {s.title}
-                    </span>
-                    <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} style={{
-                      background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer', padding: '2px',
-                      opacity: 0.6, display: 'flex', alignItems: 'center',
-                    }}>
-                      <TrashIcon />
-                    </button>
-                  </div>
-                ))}
+        <div style={{ fontSize: '0.68rem', color: th.textFaint, fontWeight: 700, letterSpacing: '0.04em', marginBottom: '10px', paddingLeft: '4px' }}>
+          HISTORY
+        </div>
+        <div className="nova-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {Object.entries(groupedConversations).map(([dateLabel, group]) => (
+            <div key={dateLabel}>
+              <div style={{ fontSize: '0.68rem', color: th.textFaint, padding: '8px 6px 4px' }}>
+                {dateLabel}
               </div>
+              {group.map(c => (
+                <div key={c.id} className="nova-conv-row" style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '9px 10px', borderRadius: '8px',
+                  background: c.id === activeConversationId ? th.surface2 : 'transparent',
+                  cursor: 'pointer',
+                  border: c.id === activeConversationId ? `1px solid ${th.border}` : '1px solid transparent',
+                }}
+                  onClick={() => { setActiveConversationId(c.id); setHasEnteredChat(true); setIsSidebarOpen(false); }}
+                >
+                  <span style={{ color: th.textMuted, display: 'flex' }}><ChatIcon /></span>
+                  <span style={{ flex: 1, fontSize: '0.82rem', color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.title}
+                  </span>
+                  <button onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }} style={{
+                    background: 'none', border: 'none', color: th.textFaint, cursor: 'pointer', padding: '2px',
+                    display: 'flex', alignItems: 'center',
+                  }}>
+                    <TrashIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ))}
+          {conversations.length === 0 && (
+            <div style={{ padding: '16px 8px', fontSize: '0.78rem', color: th.textFaint }}>
+              No conversations yet.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isSidebarOpen && (
+        <div onClick={() => setIsSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 8999 }} />
+      )}
+
+      {/* ── Top bar ── */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: '58px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '0 18px', zIndex: 10000,
+        background: `${th.bg}cc`, backdropFilter: 'blur(14px)',
+        borderBottom: showLanding ? '1px solid transparent' : `1px solid ${th.border}`,
+        transition: 'border-color 0.3s ease',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} aria-label="Toggle history" style={{
+            background: 'none', border: 'none', color: th.text, cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', gap: '4px', padding: '6px',
+          }}>
+            {[0, 1, 2].map(i => <div key={i} style={{ width: '17px', height: '2px', background: th.text, borderRadius: '1px' }} />)}
+          </button>
+          <span style={{ fontWeight: 800, fontSize: '1.02rem', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            NOVA <span style={{ width: 5, height: 5, borderRadius: '50%', background: th.blueBright, boxShadow: `0 0 8px ${th.blueBright}` }} />
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {showDeploy && !showLanding && (
+            <button onClick={handleDeploy} className="nova-send" style={{
+              background: th.blue, border: 'none', color: '#fff',
+              padding: '8px 16px', borderRadius: '8px', cursor: 'pointer',
+              fontSize: '0.8rem', fontWeight: 700,
+              boxShadow: `0 0 16px ${th.blueSoft}`,
+              transition: 'background 0.15s ease',
+            }}>
+              Publish live
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Landing hero (only before the first message of a fresh chat) ── */}
+      {showLanding && (
+        <div className={isTransitioning ? 'nova-hero-exit' : 'nova-hero'} style={{
+          position: 'absolute', inset: 0, zIndex: 2,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '0 20px', textAlign: 'center', gap: '28px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', border: `1px solid ${th.border}`, background: 'rgba(255,255,255,0.02)' }}>
+            <SparkIcon />
+            <span style={{ fontSize: '0.78rem', color: th.textMuted, fontWeight: 500 }}>Real websites, generated and edited live</span>
+          </div>
+
+          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.2rem)', fontWeight: 800, margin: 0, lineHeight: 1.12, letterSpacing: '-0.02em', maxWidth: '760px' }}>
+            What do you want to build today?
+          </h1>
+          <p style={{ color: th.textMuted, fontSize: '1rem', maxWidth: '480px', margin: 0, lineHeight: 1.6 }}>
+            Describe a website. Nova writes the real code, shows you a live preview, and keeps refining it as you talk.
+          </p>
+
+          <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+            {SUGGESTIONS.map(s => (
+              <button key={s} className="nova-chip" onClick={() => { setUserInput(s); inputRef.current?.focus(); }} style={{
+                background: 'rgba(255,255,255,0.02)', border: `1px solid ${th.border}`, color: th.textMuted,
+                padding: '8px 14px', borderRadius: '999px', fontSize: '0.8rem', cursor: 'pointer',
+              }}>
+                {s}
+              </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Sidebar overlay */}
-      {isSidebarOpen && (
-        <div onClick={() => setIsSidebarOpen(false)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 8999,
-        }} />
-      )}
-
-      {/* ── Top Bar ── */}
-      {step === 'main' && user && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, height: '60px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '0 20px', zIndex: 10000,
-          background: `${th.bg}cc`, backdropFilter: 'blur(12px)',
-          borderBottom: `1px solid ${th.border}`,
-        }}>
-          {/* Left: sidebar toggle + logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={{
-              background: 'none', border: 'none', color: th.text, cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px',
-            }}>
-              {[0, 1, 2].map(i => <div key={i} style={{ width: '18px', height: '2px', background: th.text, borderRadius: '1px' }} />)}
-            </button>
-            <span style={{ fontWeight: '800', fontSize: '1.1rem', letterSpacing: '1px' }}>NOVA</span>
+      {/* ── Chat column ── */}
+      <div style={{
+        width: '100%', maxWidth: '760px', height: '100dvh',
+        margin: '0 auto',
+        display: 'flex', flexDirection: 'column',
+        paddingTop: '74px', paddingBottom: '22px', paddingInline: '20px',
+        boxSizing: 'border-box', position: 'relative', zIndex: 1,
+      }}>
+        {sessionError && (
+          <div style={{
+            background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.28)',
+            color: '#fca5a5', borderRadius: '10px', padding: '10px 14px',
+            fontSize: '0.82rem', marginBottom: '12px',
+          }}>
+            {sessionError}
           </div>
-
-          {/* Right: actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {showDeploy && (
-              <button onClick={handleDeploy} style={{
-                background: th.accent, border: 'none', color: '#000',
-                padding: '8px 18px', borderRadius: '8px', cursor: 'pointer',
-                fontSize: '0.82rem', fontWeight: '700',
-                boxShadow: `0 0 14px rgba(0,223,137,0.35)`,
-              }}>
-                {t(lang, 'publish')}
+        )}
+        {errorBanner && (
+          <div style={{
+            background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.28)',
+            color: '#fca5a5', borderRadius: '10px', padding: '10px 14px',
+            fontSize: '0.82rem', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+          }}>
+            <span>{errorBanner}</span>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+              <button onClick={retryLast} style={{ background: 'none', border: '1px solid rgba(220,38,38,0.4)', color: '#fca5a5', cursor: 'pointer', borderRadius: '6px', padding: '4px 10px', fontSize: '0.76rem', fontWeight: 600 }}>
+                Retry
               </button>
-            )}
+              <button onClick={() => setErrorBanner(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer' }}>✕</button>
+            </div>
+          </div>
+        )}
 
-            {/* Theme toggle */}
-            <button onClick={() => setIsDark(!isDark)} style={{
-              background: th.surface2, border: `1px solid ${th.border}`,
-              color: th.text, width: '36px', height: '36px', borderRadius: '50%',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {isDark ? <SunIcon /> : <MoonIcon />}
-            </button>
-
-            {/* Profile menu */}
-            <div ref={menuRef} style={{ position: 'relative' }}>
-              <button onClick={() => { setIsMenuOpen(!isMenuOpen); setIsLangMenuOpen(false); }} style={{
-                background: '#0083c4', border: 'none',
-                width: '36px', height: '36px', borderRadius: '50%',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: '700', color: '#fff', fontSize: '0.9rem',
-              }}>
-                {profileData.avatarLetter}
-              </button>
-
-              {isMenuOpen && (
-                <div style={{
-                  position: 'absolute', top: '44px', right: 0,
-                  background: th.surface, border: `1px solid ${th.border}`,
-                  borderRadius: '12px', width: '220px', padding: '6px', zIndex: 12000,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        {!showLanding && (
+          loadingMessages ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '26px', height: '26px', borderRadius: '50%', border: `3px solid ${th.surface3}`, borderTop: `3px solid ${th.blueBright}`, animation: 'spin 0.8s linear infinite' }} />
+            </div>
+          ) : (
+            <div ref={chatBoxRef} className="nova-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px', paddingBottom: '16px' }}>
+              {messages.map(m => (
+                <div key={m.id} className="nova-msg" style={{
+                  alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
+                  maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '8px',
                 }}>
-                  {/* Profile info */}
-                  <div style={{ padding: '10px 12px', borderBottom: `1px solid ${th.border}`, marginBottom: '4px' }}>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: th.text, fontWeight: '600' }}>{profileData.displayName}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: th.textMuted, wordBreak: 'break-all' }}>{profileData.email}</p>
-                  </div>
-
-                  {/* Settings */}
-                  <MenuItem icon={<UserIcon />} label={t(lang, 'settings')} onClick={() => { setIsSettingsModalOpen(true); setIsMenuOpen(false); }} color={th.text} />
-
-                  {/* Language */}
-                  <div style={{ position: 'relative' }}>
-                    <MenuItem icon={<GlobeIcon />} label="Language" rightLabel={LANGUAGES.find(l => l.code === lang)?.label} onClick={(e: React.MouseEvent) => { e.stopPropagation(); setIsLangMenuOpen(!isLangMenuOpen); }} color={th.text} />
-                    {isLangMenuOpen && (
-                      <div style={{
-                        position: 'absolute', right: '100%', top: 0, marginRight: '8px',
-                        background: th.surface, border: `1px solid ${th.border}`,
-                        borderRadius: '10px', width: '150px', padding: '4px',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-                      }}>
-                        {LANGUAGES.map(l => (
-                          <button key={l.code} onClick={() => { setLang(l.code); setIsLangMenuOpen(false); setIsMenuOpen(false); }} style={{
-                            width: '100%', background: lang === l.code ? th.surface2 : 'transparent',
-                            border: 'none', color: th.text, padding: '8px 12px',
-                            textAlign: 'left', cursor: 'pointer', borderRadius: '6px', fontSize: '0.82rem',
-                            fontWeight: lang === l.code ? '600' : '400',
-                          }}>
-                            {l.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Logout */}
-                  <button onClick={() => supabase.auth.signOut()} style={{
-                    width: '100%', background: 'transparent', border: 'none',
-                    color: '#ff4d4d', padding: '10px 12px', textAlign: 'left',
-                    cursor: 'pointer', borderRadius: '8px', fontSize: '0.82rem',
-                    display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px',
+                  <div style={{
+                    background: m.sender === 'user' ? th.blue : 'transparent',
+                    color: m.sender === 'user' ? '#ffffff' : th.text,
+                    borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : 0,
+                    padding: m.sender === 'user' ? '11px 15px' : '0',
+                    fontSize: '0.92rem', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                    boxShadow: m.sender === 'user' ? `0 4px 18px ${th.blueSoft}` : 'none',
                   }}>
-                    <LogoutIcon /> {t(lang, 'logout')}
-                  </button>
+                    {m.id === streamingId && !m.text ? (
+                      <PhaseLabel phase={phase} muted={th.textMuted} />
+                    ) : m.text}
+                  </div>
+
+                  {m.id === streamingId && m.text && phase === 'reviewing' && (
+                    <div style={{ fontSize: '0.75rem', color: th.textMuted, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: th.blueBright, animation: 'pulse 1s infinite ease-in-out' }} />
+                      Reviewing the result…
+                    </div>
+                  )}
+
+                  {m.codeBlock && (
+                    <div style={{ border: `1px solid ${th.border}`, borderRadius: '14px', overflow: 'hidden', background: th.surface }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 13px', background: th.surface2, borderBottom: `1px solid ${th.border}` }}>
+                        <span style={{ fontSize: '0.74rem', color: th.textMuted, fontWeight: 600 }}>Generated site</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <button onClick={() => toggleEditMode(m.id)} style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem',
+                            color: editModeMessageId === m.id ? th.blueBright : th.textMuted, fontWeight: editModeMessageId === m.id ? 700 : 500,
+                          }}>
+                            <SparkIcon /> {editModeMessageId === m.id ? 'Click an element…' : 'Point to edit'}
+                          </button>
+                          <button onClick={() => copyCode(m.id, m.codeBlock!)} style={{
+                            background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem',
+                          }}>
+                            <CopyIcon /> {copiedId === m.id ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+                      {m.previewUrl && (
+                        <iframe
+                          ref={el => { iframeRefs.current[m.id] = el; }}
+                          src={m.previewUrl}
+                          style={{ width: '100%', height: '380px', border: 'none', background: '#fff' }}
+                          sandbox="allow-scripts"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {isThinking && !streamingId && (
+                <div className="nova-msg" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <PhaseLabel phase={phase} muted={th.textMuted} />
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          )
+        )}
 
-      {/* ==================== [1] Password Screen ==================== */}
-      {step === 'password' && (
-        <div style={{
-          textAlign: 'center', width: '90%', maxWidth: '360px',
-          background: th.surface, border: `1px solid ${th.border}`,
-          padding: '45px 30px', borderRadius: '24px',
-          animation: pwError ? 'shake 0.4s ease' : 'none',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-        }}>
-          <div style={{ margin: '0 auto 24px', animation: 'float 4s infinite ease-in-out', display: 'inline-block', background: '#000', padding: '16px', borderRadius: '20px', border: `1px solid ${th.border}` }}>
-            <NovaLogoIcon size={70} />
-          </div>
-          <p style={{ fontSize: '0.7rem', color: th.textMuted, margin: '0 0 18px', letterSpacing: '2px', fontWeight: '700' }}>
-            {t(lang, 'security_key')}
-          </p>
-          <input
-            type="password" value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && checkPassword()}
-            placeholder="••••••••"
-            style={{
-              width: '100%', padding: '14px', fontSize: '1rem',
-              color: th.text, textAlign: 'center',
-              border: `1px solid ${pwError ? '#ff4d4d' : th.border}`,
-              borderRadius: '12px', outline: 'none',
-              background: th.inputBg, letterSpacing: '3px', boxSizing: 'border-box',
-              transition: 'border-color 0.2s',
-            }}
-          />
-          {pwError && <p style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '8px' }}>Incorrect password</p>}
-        </div>
-      )}
-
-      {/* ==================== [2] OAuth Screen ==================== */}
-      {step === 'oauth' && (
-        <div style={{
-          width: '90%', maxWidth: '370px',
-          background: th.surface, border: `1px solid ${th.border}`,
-          padding: '35px 25px', borderRadius: '24px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-        }}>
-          <p style={{ fontSize: '0.7rem', color: th.text, marginBottom: '24px', letterSpacing: '2px', fontWeight: '700', textAlign: 'center' }}>
-            {t(lang, 'access_account')}
-          </p>
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            providers={['google', 'github']}
-            theme="dark"
-            showLinks={true}
-          />
-        </div>
-      )}
-
-      {/* ==================== [3] Main Workspace ==================== */}
-      {step === 'main' && (
-        <div style={{
-          width: '100%', height: '100vh', display: 'flex',
-          flexDirection: 'column', alignItems: 'center',
-          paddingTop: '60px', boxSizing: 'border-box',
-        }}>
-          <div style={{
-            width: '100%', maxWidth: '760px', flex: 1,
-            display: 'flex', flexDirection: 'column', padding: '0 16px 16px',
-            boxSizing: 'border-box',
-          }}>
-
-            {/* Empty state */}
-            {messages.length === 0 && (
-              <div style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                justifyContent: 'center', alignItems: 'center', textAlign: 'center',
-                animation: 'float 4s infinite ease-in-out',
-              }}>
-                <div style={{ background: '#000', padding: '16px', borderRadius: '24px', border: `1px solid ${th.border}`, marginBottom: '20px', display: 'inline-block' }}>
-                  <NovaLogoIcon size={65} />
-                </div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0 0 8px', color: th.text }}>
-                  {t(lang, 'welcome')}
-                </h2>
-                <p style={{ color: th.textMuted, fontSize: '0.88rem', maxWidth: '340px' }}>
-                  {t(lang, 'subtitle')}
-                </p>
-
-                {/* Quick prompts */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '24px', justifyContent: 'center', maxWidth: '480px' }}>
-                  {['Landing page for a SaaS product', 'Portfolio website with dark theme', 'E-commerce product page', 'Dashboard UI with charts'].map(p => (
-                    <button key={p} onClick={() => { setUserInput(p); inputRef.current?.focus(); }} style={{
-                      background: th.surface, border: `1px solid ${th.border}`,
-                      color: th.text, padding: '9px 16px', borderRadius: '20px',
-                      cursor: 'pointer', fontSize: '0.8rem', transition: 'border-color 0.2s',
-                    }}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Messages */}
-            {messages.length > 0 && (
-              <div className="nova-scroll" ref={chatBoxRef} style={{
-                flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
-                gap: '20px', padding: '20px 4px',
-              }}>
-                {messages.map(msg => (
-                  <div key={msg.id} className="nova-msg" style={{
-                    display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  }}>
-                    <div style={{ maxWidth: '88%' }}>
-                      {/* Bubble */}
-                      <div style={{
-                        padding: '12px 16px', borderRadius: '14px',
-                        background: msg.sender === 'user' ? (isDark ? '#0d0d18' : '#ebebf5') : th.surface,
-                        border: `1px solid ${msg.hasPreview ? 'rgba(0,112,243,0.35)' : th.border}`,
-                        fontSize: '0.9rem', lineHeight: '1.65', color: th.text,
-                        boxShadow: msg.hasPreview ? '0 0 20px rgba(0,112,243,0.08)' : 'none',
-                      }}>
-                        <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
-                      </div>
-
-                      {/* Timestamp */}
-                      <div style={{ fontSize: '0.68rem', color: th.textMuted, marginTop: '4px', paddingLeft: '4px' }}>
-                        {formatTime(msg.timestamp)}
-                      </div>
-
-                      {/* Preview/Code tabs */}
-                      {msg.hasPreview && msg.previewHtml && (
-                        <div style={{
-                          marginTop: '12px', border: `1px solid ${th.border}`,
-                          borderRadius: '12px', overflow: 'hidden',
-                          background: th.surface2,
-                        }}>
-                          {/* Tab bar */}
-                          <div style={{
-                            display: 'flex', alignItems: 'center',
-                            borderBottom: `1px solid ${th.border}`,
-                            padding: '0 12px', background: th.surface,
-                          }}>
-                            {(['preview', 'code'] as const).map(tab => (
-                              <button key={tab} onClick={() => setPreviewTab(prev => ({ ...prev, [msg.id]: tab }))} style={{
-                                background: 'none', border: 'none',
-                                color: (previewTab[msg.id] || 'preview') === tab ? th.text : th.textMuted,
-                                padding: '10px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
-                                borderBottom: (previewTab[msg.id] || 'preview') === tab ? `2px solid ${th.accent}` : '2px solid transparent',
-                                display: 'flex', alignItems: 'center', gap: '5px',
-                              }}>
-                                {tab === 'preview' ? <><EyeIcon /> {t(lang, 'preview')}</> : <><CodeIcon /> {t(lang, 'code')}</>}
-                              </button>
-                            ))}
-                            <div style={{ flex: 1 }} />
-                            <button onClick={() => copyCode(msg.id, msg.previewHtml!)} style={{
-                              background: 'none', border: 'none', color: th.textMuted,
-                              cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px',
-                            }}>
-                              <CopyIcon /> {copiedId === msg.id ? t(lang, 'copied') : t(lang, 'copy')}
-                            </button>
-                          </div>
-
-                          {/* Tab content */}
-                          {(previewTab[msg.id] || 'preview') === 'preview' ? (
-                            <iframe
-                              srcDoc={msg.previewHtml}
-                              title="preview"
-                              style={{ width: '100%', height: '380px', border: 'none', display: 'block' }}
-                              sandbox="allow-scripts"
-                            />
-                          ) : (
-                            <pre className="nova-scroll" style={{
-                              margin: 0, padding: '16px', fontSize: '0.78rem',
-                              color: '#a8b4d0', background: '#050510', overflowX: 'auto',
-                              maxHeight: '380px', overflowY: 'auto',
-                            }}>
-                              {msg.previewHtml}
-                            </pre>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Thinking indicator */}
-                {isThinking && (
-                  <div className="nova-msg" style={{
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    background: th.surface, border: `1px solid ${th.border}`,
-                    padding: '12px 18px', borderRadius: '14px', alignSelf: 'flex-start',
-                  }}>
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      {[0, 1, 2].map(i => (
-                        <div key={i} style={{
-                          width: '7px', height: '7px', borderRadius: '50%',
-                          background: i === 0 ? th.accent : i === 1 ? th.blue : '#fff',
-                          animation: `pulse 1.2s infinite ease-in-out ${i * 0.2}s`,
-                        }} />
-                      ))}
-                    </div>
-                    <span style={{ fontSize: '0.85rem', color: th.textMuted }}>{t(lang, 'thinking')}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Input bar */}
+        {/* ── Input bar ── */}
+        <div style={{ marginTop: showLanding ? 0 : 'auto', position: showLanding ? 'absolute' : 'static', left: 0, right: 0, bottom: showLanding ? '14%' : 'auto', paddingInline: showLanding ? '20px' : 0, zIndex: 3 }}>
+          {selectedElement && (
             <div style={{
-              marginTop: 'auto', background: th.surface,
-              border: `1px solid ${th.border}`, borderRadius: '16px',
-              padding: '10px 12px', display: 'flex', alignItems: 'flex-end', gap: '10px',
-              boxShadow: isDark ? '0 -2px 20px rgba(0,0,0,0.3)' : '0 -2px 20px rgba(0,0,0,0.06)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+              background: th.blueSoft, border: `1px solid ${th.blue}55`,
+              borderRadius: '10px', padding: '8px 12px', marginBottom: '8px', fontSize: '0.78rem',
             }}>
-              <button onClick={toggleVoice} style={{
-                background: isListening ? 'rgba(0,223,137,0.15)' : 'none',
-                border: isListening ? '1px solid #00df89' : 'none',
-                width: '36px', height: '36px', borderRadius: '50%',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <MicIcon active={isListening} />
-              </button>
-
-              <textarea
-                ref={inputRef}
-                value={userInput}
-                onChange={handleInputChange}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-                }}
-                placeholder={t(lang, 'placeholder')}
-                rows={1}
-                disabled={isThinking}
-                style={{
-                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  color: th.text, fontSize: '0.93rem', padding: '6px 4px',
-                  lineHeight: '1.5', minHeight: '36px', maxHeight: '160px',
-                  fontFamily: 'inherit',
-                }}
-              />
-
-              <button
-                onClick={handleSend}
-                disabled={isThinking || !userInput.trim()}
-                style={{
-                  background: userInput.trim() && !isThinking ? '#ffffff' : th.surface2,
-                  border: 'none', width: '38px', height: '38px', borderRadius: '50%',
-                  cursor: userInput.trim() ? 'pointer' : 'default',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, transition: 'background 0.2s',
-                }}
-              >
-                <SendIcon enabled={!!userInput.trim() && !isThinking} />
-              </button>
+              <span style={{ color: th.blueBright, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <SparkIcon /> Editing <code style={{ color: th.text }}>&lt;{selectedElement.tag}&gt;</code>
+              </span>
+              <button onClick={() => setSelectedElement(null)} style={{ background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer' }}>✕</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== Settings Modal ==================== */}
-      {isSettingsModalOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 20000,
-        }}>
+          )}
           <div style={{
-            width: '90%', maxWidth: '500px',
-            background: th.surface, border: `1px solid ${th.border}`,
-            borderRadius: '16px', overflow: 'hidden',
+            maxWidth: showLanding ? '640px' : 'none', margin: showLanding ? '0 auto' : 0,
+            background: th.surface2,
+            border: `1px solid ${th.borderStrong}`, borderRadius: '18px',
+            padding: '11px 12px', display: 'flex', alignItems: 'flex-end', gap: '10px',
+            boxShadow: showLanding ? '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02)' : '0 -2px 24px rgba(0,0,0,0.4)',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 22px', borderBottom: `1px solid ${th.border}` }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: th.text }}>{t(lang, 'settings')}</h3>
-              <button onClick={() => setIsSettingsModalOpen(false)} style={{
-                background: th.surface2, border: 'none', color: th.textMuted,
-                width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem',
-              }}>✕</button>
-            </div>
-            <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              <Row label="Email" value={profileData.email} color={th.text} muted={th.textMuted} />
-              <Row label="Name" value={profileData.displayName} color={th.text} muted={th.textMuted} />
-              <Row label="Language" value={LANGUAGES.find(l => l.code === lang)?.name || 'English'} color={th.text} muted={th.textMuted} />
-              <Row label="Theme" value={isDark ? 'Dark' : 'Light'} color={th.text} muted={th.textMuted} />
-            </div>
+            <button onClick={toggleVoice} aria-label="Voice input" style={{
+              background: isListening ? th.blueSoft : 'none',
+              border: isListening ? `1px solid ${th.blue}` : 'none',
+              width: '34px', height: '34px', borderRadius: '50%',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <MicIcon active={isListening} />
+            </button>
+
+            <textarea
+              ref={inputRef}
+              value={userInput}
+              onChange={handleInputChange}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              placeholder="Build a landing page, app UI, portfolio site..."
+              rows={1}
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                color: th.text, fontSize: '0.93rem', padding: '6px 4px',
+                lineHeight: 1.5, minHeight: '34px', maxHeight: '160px',
+                fontFamily: 'inherit',
+              }}
+            />
+
+            <button
+              onClick={handleSend}
+              disabled={!userInput.trim()}
+              className="nova-send"
+              style={{
+                background: userInput.trim() ? th.blue : th.surface3,
+                border: 'none', width: '36px', height: '36px', borderRadius: '50%',
+                cursor: userInput.trim() ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, transition: 'background 0.15s ease',
+              }}
+            >
+              <SendIcon enabled={!!userInput.trim()} />
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* ==================== Deploy Modal ==================== */}
+      {/* ── Deploy modal ── */}
       {deploying.active && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.97)',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 15000,
-        }}>
-          <div style={{
-            width: '90%', maxWidth: '400px',
-            background: th.surface, border: `1px solid ${th.border}`,
-            padding: '44px 32px', borderRadius: '24px', textAlign: 'center',
-          }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 15000 }}>
+          <div style={{ width: '90%', maxWidth: '400px', background: th.surface, border: `1px solid ${th.border}`, padding: '44px 32px', borderRadius: '24px', textAlign: 'center' }}>
             {deploying.progress < 100 ? (
               <>
-                <div style={{
-                  width: '60px', height: '60px', margin: '0 auto 24px',
-                  borderRadius: '50%', border: '4px solid #1a1a22',
-                  borderTop: '4px solid #0070f3', animation: 'deployRotate 0.9s linear infinite',
-                }} />
-                <p style={{ fontSize: '2.2rem', fontWeight: '900', color: th.text, margin: '0 0 8px' }}>{deploying.progress}%</p>
-                <p style={{ color: th.textMuted, fontSize: '0.85rem' }}>Publishing your site to the cloud...</p>
+                <div style={{ width: '58px', height: '58px', margin: '0 auto 24px', borderRadius: '50%', border: `4px solid ${th.surface3}`, borderTop: `4px solid ${th.blue}`, animation: 'deployRotate 0.9s linear infinite' }} />
+                <p style={{ fontSize: '2.1rem', fontWeight: 900, color: th.text, margin: '0 0 8px' }}>{deploying.progress}%</p>
+                <p style={{ color: th.textMuted, fontSize: '0.85rem' }}>Publishing your site...</p>
               </>
             ) : (
               <>
-                <div style={{
-                  width: '56px', height: '56px', borderRadius: '50%',
-                  border: `2px solid ${th.accent}`, background: 'rgba(0,223,137,0.08)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 20px', animation: 'float 3s infinite ease-in-out',
-                }}>
-                  <span style={{ color: th.accent, fontSize: '1.5rem' }}>✓</span>
+                <div style={{ width: '54px', height: '54px', borderRadius: '50%', border: `2px solid ${th.blue}`, background: th.blueSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                  <span style={{ color: th.blueBright, fontSize: '1.4rem' }}>✓</span>
                 </div>
-                <h3 style={{ color: th.text, margin: '0 0 8px', fontSize: '1.2rem' }}>{t(lang, 'deploy_title')}</h3>
-                <p style={{ color: th.textMuted, fontSize: '0.82rem', marginBottom: '20px' }}>{t(lang, 'deploy_msg')}</p>
-                <div style={{
-                  background: th.surface2, border: `1px solid ${th.border}`,
-                  borderRadius: '10px', padding: '12px', marginBottom: '22px',
-                }}>
-                  <a href={deploying.url || '#'} target="_blank" rel="noreferrer" style={{
-                    color: th.blue, fontSize: '0.9rem', wordBreak: 'break-all', fontWeight: '600',
-                  }}>
+                <h3 style={{ color: th.text, margin: '0 0 8px', fontSize: '1.2rem' }}>Deployment complete</h3>
+                <p style={{ color: th.textMuted, fontSize: '0.82rem', marginBottom: '20px' }}>Your site is live at:</p>
+                <div style={{ background: th.surface2, border: `1px solid ${th.border}`, borderRadius: '10px', padding: '12px', marginBottom: '22px' }}>
+                  <a href={deploying.url || '#'} target="_blank" rel="noreferrer" style={{ color: th.blueBright, fontSize: '0.9rem', wordBreak: 'break-all', fontWeight: 600 }}>
                     {deploying.url} ↗
                   </a>
                 </div>
-                <button onClick={() => { setDeploying({ active: false, progress: 0, url: null }); setShowDeploy(false); }} style={{
-                  width: '100%', background: '#fff', color: '#000',
-                  border: 'none', padding: '13px', borderRadius: '10px',
-                  cursor: 'pointer', fontWeight: '700',
+                <button onClick={() => setDeploying({ active: false, progress: 0, url: null })} style={{
+                  width: '100%', background: '#fff', color: '#000', border: 'none', padding: '13px', borderRadius: '10px', cursor: 'pointer', fontWeight: 700,
                 }}>
-                  {t(lang, 'back')}
+                  Back to workspace
                 </button>
               </>
             )}
           </div>
         </div>
       )}
-
     </div>
   );
 }
 
-// ── Small helper components ──────────────────────────────────────────────────
-function MenuItem({ icon, label, onClick, rightLabel, color }: { icon: React.ReactNode; label: string; onClick?: (e: any) => void; rightLabel?: string; color: string }) {
+function PhaseLabel({ phase, muted }: { phase: string; muted: string }) {
+  const labels: Record<string, string> = {
+    planning: 'Planning the approach…',
+    building: 'Building…',
+    reviewing: 'Reviewing the result…',
+    idle: 'Thinking…',
+  };
   return (
-    <button onClick={onClick} style={{
-      width: '100%', background: 'transparent', border: 'none',
-      color, padding: '9px 12px', textAlign: 'left', cursor: 'pointer',
-      borderRadius: '8px', fontSize: '0.82rem',
-      display: 'flex', alignItems: 'center', gap: '8px',
-    }}>
-      {icon}
-      <span style={{ flex: 1 }}>{label}</span>
-      {rightLabel && <span style={{ fontSize: '0.72rem', color: '#888' }}>{rightLabel} ▾</span>}
-    </button>
-  );
-}
-
-function Row({ label, value, color, muted }: { label: string; value: string; color: string; muted: string }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid #111116`, paddingBottom: '14px' }}>
-      <span style={{ fontSize: '0.82rem', color: muted }}>{label}</span>
-      <span style={{ fontSize: '0.85rem', color, fontWeight: '500' }}>{value}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: '6px', height: '6px', borderRadius: '50%',
+            background: th.blueBright,
+            animation: `pulse 1.2s infinite ease-in-out ${i * 0.18}s`,
+          }} />
+        ))}
+      </div>
+      <span style={{ fontSize: '0.85rem', color: muted }}>{labels[phase] || labels.idle}</span>
     </div>
   );
 }

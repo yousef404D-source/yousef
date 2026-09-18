@@ -1,144 +1,98 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import OpenAI from "openai";
+import { NextResponse } from "next/server";
 import axios from "axios";
+import { createClient, getVerifiedUser } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { validateDeployRequest } from "@/lib/validators/api";
+import { handleApiError } from "@/lib/utils/errors";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+// See app/api/nova/route.ts for why this is needed on Vercel Hobby.
+export const maxDuration = 60;
 
+/**
+ * Publishes the exact HTML document the user already previewed in chat.
+ *
+ * IMPORTANT: this intentionally does NOT call OpenAI again. An earlier
+ * version of this route re-generated a brand new site from a short prompt
+ * using a different, weaker system prompt — so what got deployed rarely
+ * matched what the user actually reviewed in the preview pane. Deploying
+ * the reviewed HTML verbatim, as a static site, is what makes "preview
+ * before it goes live" a real guarantee instead of a false promise.
+ *
+ * There is also no account system, so this no longer checks for an admin
+ * role — any visitor with an active (anonymous) session can deploy their
+ * own generated site, rate-limited below.
+ */
 export async function POST(req: Request) {
   try {
-    console.log("🚀 NOVA AI STARTED PRODUCTION DEPLOY");
-
-    /* ---------------- 🔒 SUPABASE ADMIN CHECK ---------------- */
-    const cookieStore = await cookies();
-    
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // تجاهل الخطأ إذا تم الاستدعاء من داخل Server Component
-            }
-          },
-        },
-      }
-    );
-
-    // 1. التحقق من وجود جلسة مستخدم نشطة
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return Response.json(
-        { success: false, error: "Unauthorized. Please sign in." },
+    const user = await getVerifiedUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
         { status: 401 }
       );
     }
 
-    // 2. فحص رتبة المسؤول لحماية الموارد المادية والسيرفر
-    const { data: userRole, error: roleError } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id)
-      .single();
+    const supabase = await createClient();
 
-    if (roleError || !userRole || userRole.role !== "admin") {
-      return Response.json(
-        { success: false, error: "Access denied. Admins only." },
-        { status: 403 }
+    const { allowed } = await checkRateLimit(supabase, user.id, {
+      route: "deploy",
+      limit: 8,
+      windowSeconds: 300,
+    });
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: "Deploy limit reached. Please wait a few minutes." },
+        { status: 429 }
       );
     }
 
-    /* -------------------------------------------------------- */
+    const body = await req.json();
+    const { code, conversationId } = validateDeployRequest(body);
 
-    // جلب الـ prompt الحقيقي الذي كتبه المستخدم في الواجهة
-    const { prompt } = await req.json();
-    if (!prompt) {
-      return Response.json({ success: false, error: "Prompt is required" }, { status: 400 });
+    const projectName = "nova-" + crypto.randomUUID().slice(0, 8);
+
+    let deployUrl: string | undefined;
+    let deployError: string | undefined;
+
+    try {
+      // Static deployment: a single index.html, no framework, no build step.
+      // Far more reliable than shipping AI-generated JSX through a Next.js
+      // build, which can fail on the smallest syntax slip.
+      const response = await axios.post(
+        "https://api.vercel.com/v13/deployments",
+        {
+          name: projectName,
+          files: [{ file: "index.html", data: code }],
+          projectSettings: { framework: null },
+          target: "production",
+        },
+        { headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } }
+      );
+      deployUrl = "https://" + response.data.url;
+    } catch (err) {
+      deployError = err instanceof Error ? err.message : "Vercel deployment failed";
     }
 
-    /* ---------------- AI WEBSITE GENERATION ---------------- */
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: 1,
-      max_tokens: 2500,
-      messages: [
-        {
-          role: "system",
-          content: `
-You are Nova AI. You are the BEST AI website builder.
-Your job: Generate a COMPLETE premium website based EXACTLY on the user's request.
-
-IMPORTANT RULES:
-- Return ONLY JSX (No markdown, no explanations, no comments, no imports, no export default, no html/body/head tags)
-- Always include: navbar, hero section, features, cards, buttons, footer, animations, gradients, shadows, responsive layout.
-- STYLE: futuristic, premium, advanced UI. Use ONLY inline styles.
-- IMPORTANT: The JSX MUST work directly inside <div>{HERE}</div> without breaking syntax.
-`,
-        },
-        { role: "user", content: prompt },
-      ],
+    // Persist the deployment attempt regardless of outcome so the user has
+    // a history to look back on.
+    await supabase.from("deployments").insert({
+      user_id: user.id,
+      conversation_id: conversationId ?? null,
+      prompt: code.slice(0, 2000), // stored for reference/debugging only
+      deploy_url: deployUrl ?? null,
+      status: deployUrl ? "success" : "failed",
+      error_message: deployError ?? null,
     });
 
-    let jsx = completion.choices[0].message.content || "";
-    
-    // تنظيف المخرجات من أي علامات تعليق برمجية قد تضعها OpenAI تلقائياً
-    if (jsx.startsWith("```")) {
-      jsx = jsx.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "");
+    if (!deployUrl) {
+      return NextResponse.json(
+        { success: false, error: "Deployment failed. Please try again shortly." },
+        { status: 502 }
+      );
     }
 
-    /* ---------------- STRUCTURING FILES FOR VERCEL ---------------- */
-    const projectName = "nova-ai-" + crypto.randomUUID().slice(0, 8);
-    
-    const pageCode = `export default function Page() { return ( <div style={{ background:"#050816", minHeight:"100vh", color:"white", overflowX:"hidden", fontFamily:"Arial" }}> ${jsx} </div> ); }`;
-    const layoutCode = `export const metadata = { title: "Nova AI Generated" }; export default function RootLayout({ children }: { children: React.ReactNode }) { return ( <html lang="en"><body style={{ margin:0, padding:0, background:"#050816" }}>{children}</body></html> ); }`;
-
-    const files = [
-      { file: "app/page.tsx", data: pageCode },
-      { file: "app/layout.tsx", data: layoutCode },
-      {
-        file: "package.json",
-        data: JSON.stringify({
-          name: projectName,
-          private: true,
-          scripts: { dev: "next dev", build: "next build", start: "next start" },
-          dependencies: { next: "15.3.5", react: "^19.0.0", "react-dom": "^19.0.0" },
-        }),
-      },
-      {
-        file: "tsconfig.json",
-        data: JSON.stringify({
-          compilerOptions: { target: "ES6", lib: ["dom", "dom.iterable", "esnext"], allowJs: true, skipLibCheck: true, strict: false, noEmit: true, esModuleInterop: true, module: "esnext", moduleResolution: "bundler", resolveJsonModule: true, isolatedModules: true, jsx: "preserve" },
-          include: ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-        }),
-      },
-      { file: "next.config.mjs", data: "const nextConfig = {}; export default nextConfig;" },
-      { file: "next-env.d.ts", data: "/// <reference types=\"next\" />" },
-    ];
-
-    /* ---------------- VERCEL API DEPLOYMENT ---------------- */
-    const response = await axios.post(
-      "[https://api.vercel.com/v13/deployments](https://api.vercel.com/v13/deployments)",
-      { name: projectName, files, projectSettings: { framework: "nextjs" } },
-      { headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } }
-    );
-
-    // إرجاع نجاح العملية مع الرابط الفعلي المباشر
-    return Response.json({ success: true, url: "https://" + response.data.url });
-
-  } catch (error: any) {
-    return Response.json(
-      { success: false, error: error?.response?.data || error.message || "Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, url: deployUrl });
+  } catch (error) {
+    return handleApiError(error, "api/deploy");
   }
 }
