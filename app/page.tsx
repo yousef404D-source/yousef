@@ -776,7 +776,7 @@ export default function NovaAI() {
       {/* ── Landing hero (only before the first message of a fresh chat) ── */}
       {showLanding && (
         <div className={isTransitioning ? 'nova-hero-exit' : 'nova-hero'} style={{
-          position: 'absolute', inset: 0, zIndex: 2,
+          position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '0 20px', textAlign: 'center', gap: '28px',
         }}>
@@ -792,7 +792,7 @@ export default function NovaAI() {
             Describe a website. Nova writes the real code, shows you a live preview, and keeps refining it as you talk.
           </p>
 
-          <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', pointerEvents: 'auto' }}>
             {SUGGESTIONS.map(s => (
               <button key={s} className="nova-chip" onClick={() => { setUserInput(s); inputRef.current?.focus(); }} style={{
                 background: 'rgba(255,255,255,0.02)', border: `1px solid ${th.border}`, color: th.textMuted,

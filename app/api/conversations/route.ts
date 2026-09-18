@@ -6,10 +6,7 @@ export async function GET() {
   try {
     const user = await getVerifiedUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Session not ready yet. Please wait a moment and try again." }, { status: 401 });
     }
 
     const supabase = await createClient();
@@ -31,10 +28,7 @@ export async function POST(req: Request) {
   try {
     const user = await getVerifiedUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Session not ready yet. Please wait a moment and try again." }, { status: 401 });
     }
 
     const body = await req.json().catch(() => ({}));

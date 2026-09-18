@@ -6,9 +6,8 @@ import { createBrowserClient } from "@supabase/ssr";
  * the server client (lib/supabase/server.ts) can read back.
  *
  * IMPORTANT: never import "@supabase/supabase-js" createClient() directly
- * anywhere in this app — it does not sync cookies with the server, which
- * causes API routes to see the visitor as logged out even right after a
- * successful sign-in in the browser.
+ * in the app anymore — it does not sync cookies with the server and was
+ * the root cause of "login works but API routes think I'm logged out".
  */
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

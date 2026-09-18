@@ -6,10 +6,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const user = await getVerifiedUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Session not ready yet. Please wait a moment and try again." }, { status: 401 });
     }
     const { id } = await params;
 
@@ -32,10 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const user = await getVerifiedUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Session not ready yet. Please wait a moment and try again." }, { status: 401 });
     }
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
@@ -64,10 +58,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   try {
     const user = await getVerifiedUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Session not ready yet. Please wait a moment and try again." }, { status: 401 });
     }
     const { id } = await params;
 

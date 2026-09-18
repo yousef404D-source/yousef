@@ -8,19 +8,16 @@ import { handleApiError } from "@/lib/utils/errors";
 // See app/api/nova/route.ts for why this is needed on Vercel Hobby.
 export const maxDuration = 60;
 
+
 /**
  * Publishes the exact HTML document the user already previewed in chat.
  *
- * IMPORTANT: this intentionally does NOT call OpenAI again. An earlier
+ * IMPORTANT: this intentionally does NOT call OpenAI again. The previous
  * version of this route re-generated a brand new site from a short prompt
  * using a different, weaker system prompt — so what got deployed rarely
  * matched what the user actually reviewed in the preview pane. Deploying
  * the reviewed HTML verbatim, as a static site, is what makes "preview
  * before it goes live" a real guarantee instead of a false promise.
- *
- * There is also no account system, so this no longer checks for an admin
- * role — any visitor with an active (anonymous) session can deploy their
- * own generated site, rate-limited below.
  */
 export async function POST(req: Request) {
   try {
@@ -56,8 +53,8 @@ export async function POST(req: Request) {
 
     try {
       // Static deployment: a single index.html, no framework, no build step.
-      // Far more reliable than shipping AI-generated JSX through a Next.js
-      // build, which can fail on the smallest syntax slip.
+      // This is far more reliable than shipping AI-generated JSX through a
+      // Next.js build, which can fail on the smallest syntax slip.
       const response = await axios.post(
         "https://api.vercel.com/v13/deployments",
         {

@@ -62,7 +62,7 @@ drop policy if exists "messages_delete_own" on public.messages;
 create policy "messages_delete_own" on public.messages
   for delete using (auth.uid() = user_id);
 
--- ---------- Deployments ----------
+-- ---------- Deployments (replaces the old in-memory `logs[]`) ----------
 create table if not exists public.deployments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -86,12 +86,11 @@ drop policy if exists "deployments_insert_own" on public.deployments;
 create policy "deployments_insert_own" on public.deployments
   for insert with check (auth.uid() = user_id);
 
--- ---------- Request logs (rate limiting only — no client read access) ----------
--- Replaces the old unauthenticated GET /api/log endpoint entirely, which
--- publicly leaked every visitor's email/IP/prompt to anyone who called it.
+-- ---------- Request logs (for rate limiting + basic abuse monitoring) ----------
+-- Replaces the old unauthenticated GET /api/log endpoint entirely.
 -- Nobody can read this table from the client — it's written by the
--- authenticated user themself and only used server-side for rate-limit
--- counting.
+-- server (service role or the authenticated user themself) and only
+-- used server-side for rate-limit counting.
 create table if not exists public.request_logs (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,

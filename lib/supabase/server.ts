@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 /**
  * Supabase client for Server Components, Route Handlers (app/api/**), and
  * Server Actions. Reads/writes the auth cookie set by lib/supabase/client.ts,
- * so a session started in the browser is also visible on the server.
+ * so a user who is logged in the browser is ALSO logged in on the server.
  *
  * Use `getVerifiedUser()` below instead of `supabase.auth.getSession()` for
  * anything security-sensitive — getSession() trusts the cookie's client-side

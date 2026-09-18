@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface RateLimitOptions {
-  /** Route name, used only to namespace the counter (e.g. "nova-chat"). */
+  /** Route name, used only to namespace the counter (e.g. "ai-generate"). */
   route: string;
   /** Max requests allowed inside the window. */
   limit: number;

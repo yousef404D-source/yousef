@@ -8,10 +8,11 @@ import { toPreviewUrl } from "@/lib/utils/preview";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-// Vercel Hobby caps functions at 10s by default. This pipeline runs up to
-// three sequential model calls (planner → builder → reviewer), so it needs
-// real headroom — requires "Fluid Compute" enabled on the Vercel project,
-// which raises the Hobby ceiling as high as 300s.
+// See note in the original version of this file: Vercel Hobby caps
+// functions at 10s by default. This pipeline runs up to three sequential
+// model calls (planner → builder → reviewer), so it needs real headroom —
+// requires "Fluid Compute" enabled on the Vercel project, which raises the
+// Hobby ceiling as high as 300s.
 export const maxDuration = 120;
 
 // Status markers woven into the byte stream so the frontend can show which
@@ -117,10 +118,7 @@ export async function POST(req: Request) {
   try {
     const user = await getVerifiedUser();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Session not ready yet. Please wait a moment and try again." }, { status: 401 });
     }
 
     const supabase = await createClient();
