@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, getVerifiedUser } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { handleApiError } from "@/lib/utils/errors";
 import { parseSkillFile } from "@/lib/skills/parser";
 
@@ -46,10 +47,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Skill file is too large." }, { status: 400 });
     }
 
+    const supabase = await createClient();
+    const { allowed } = await checkRateLimit(supabase, user.id, {
+      route: "skills-upload",
+      limit: 20,
+      windowSeconds: 3600,
+    });
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many Skills uploaded recently. Please wait a while." },
+        { status: 429 }
+      );
+    }
+
     const fallbackName = (filename || "custom-skill").replace(/\.md$/i, "").slice(0, 80);
     const parsed = parseSkillFile(content, fallbackName);
 
-    const supabase = await createClient();
     const { data, error } = await supabase
       .from("skills")
       .insert({

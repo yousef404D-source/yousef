@@ -311,6 +311,11 @@ export default function NovaAI() {
   useEffect(() => { if (sessionReady) loadSkills(); }, [sessionReady, loadSkills]);
 
   const uploadSkillFile = async (file: File) => {
+    const MAX_CLIENT_SKILL_SIZE = 200_000;
+    if (file.size > MAX_CLIENT_SKILL_SIZE) {
+      setErrorBanner(`"${file.name}" is too large for a Skill (max 200 KB).`);
+      return;
+    }
     const content = await file.text();
     try {
       const res = await fetch('/api/skills', {
@@ -320,6 +325,7 @@ export default function NovaAI() {
       });
       const data = await res.json();
       if (data.success) setSkills(prev => [data.skill, ...prev]);
+      else setErrorBanner(data.error || 'Could not upload the skill. Please try again.');
     } catch {
       setErrorBanner('Could not upload the skill. Please try again.');
     }
@@ -359,6 +365,12 @@ export default function NovaAI() {
   }, []);
 
   const uploadAttachment = async (file: File) => {
+    const MAX_CLIENT_FILE_SIZE = 300_000;
+    if (file.size > MAX_CLIENT_FILE_SIZE) {
+      setErrorBanner(`"${file.name}" is too large to attach (max 300 KB of text).`);
+      return;
+    }
+
     let conversationId = activeConversationId;
     setPendingFileName(file.name);
     try {
@@ -385,8 +397,8 @@ export default function NovaAI() {
       const data = await res.json();
       if (data.success) setAttachments(prev => [...prev, data.attachment]);
       else throw new Error(data.error);
-    } catch {
-      setErrorBanner('Could not attach the file. Please try again.');
+    } catch (err) {
+      setErrorBanner(err instanceof Error && err.message ? err.message : 'Could not attach the file. Please try again.');
     } finally {
       setPendingFileName(null);
     }
@@ -426,6 +438,7 @@ export default function NovaAI() {
     setShowDeploy(false);
     setIsSidebarOpen(false);
     setHasEnteredChat(false);
+    setAttachments([]);
   };
 
   const deleteConversation = async (id: string) => {
@@ -860,7 +873,7 @@ export default function NovaAI() {
                   cursor: 'pointer',
                   border: c.id === activeConversationId ? `1px solid ${th.border}` : '1px solid transparent',
                 }}
-                  onClick={() => { setActiveConversationId(c.id); setHasEnteredChat(true); setIsSidebarOpen(false); }}
+                  onClick={() => { setActiveConversationId(c.id); setHasEnteredChat(true); setIsSidebarOpen(false); setAttachments([]); }}
                 >
                   <span style={{ color: th.textMuted, display: 'flex' }}><ChatIcon /></span>
                   <span style={{ flex: 1, fontSize: '0.82rem', color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

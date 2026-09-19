@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, getVerifiedUser } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { handleApiError } from "@/lib/utils/errors";
 
 const MAX_ATTACHMENT_CHARS = 300_000;
@@ -68,6 +69,19 @@ export async function POST(req: Request) {
     }
 
     const supabase = await createClient();
+
+    const { allowed } = await checkRateLimit(supabase, user.id, {
+      route: "attachments-upload",
+      limit: 30,
+      windowSeconds: 3600,
+    });
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many files uploaded recently. Please wait a while." },
+        { status: 429 }
+      );
+    }
+
     const { data, error } = await supabase
       .from("attachments")
       .insert({

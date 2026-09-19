@@ -5,6 +5,7 @@ import { validateChatRequest } from "@/lib/validators/api";
 import { handleApiError } from "@/lib/utils/errors";
 import { toPreviewUrl } from "@/lib/utils/preview";
 import { streamText, STRONG_MODEL } from "@/lib/ai/provider";
+import { generateImage } from "@/lib/ai/visual-provider";
 import { routeRequest } from "@/lib/agents/router";
 import { runConversationAgent } from "@/lib/agents/conversation";
 import { buildBuilderSystemPrompt } from "@/lib/agents/builder";
@@ -155,8 +156,24 @@ export async function POST(req: Request) {
         } catch (err) {
           console.error("[api/nova skills retrieval]", err);
         }
+
+        // Design Agent: only calls fal.ai when the router decided a real
+        // photographic/illustrated visual would elevate this specific site.
+        // Never called for chat, targeted edits, or by default.
+        let visualBlock = "";
+        if (decision.needsVisual && decision.visualPrompt) {
+          try {
+            const imageUrl = await generateImage(decision.visualPrompt);
+            if (imageUrl) {
+              visualBlock = `\n\nDESIGN AGENT — GENERATED HERO/BACKGROUND IMAGE (use this exact URL in an <img> or CSS background, do not invent a different one): ${imageUrl}`;
+            }
+          } catch (err) {
+            console.error("[api/nova visual generation]", err);
+          }
+        }
+
         const builderMessages: ApiChatMsg[] = [
-          { role: "system", content: buildBuilderSystemPrompt(decision.scope, skillsBlock) },
+          { role: "system", content: buildBuilderSystemPrompt(decision.scope, skillsBlock + visualBlock) },
           ...conversationContext,
         ];
         if (attachmentBlock) {
