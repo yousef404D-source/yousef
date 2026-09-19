@@ -1,96 +1,29 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient, getVerifiedUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { validateChatRequest } from "@/lib/validators/api";
 import { handleApiError } from "@/lib/utils/errors";
 import { toPreviewUrl } from "@/lib/utils/preview";
+import { streamText, STRONG_MODEL } from "@/lib/ai/provider";
+import { routeRequest } from "@/lib/agents/router";
+import { runConversationAgent } from "@/lib/agents/conversation";
+import { buildBuilderSystemPrompt } from "@/lib/agents/builder";
+import { runReviewerAgent } from "@/lib/agents/reviewer";
+import { retrieveRelevantSkills, skillsToPromptBlock } from "@/lib/skills/retrieval";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
-// See note in the original version of this file: Vercel Hobby caps
-// functions at 10s by default. This pipeline runs up to three sequential
-// model calls (planner → builder → reviewer), so it needs real headroom —
-// requires "Fluid Compute" enabled on the Vercel project, which raises the
-// Hobby ceiling as high as 300s.
+// See maxDuration note: sequential model calls (router -> builder -> reviewer)
+// need headroom beyond Vercel Hobby's 10s default — requires Fluid Compute.
 export const maxDuration = 120;
 
 // Status markers woven into the byte stream so the frontend can show which
-// phase Nova is in (Planning / Building / Reviewing) without a second
-// connection. They're stripped from the text before it's ever shown.
+// phase Nova is in without a second connection. Stripped before display.
 const STATUS = {
-  PLANNING: "<<<NOVA_STATUS:PLANNING>>>",
+  ROUTING: "<<<NOVA_STATUS:PLANNING>>>",
   BUILDING: "<<<NOVA_STATUS:BUILDING>>>",
   REVIEWING: "<<<NOVA_STATUS:REVIEWING>>>",
 };
 
-const BUILDER_SYSTEM = `
-You are NOVA, a senior full-stack product engineer and brand designer. You
-are not a toy or a novelty chatbot — you are a serious professional tool.
-People use you to get real answers and real, launch-ready websites. Treat
-every request with the seriousness a paying client's project deserves.
-
-GENERAL BEHAVIOR:
-- Answer any question directly and substantively, the way a knowledgeable
-  senior engineer/designer would. Never deflect with jokes, filler, or "as
-  an AI" disclaimers.
-- Be concise but complete. No fluff, no false enthusiasm, no emoji spam.
-- Read the user's ENTIRE message before responding, not just the last
-  sentence. Treat every instruction in a long message as a real requirement.
-
-CONTINUING AN EXISTING PROJECT:
-- If a "CURRENT SITE HTML" block is present, a site already exists and the
-  user is almost always asking you to MODIFY it, not start a new one. Apply
-  exactly the requested change(s) while leaving everything else untouched.
-  Return the COMPLETE updated HTML document, not a diff or a fragment.
-- If a "USER IS POINTING AT THIS ELEMENT" block is present, the requested
-  change applies specifically to that element (identified by its CSS path
-  and current markup) — make the change there, not somewhere else that
-  looks similar.
-- Only build a brand new site from scratch when there is no CURRENT SITE
-  HTML yet, or the user explicitly says to start over.
-
-WHEN BUILDING A WEBSITE (first time, no existing site):
-1. Discovery first for vague requests: briefly ask what the business does,
-   who it's for, the tone, brand colors, and must-have sections. Skip this
-   if the user already gave enough detail or says to just build it.
-2. Generate a COMPLETE, production-grade website — a real deliverable, not
-   a sketch. No lorem ipsum, no "[Your Company Here]", no unfinished
-   sections. Write real, specific, persuasive copy tailored to the stated
-   business.
-3. Infer the right structure for the industry rather than forcing the same
-   template on everything (restaurant → menu/hours/reservations; SaaS →
-   value prop/features/pricing/FAQ; portfolio → real case studies).
-
-DESIGN STANDARDS (non-negotiable):
-- Strong visual hierarchy, deliberate type scale, generous consistent
-  spacing.
-- A cohesive, intentional color palette fitting the requested tone. Default
-  to a refined premium dark theme only when no direction was given.
-- Real Google Font pairing — never default to Arial.
-- Visible hover/focus states and tasteful transitions on every interactive
-  element.
-- Fully responsive with a working mobile hamburger menu.
-- Accessible: contrast, semantic landmarks, alt text, labeled inputs.
-- Any form has real client-side validation and a visible success/error
-  state via vanilla JS.
-
-TECHNICAL OUTPUT FORMAT:
-- ONE self-contained HTML document: <!DOCTYPE html> through </html>, with a
-  real <title>, meta description, and viewport tag in <head>.
-- Tailwind CSS via CDN, Google Fonts, and an icon set (Lucide/Font Awesome
-  CDN) as needed.
-- Any interactivity as vanilla JS in one <script> before </body>. No build
-  step, no imports — must run standalone.
-- Wrap the ENTIRE document in a single \`\`\`html ... \`\`\` code block. Any
-  conversational reply goes OUTSIDE that block, kept short.
-- Reply in the user's language. If the site itself should be in Arabic, set
-  dir="rtl" lang="ar" on <html> with a matching Arabic web font.
-
-Never ship anything you wouldn't put in front of the actual business owner.
-`;
-
-interface ApiChatMsg { role: "system" | "user" | "assistant"; content: string; }
+interface ApiChatMsg { role: "system" | "user" | "assistant"; content: string }
 
 function buildConversationContext(
   messages: { sender: "user" | "assistant"; text: string; codeBlock?: string }[]
@@ -118,7 +51,10 @@ export async function POST(req: Request) {
   try {
     const user = await getVerifiedUser();
     if (!user) {
-      return NextResponse.json({ success: false, error: "Session not ready yet. Please wait a moment and try again." }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Session not ready yet. Please wait a moment and try again." },
+        { status: 401 }
+      );
     }
 
     const supabase = await createClient();
@@ -138,6 +74,31 @@ export async function POST(req: Request) {
     const { messages, conversationId } = validateChatRequest(body);
     const conversationContext = buildConversationContext(messages);
     const hasExistingSite = conversationContext.some((m) => m.content.includes("CURRENT SITE HTML"));
+    const lastUserText = [...messages].reverse().find((m) => m.sender === "user")?.text || "";
+
+    // Targeted attachment retrieval: only pull in attachments whose filename
+    // is actually mentioned in the latest message, never the whole set —
+    // same principle as skill retrieval, to avoid ballooning the prompt.
+    let attachmentBlock = "";
+    if (conversationId) {
+      try {
+        const { data: attachments } = await supabase
+          .from("attachments")
+          .select("filename, file_type, content")
+          .eq("conversation_id", conversationId);
+        const rows = (attachments || []) as { filename: string; file_type: string; content: string | null }[];
+        const mentioned = rows.filter((a) =>
+          lastUserText.toLowerCase().includes(a.filename.toLowerCase())
+        );
+        if (mentioned.length > 0) {
+          attachmentBlock =
+            "\n\nATTACHED FILES REFERENCED IN THIS MESSAGE:\n" +
+            mentioned.map((a) => `### ${a.filename} (${a.file_type})\n${a.content?.slice(0, 8000)}`).join("\n\n");
+        }
+      } catch (err) {
+        console.error("[api/nova attachment retrieval]", err);
+      }
+    }
 
     const encoder = new TextEncoder();
 
@@ -145,62 +106,72 @@ export async function POST(req: Request) {
       async start(controller) {
         const emit = (s: string) => controller.enqueue(encoder.encode(s));
 
-        // ---------- Agent 1: Planner ----------
-        // Fast, cheap call whose only job is to decide whether this turn
-        // needs a build/edit at all, and if so sketch the shape of it. This
-        // keeps the expensive builder call focused instead of re-deriving
-        // intent from scratch, and is what makes this a genuine multi-agent
-        // pipeline rather than one prompt doing everything.
-        emit(STATUS.PLANNING);
-        let plan = "";
+        // ---------- Orchestrator: route the request ----------
+        emit(STATUS.ROUTING);
+        let decision;
         try {
-          const lastUserText = [...messages].reverse().find((m) => m.sender === "user")?.text || "";
-          const planResp = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            temperature: 0.3,
-            max_tokens: 400,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You plan work for a website-building AI. Given the latest user message (and whether a site already exists), decide MODE: BUILD if they want a site built/edited, or CHAT if it's just a question/conversation. If BUILD, list the concrete sections/changes and visual direction in a few short bullets. Respond in EXACTLY this format and nothing else:\nMODE: BUILD or CHAT\nPLAN: <bullets, or N/A if CHAT>",
-              },
-              {
-                role: "user",
-                content: `Existing site already present: ${hasExistingSite ? "yes" : "no"}.\nLatest user message: ${lastUserText}`,
-              },
-            ],
-          });
-          plan = planResp.choices[0]?.message?.content?.trim() || "";
+          decision = await routeRequest(lastUserText, hasExistingSite);
         } catch (err) {
-          console.error("[api/nova planner]", err);
-          // Fall through with no plan — the builder's own system prompt
-          // still handles intent detection fine on its own.
+          console.error("[api/nova router]", err);
+          decision = { mode: "BUILD" as const, scope: hasExistingSite ? ("TARGETED" as const) : ("FULL" as const), note: "router-error-fallback" };
         }
 
-        // ---------- Agent 2: Builder ----------
+        // ---------- CHAT path: Conversation Agent only, no build pipeline ----------
+        if (decision.mode === "CHAT") {
+          const chatHistory = conversationContext.map((m) => ({
+            role: m.role === "system" ? ("user" as const) : m.role,
+            content: m.content,
+          }));
+          let reply = "";
+          try {
+            reply = await runConversationAgent(chatHistory);
+          } catch (err) {
+            console.error("[api/nova conversation]", err);
+            reply = "Something went wrong while generating a response. Please try again.";
+          }
+          emit(reply);
+          controller.close();
+
+          if (conversationId) {
+            try {
+              await supabase.from("messages").insert([
+                { conversation_id: conversationId, user_id: user.id, sender: "user", text: lastUserText },
+                { conversation_id: conversationId, user_id: user.id, sender: "assistant", text: reply },
+              ]);
+            } catch (err) {
+              console.error("[api/nova persist:chat]", err);
+            }
+          }
+          return;
+        }
+
+        // ---------- BUILD path ----------
         emit(STATUS.BUILDING);
+
+        let skillsBlock = "";
+        try {
+          const skills = await retrieveRelevantSkills(supabase, user.id, "coding", lastUserText);
+          skillsBlock = skillsToPromptBlock(skills);
+        } catch (err) {
+          console.error("[api/nova skills retrieval]", err);
+        }
         const builderMessages: ApiChatMsg[] = [
-          { role: "system", content: BUILDER_SYSTEM },
-          ...(plan ? [{ role: "system" as const, content: `INTERNAL PLAN FROM YOUR PLANNING PASS:\n${plan}` }] : []),
+          { role: "system", content: buildBuilderSystemPrompt(decision.scope, skillsBlock) },
           ...conversationContext,
         ];
+        if (attachmentBlock) {
+          builderMessages.push({ role: "system", content: attachmentBlock });
+        }
 
         let fullText = "";
         try {
-          const stream = await openai.chat.completions.create({
-            model: "gpt-4o",
+          for await (const chunk of streamText(STRONG_MODEL, {
             messages: builderMessages,
             temperature: 0.6,
-            max_tokens: 12000,
-            stream: true,
-          });
-          for await (const chunk of stream) {
-            const delta = chunk.choices[0]?.delta?.content || "";
-            if (delta) {
-              fullText += delta;
-              emit(delta);
-            }
+            maxTokens: 12000,
+          })) {
+            fullText += chunk.delta;
+            emit(chunk.delta);
           }
         } catch (err) {
           console.error("[api/nova builder]", err);
@@ -215,57 +186,35 @@ export async function POST(req: Request) {
           cleanText = fullText.replace(/```html([\s\S]*?)```/, "").trim();
         }
 
-        // ---------- Agent 3: Reviewer / self-healer ----------
-        // Only worth running when a site was actually produced. Catches
-        // leftover placeholder content and obvious breakage before the
-        // user ever sees it — a second opinion from a fresh pass.
+        // ---------- Reviewer/Fixer: single bounded pass ----------
         if (finalCode) {
           emit(STATUS.REVIEWING);
           try {
-            const reviewResp = await openai.chat.completions.create({
-              model: "gpt-4o-mini",
-              temperature: 0,
-              max_tokens: 12000,
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    'You are a strict QA reviewer for AI-generated websites. You will be given a complete HTML document. Check for: leftover placeholder text ("lorem ipsum", "[Your Company]", "Company Name", broken/empty href="#" nav links used as real navigation, obviously incomplete sections). If it looks solid, respond with EXACTLY the single word: OK. Otherwise, respond with ONLY the complete corrected HTML document (no markdown fences, no commentary) with those issues fixed — preserve everything else unchanged.',
-                },
-                { role: "user", content: finalCode },
-              ],
-            });
-            const reviewOut = reviewResp.choices[0]?.message?.content?.trim() || "OK";
-            if (reviewOut && reviewOut.toUpperCase() !== "OK" && reviewOut.length > 200) {
-              finalCode = reviewOut.replace(/^```html/i, "").replace(/```$/, "").trim();
+            const { fixed, html } = await runReviewerAgent(finalCode);
+            if (fixed) {
+              finalCode = html;
               if (!cleanText) cleanText = "Done — Nova reviewed and refined a couple of details automatically.";
             }
           } catch (err) {
             console.error("[api/nova reviewer]", err);
-            // Keep the builder's output as-is if the review pass fails.
           }
         }
 
         if (!cleanText) cleanText = finalCode ? "Your site is ready — check the preview." : fullText;
 
-        // Send the AUTHORITATIVE final code back through the stream itself
-        // (including anything the reviewer just corrected) so the live
-        // preview the user is looking at matches what actually gets saved —
-        // without this, a reviewer fix would only exist in the database,
-        // never on screen.
+        // Send the authoritative final code (including any reviewer fix)
+        // back through the stream so the live preview matches what's saved.
         if (finalCode) {
           emit(`\n<<<NOVA_FINAL_CODE_START>>>\n${finalCode}\n<<<NOVA_FINAL_CODE_END>>>\n`);
         }
 
         controller.close();
 
-        // ---------- Persist ----------
         if (conversationId) {
           try {
             const previewUrl = finalCode ? toPreviewUrl(finalCode) : null;
-            const lastUserMessage = messages[messages.length - 1];
             await supabase.from("messages").insert([
-              { conversation_id: conversationId, user_id: user.id, sender: "user", text: lastUserMessage.text },
+              { conversation_id: conversationId, user_id: user.id, sender: "user", text: lastUserText },
               {
                 conversation_id: conversationId,
                 user_id: user.id,
@@ -275,8 +224,8 @@ export async function POST(req: Request) {
                 preview_url: previewUrl,
               },
             ]);
-          } catch (persistErr) {
-            console.error("[api/nova persist]", persistErr);
+          } catch (err) {
+            console.error("[api/nova persist:build]", err);
           }
         }
       },

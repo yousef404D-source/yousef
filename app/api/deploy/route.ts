@@ -67,7 +67,19 @@ export async function POST(req: Request) {
       );
       deployUrl = "https://" + response.data.url;
     } catch (err) {
-      deployError = err instanceof Error ? err.message : "Vercel deployment failed";
+      // The previous version swallowed axios's actual response body, so
+      // every failure surfaced as a generic 502 with no real cause visible
+      // anywhere — this is why it kept failing silently. Log Vercel's real
+      // rejection reason (bad/missing token, wrong scope, invalid project
+      // name, etc.) so it's actually diagnosable.
+      const response = (err as { response?: { data?: any; status?: number } })?.response;
+      if (response) {
+        deployError = response.data?.error?.message || `Vercel API error (${response.status ?? "unknown"})`;
+        console.error("[api/deploy] Vercel rejected the deployment:", response.data ?? err);
+      } else {
+        deployError = err instanceof Error ? err.message : "Vercel deployment failed";
+        console.error("[api/deploy]", err);
+      }
     }
 
     // Persist the deployment attempt regardless of outcome so the user has
@@ -83,7 +95,7 @@ export async function POST(req: Request) {
 
     if (!deployUrl) {
       return NextResponse.json(
-        { success: false, error: "Deployment failed. Please try again shortly." },
+        { success: false, error: deployError || "Deployment failed. Please try again shortly." },
         { status: 502 }
       );
     }

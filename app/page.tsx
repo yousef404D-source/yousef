@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toPreviewUrl } from '@/lib/utils/preview';
+import { detectPastedFile } from '@/lib/utils/file-detect';
 
 // ==================== Types ====================
 interface ChatMessage {
@@ -86,6 +87,13 @@ const CopyIcon = () => (
 const SparkIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={th.blueBright} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
+  </svg>
+);
+
+const FileIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
   </svg>
 );
 
@@ -224,6 +232,14 @@ export default function NovaAI() {
   const iframeRefs = useRef<Record<string, HTMLIFrameElement | null>>({});
   const healedMessageIds = useRef<Set<string>>(new Set());
 
+  const [attachments, setAttachments] = useState<{ id: string; filename: string; file_type: string; size_bytes: number }[]>([]);
+  const [pendingFileName, setPendingFileName] = useState<string | null>(null);
+  const [showSkillsPanel, setShowSkillsPanel] = useState(false);
+  const [skills, setSkills] = useState<{ id: string; name: string; description: string; agents: string[]; enabled: boolean }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const skillInputRef = useRef<HTMLInputElement>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -281,6 +297,101 @@ export default function NovaAI() {
 
   useEffect(() => { if (sessionReady) loadConversations(); }, [sessionReady, loadConversations]);
 
+  // ── Skills ──
+  const loadSkills = useCallback(async () => {
+    try {
+      const res = await fetch('/api/skills');
+      const data = await res.json();
+      if (data.success) setSkills(data.skills);
+    } catch {
+      // Non-critical — panel just stays empty/stale.
+    }
+  }, []);
+
+  useEffect(() => { if (sessionReady) loadSkills(); }, [sessionReady, loadSkills]);
+
+  const uploadSkillFile = async (file: File) => {
+    const content = await file.text();
+    try {
+      const res = await fetch('/api/skills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, content }),
+      });
+      const data = await res.json();
+      if (data.success) setSkills(prev => [data.skill, ...prev]);
+    } catch {
+      setErrorBanner('Could not upload the skill. Please try again.');
+    }
+  };
+
+  const toggleSkill = async (id: string, enabled: boolean) => {
+    setSkills(prev => prev.map(s => s.id === id ? { ...s, enabled } : s));
+    try {
+      await fetch(`/api/skills/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+    } catch {
+      // best-effort
+    }
+  };
+
+  const deleteSkill = async (id: string) => {
+    setSkills(prev => prev.filter(s => s.id !== id));
+    try {
+      await fetch(`/api/skills/${id}`, { method: 'DELETE' });
+    } catch {
+      // best-effort
+    }
+  };
+
+  // ── Attachments ──
+  const loadAttachments = useCallback(async (conversationId: string) => {
+    try {
+      const res = await fetch(`/api/attachments?conversationId=${conversationId}`);
+      const data = await res.json();
+      if (data.success) setAttachments(data.attachments);
+    } catch {
+      setAttachments([]);
+    }
+  }, []);
+
+  const uploadAttachment = async (file: File) => {
+    let conversationId = activeConversationId;
+    setPendingFileName(file.name);
+    try {
+      if (!conversationId) {
+        const createRes = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: file.name }),
+        });
+        const createData = await createRes.json();
+        if (!createData.success) throw new Error(createData.error);
+        conversationId = createData.conversation.id;
+        setActiveConversationId(conversationId);
+        setHasEnteredChat(true);
+        loadConversations();
+      }
+
+      const content = await file.text();
+      const res = await fetch('/api/attachments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, filename: file.name, fileType: file.type || 'text/plain', content }),
+      });
+      const data = await res.json();
+      if (data.success) setAttachments(prev => [...prev, data.attachment]);
+      else throw new Error(data.error);
+    } catch {
+      setErrorBanner('Could not attach the file. Please try again.');
+    } finally {
+      setPendingFileName(null);
+    }
+  };
+
   // ── Load messages for the active conversation ──
   useEffect(() => {
     if (!activeConversationId) return;
@@ -305,8 +416,9 @@ export default function NovaAI() {
         }
       })
       .finally(() => { if (!cancelled) setLoadingMessages(false); });
+    loadAttachments(activeConversationId);
     return () => { cancelled = true; };
-  }, [activeConversationId]);
+  }, [activeConversationId, loadAttachments]);
 
   const startNewChat = () => {
     setActiveConversationId(null);
@@ -636,6 +748,45 @@ export default function NovaAI() {
     e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
   };
 
+  // Long-paste detection: if the user pastes what looks like a whole file
+  // (code/config/log), turn it into an attachment instead of leaving it as
+  // a giant wall of text in the input box.
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const text = e.clipboardData.getData('text');
+    if (!text) return;
+    const detected = detectPastedFile(text);
+    if (!detected) return;
+
+    e.preventDefault();
+    let conversationId = activeConversationId;
+    try {
+      if (!conversationId) {
+        const createRes = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: detected.suggestedFilename }),
+        });
+        const createData = await createRes.json();
+        if (!createData.success) throw new Error();
+        conversationId = createData.conversation.id;
+        setActiveConversationId(conversationId);
+        setHasEnteredChat(true);
+        loadConversations();
+      }
+      const res = await fetch('/api/attachments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, filename: detected.suggestedFilename, fileType: detected.language, content: text }),
+      });
+      const data = await res.json();
+      if (data.success) setAttachments(prev => [...prev, data.attachment]);
+    } catch {
+      // If turning it into an attachment fails for any reason, fall back
+      // to normal paste behavior so the user doesn't lose their text.
+      setUserInput(prev => prev + text);
+    }
+  };
+
   const groupedConversations = conversations.reduce((acc, c) => {
     const key = formatDate(c.updatedAt);
     if (!acc[key]) acc[key] = [];
@@ -926,13 +1077,72 @@ export default function NovaAI() {
               <button onClick={() => setSelectedElement(null)} style={{ background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer' }}>✕</button>
             </div>
           )}
+
+          {attachments.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+              {attachments.map(a => (
+                <div key={a.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: th.surface2, border: `1px solid ${th.border}`,
+                  borderRadius: '8px', padding: '5px 10px', fontSize: '0.75rem', color: th.textMuted,
+                }}>
+                  <FileIcon />
+                  <span style={{ color: th.text }}>{a.filename}</span>
+                  <span>· {a.file_type}</span>
+                  <span>· {(a.size_bytes / 1024).toFixed(1)} KB</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {pendingFileName && (
+            <div style={{ fontSize: '0.75rem', color: th.textMuted, marginBottom: '8px' }}>
+              Attaching {pendingFileName}…
+            </div>
+          )}
+
           <div style={{
             maxWidth: showLanding ? '640px' : 'none', margin: showLanding ? '0 auto' : 0,
             background: th.surface2,
             border: `1px solid ${th.borderStrong}`, borderRadius: '18px',
             padding: '11px 12px', display: 'flex', alignItems: 'flex-end', gap: '10px',
             boxShadow: showLanding ? '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02)' : '0 -2px 24px rgba(0,0,0,0.4)',
+            position: 'relative',
           }}>
+            <input
+              ref={fileInputRef} type="file" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); e.target.value = ''; }}
+            />
+            <input
+              ref={skillInputRef} type="file" accept=".md,.txt" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSkillFile(f); e.target.value = ''; }}
+            />
+
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button onClick={() => setShowAttachMenu(v => !v)} aria-label="Attach" style={{
+                background: 'none', border: 'none', width: '34px', height: '34px', borderRadius: '50%',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: th.text,
+              }}>
+                <PlusIcon />
+              </button>
+              {showAttachMenu && (
+                <div style={{
+                  position: 'absolute', bottom: '42px', left: 0,
+                  background: th.surface2, border: `1px solid ${th.border}`, borderRadius: '10px',
+                  padding: '6px', minWidth: '180px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', zIndex: 10,
+                }}>
+                  <button onClick={() => { setShowAttachMenu(false); fileInputRef.current?.click(); }} style={menuItemStyle(th)}>
+                    <FileIcon /> Attach file
+                  </button>
+                  <button onClick={() => { setShowAttachMenu(false); skillInputRef.current?.click(); }} style={menuItemStyle(th)}>
+                    <SparkIcon /> Add Skill (SKILL.md)
+                  </button>
+                  <button onClick={() => { setShowAttachMenu(false); setShowSkillsPanel(true); }} style={menuItemStyle(th)}>
+                    <span style={{ width: 15, display: 'inline-block' }}>🧩</span> Manage Skills
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button onClick={toggleVoice} aria-label="Voice input" style={{
               background: isListening ? th.blueSoft : 'none',
               border: isListening ? `1px solid ${th.blue}` : 'none',
@@ -947,6 +1157,7 @@ export default function NovaAI() {
               ref={inputRef}
               value={userInput}
               onChange={handleInputChange}
+              onPaste={handlePaste}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
               placeholder="Build a landing page, app UI, portfolio site..."
               rows={1}
@@ -1008,6 +1219,57 @@ export default function NovaAI() {
           </div>
         </div>
       )}
+
+      {/* ── Skills panel ── */}
+      {showSkillsPanel && (
+        <div onClick={() => setShowSkillsPanel(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 16000, padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '480px', maxHeight: '70vh', background: th.surface, border: `1px solid ${th.border}`, borderRadius: '18px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px', borderBottom: `1px solid ${th.border}` }}>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Skills</span>
+              <button onClick={() => setShowSkillsPanel(false)} style={{ background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer' }}>✕</button>
+            </div>
+            <div className="nova-scroll" style={{ overflowY: 'auto', padding: '10px 14px' }}>
+              {skills.length === 0 && (
+                <p style={{ color: th.textMuted, fontSize: '0.82rem', padding: '20px 4px' }}>
+                  No Skills installed yet. Use the + menu to add a SKILL.md file.
+                </p>
+              )}
+              {skills.map(s => (
+                <div key={s.id} style={{ padding: '10px 8px', borderBottom: `1px solid ${th.border}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: th.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        🧩 {s.name}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: th.textMuted, marginTop: '2px' }}>{s.description}</div>
+                      <div style={{ fontSize: '0.7rem', color: th.textFaint, marginTop: '4px' }}>{s.agents.join(' · ')}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                      <button onClick={() => toggleSkill(s.id, !s.enabled)} style={{
+                        background: s.enabled ? th.blueSoft : th.surface3, border: `1px solid ${s.enabled ? th.blue : th.border}`,
+                        color: s.enabled ? th.blueBright : th.textMuted, borderRadius: '6px', padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 600,
+                      }}>
+                        {s.enabled ? 'Enabled' : 'Disabled'}
+                      </button>
+                      <button onClick={() => deleteSkill(s.id)} style={{ background: 'none', border: 'none', color: th.textFaint, cursor: 'pointer' }}>
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '12px 14px', borderTop: `1px solid ${th.border}` }}>
+              <button onClick={() => skillInputRef.current?.click()} style={{
+                width: '100%', background: th.surface2, border: `1px solid ${th.border}`, color: th.text,
+                padding: '10px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600,
+              }}>
+                + Add Skill (SKILL.md)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1033,4 +1295,12 @@ function PhaseLabel({ phase, muted }: { phase: string; muted: string }) {
       <span style={{ fontSize: '0.85rem', color: muted }}>{labels[phase] || labels.idle}</span>
     </div>
   );
+}
+
+function menuItemStyle(th: any): React.CSSProperties {
+  return {
+    display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+    background: 'none', border: 'none', color: th.text, cursor: 'pointer',
+    padding: '8px 10px', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'left',
+  };
 }

@@ -129,3 +129,65 @@ drop trigger if exists messages_touch_conversation on public.messages;
 create trigger messages_touch_conversation
   after insert on public.messages
   for each row execute function public.touch_conversation();
+
+-- ---------- Skills (dynamic Skills system) ----------
+create table if not exists public.skills (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  description text not null default '',
+  content text not null,
+  agents text[] not null default '{}',
+  enabled boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists skills_user_id_idx on public.skills(user_id);
+create index if not exists skills_agents_idx on public.skills using gin(agents);
+
+alter table public.skills enable row level security;
+
+drop policy if exists "skills_select_own" on public.skills;
+create policy "skills_select_own" on public.skills
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "skills_insert_own" on public.skills;
+create policy "skills_insert_own" on public.skills
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "skills_update_own" on public.skills;
+create policy "skills_update_own" on public.skills
+  for update using (auth.uid() = user_id);
+
+drop policy if exists "skills_delete_own" on public.skills;
+create policy "skills_delete_own" on public.skills
+  for delete using (auth.uid() = user_id);
+
+-- ---------- Attachments (files/images attached to a conversation) ----------
+create table if not exists public.attachments (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  filename text not null,
+  file_type text not null,
+  size_bytes bigint not null default 0,
+  content text,
+  storage_path text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists attachments_conversation_id_idx on public.attachments(conversation_id);
+
+alter table public.attachments enable row level security;
+
+drop policy if exists "attachments_select_own" on public.attachments;
+create policy "attachments_select_own" on public.attachments
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "attachments_insert_own" on public.attachments;
+create policy "attachments_insert_own" on public.attachments
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "attachments_delete_own" on public.attachments;
+create policy "attachments_delete_own" on public.attachments
+  for delete using (auth.uid() = user_id);
