@@ -55,8 +55,20 @@ export async function POST(req: Request) {
       // Static deployment: a single index.html, no framework, no build step.
       // This is far more reliable than shipping AI-generated JSX through a
       // Next.js build, which can fail on the smallest syntax slip.
+      //
+      // If VERCEL_TOKEN belongs to a personal account but the project lives
+      // under a team/org, Vercel's API needs the team ID explicitly via
+      // ?teamId=... — a token can be valid and still get "Not authorized:
+      // Trying to access resource under scope '<team>'" without it, because
+      // the token's default scope doesn't automatically include every team
+      // it has access to.
+      const teamId = process.env.VERCEL_TEAM_ID;
+      const url = teamId
+        ? `https://api.vercel.com/v13/deployments?teamId=${encodeURIComponent(teamId)}`
+        : "https://api.vercel.com/v13/deployments";
+
       const response = await axios.post(
-        "https://api.vercel.com/v13/deployments",
+        url,
         {
           name: projectName,
           files: [{ file: "index.html", data: code }],
@@ -74,7 +86,10 @@ export async function POST(req: Request) {
       // name, etc.) so it's actually diagnosable.
       const response = (err as { response?: { data?: any; status?: number } })?.response;
       if (response) {
-        deployError = response.data?.error?.message || `Vercel API error (${response.status ?? "unknown"})`;
+        const rawMessage = response.data?.error?.message || `Vercel API error (${response.status ?? "unknown"})`;
+        deployError = /not authorized.*scope/i.test(rawMessage)
+          ? `Vercel rejected this token for your team/project scope. Set VERCEL_TEAM_ID to your team's ID in the environment variables, or use a token created specifically for this project's scope. (${rawMessage})`
+          : rawMessage;
         console.error("[api/deploy] Vercel rejected the deployment:", response.data ?? err);
       } else {
         deployError = err instanceof Error ? err.message : "Vercel deployment failed";

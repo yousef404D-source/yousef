@@ -101,6 +101,16 @@ export function injectPreviewRuntime(html: string): string {
   return html + runtime;
 }
 
+/**
+ * Server-side / storage form: a data: URI. Cheap to compute and fine to
+ * persist as a string in the database (see code_block, which is the real
+ * source of truth), but NEVER use this directly as an <iframe src> in the
+ * browser — some browsers (Chrome in particular) briefly treat a large
+ * base64 data: URI loaded inside a sandboxed iframe as downloadable
+ * content rather than renderable content, which shows as a flash of a
+ * download prompt that then gets cancelled. Use toPreviewBlobUrl in any
+ * client component instead.
+ */
 export function toPreviewUrl(html: string): string {
   const withRuntime = injectPreviewRuntime(html);
   const base64 =
@@ -108,4 +118,17 @@ export function toPreviewUrl(html: string): string {
       ? Buffer.from(withRuntime, 'utf-8').toString('base64')
       : btoa(unescape(encodeURIComponent(withRuntime)));
   return `data:text/html;base64,${base64}`;
+}
+
+/**
+ * Client-only: builds a blob: URL for use as an <iframe src>. Blob URLs
+ * render reliably inside sandbox="allow-scripts" iframes without ever
+ * triggering download behavior, unlike data: URIs. Caller is responsible
+ * for calling URL.revokeObjectURL on the previous URL when it's replaced
+ * (see the usePreviewUrl hook in app/page.tsx) to avoid leaking memory.
+ */
+export function toPreviewBlobUrl(html: string): string {
+  const withRuntime = injectPreviewRuntime(html);
+  const blob = new Blob([withRuntime], { type: 'text/html' });
+  return URL.createObjectURL(blob);
 }

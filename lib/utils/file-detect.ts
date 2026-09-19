@@ -45,6 +45,13 @@ const SIGNATURES: { test: (s: string) => boolean; language: string; ext: string 
 /**
  * Decides whether a pasted block of text is "file-like" content that should
  * become a compact attachment card instead of a giant chat bubble.
+ *
+ * IMPORTANT: this only fires for content that actually matches a known
+ * code/config/log signature. A long paragraph of plain prose (a product
+ * description, a long request, any language including Arabic) is NOT a
+ * file just because it's long — it should stay as a normal chat message.
+ * Treating "no signature matched" as "generic text file" was wrong and
+ * turned ordinary long messages into unwanted attachments.
  */
 export function detectPastedFile(text: string): DetectedFile | null {
   const lineCount = text.split("\n").length;
@@ -58,7 +65,7 @@ export function detectPastedFile(text: string): DetectedFile | null {
     }
   }
 
-  // Long + line-heavy but no signature matched — still likely code/config,
-  // just unrecognized. Treat as a generic file rather than dumping it inline.
-  return { language: "Text file", suggestedFilename: "pasted.txt" };
+  // No code/config/log signature matched — treat as a normal (if long)
+  // chat message, not a file.
+  return null;
 }

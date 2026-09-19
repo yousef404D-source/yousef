@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { toPreviewUrl } from '@/lib/utils/preview';
+import { toPreviewBlobUrl } from '@/lib/utils/preview';
 import { detectPastedFile } from '@/lib/utils/file-detect';
 
 // ==================== Types ====================
@@ -11,7 +11,6 @@ interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
   codeBlock?: string;
-  previewUrl?: string;
   createdAt: Date;
 }
 
@@ -23,26 +22,35 @@ interface Conversation {
 }
 
 // ==================== Design tokens ====================
-// Black + white dominant, blue used only as an accent (user messages,
-// primary actions, focus/active states) — see design brief.
+// A deliberate departure from the generic "black + blue AI app" look.
+// Warm obsidian base (not pure black — pure black reads flat and cheap),
+// a single confident amber/ember accent used sparingly, and a soft violet
+// undertone in surfaces for depth. Two-font pairing: Fraunces (a display
+// serif with real character) for anything that should feel crafted, Inter
+// for everything functional.
 const th = {
-  bg: '#000000',
-  surface: '#07070a',
-  surface2: '#0f0f14',
-  surface3: '#16161d',
-  border: '#1e1e26',
-  borderStrong: '#2a2a33',
-  text: '#ffffff',
-  textMuted: '#8b8b96',
-  textFaint: '#55555f',
-  blue: '#2563eb',
-  blueBright: '#3b82f6',
-  blueSoft: 'rgba(37,99,235,0.12)',
+  bg: '#0b0a0d',
+  bgRadial: 'radial-gradient(ellipse 120% 80% at 50% -10%, #1a1420 0%, #0b0a0d 55%)',
+  surface: '#141218',
+  surface2: '#1b1820',
+  surface3: '#242028',
+  border: '#2a2630',
+  borderStrong: '#37323d',
+  text: '#f5f2ee',
+  textMuted: '#a39cb0',
+  textFaint: '#6b6575',
+  accent: '#ff7a45',
+  accentBright: '#ff9466',
+  accentSoft: 'rgba(255,122,69,0.14)',
+  accentDeep: '#c2410c',
+  violet: '#8b7cf6',
+  fontDisplay: '"Fraunces", Georgia, serif',
+  fontBody: '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif',
 };
 
 // ==================== Icons ====================
 const MicIcon = ({ active }: { active?: boolean }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? th.blueBright : '#ffffff'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? th.accentBright : '#ffffff'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
     <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
     <line x1="12" y1="19" x2="12" y2="22" />
@@ -85,7 +93,7 @@ const CopyIcon = () => (
 );
 
 const SparkIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={th.blueBright} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={th.accentBright} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
   </svg>
 );
@@ -119,6 +127,25 @@ const ReloadIcon = () => (
   </svg>
 );
 
+const CloseIconSmall = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const SkillIconSmall = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+  </svg>
+);
+
+const BackIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
 // ==================== Helpers ====================
 const formatDate = (d: Date) => {
   const now = new Date();
@@ -139,76 +166,19 @@ const SUGGESTIONS = [
 ];
 
 // ==================== Ambient background ====================
-// A quiet, intentional field of drifting nodes — the one place motion is
-// spent. Deliberately dim and slow so it reads as depth, not decoration.
+// Deliberately not a particle-network canvas — that's the single most
+// overused "AI app" visual cliché. Instead: a few large, slow-drifting
+// warm gradient fields plus a fine grain texture, which reads as depth and
+// atmosphere rather than a tech-demo animation.
 function AmbientField() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let width = 0, height = 0, raf = 0;
-    let particles: { x: number; y: number; vx: number; vy: number; r: number }[] = [];
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const setup = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-      const count = reduceMotion ? 0 : Math.min(60, Math.floor((width * height) / 26000));
-      particles = Array.from({ length: count }, () => ({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.18,
-        vy: (Math.random() - 0.5) * 0.18,
-        r: Math.random() * 1.3 + 0.5,
-      }));
-    };
-
-    const step = () => {
-      ctx.clearRect(0, 0, width, height);
-      for (const p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
-      }
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const a = particles[i], b = particles[j];
-          const dx = a.x - b.x, dy = a.y - b.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
-            ctx.strokeStyle = `rgba(255,255,255,${0.05 * (1 - dist / 120)})`;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.stroke();
-          }
-        }
-      }
-      for (const p of particles) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.fill();
-      }
-      raf = requestAnimationFrame(step);
-    };
-
-    setup();
-    step();
-    window.addEventListener('resize', setup);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', setup);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />;
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+      <div className="nova-orb nova-orb-1" />
+      <div className="nova-orb nova-orb-2" />
+      <div className="nova-orb nova-orb-3" />
+      <div className="nova-grain" />
+    </div>
+  );
 }
 
 // ==================== Main ====================
@@ -265,6 +235,16 @@ export default function NovaAI() {
   const [previewMode, setPreviewMode] = useState<Record<string, 'desktop' | 'mobile'>>({});
   const [previewReloadKey, setPreviewReloadKey] = useState<Record<string, number>>({});
   const [previewErrors, setPreviewErrors] = useState<Record<string, string>>({});
+  const [activePreviewMessageId, setActivePreviewMessageId] = useState<string | null>(null);
+  const [workspaceOpenMobile, setWorkspaceOpenMobile] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2400);
+  }, []);
 
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -350,8 +330,12 @@ export default function NovaAI() {
         body: JSON.stringify({ filename: file.name, content }),
       });
       const data = await res.json();
-      if (data.success) setSkills(prev => [data.skill, ...prev]);
-      else setErrorBanner(data.error || 'Could not upload the skill. Please try again.');
+      if (data.success) {
+        setSkills(prev => [data.skill, ...prev]);
+        showToast(`✓ Skill added — ${data.skill.name}`);
+      } else {
+        setErrorBanner(data.error || 'Could not upload the skill. Please try again.');
+      }
     } catch {
       setErrorBanner('Could not upload the skill. Please try again.');
     }
@@ -421,12 +405,25 @@ export default function NovaAI() {
         body: JSON.stringify({ conversationId, filename: file.name, fileType: file.type || 'text/plain', content }),
       });
       const data = await res.json();
-      if (data.success) setAttachments(prev => [...prev, data.attachment]);
-      else throw new Error(data.error);
+      if (data.success) {
+        setAttachments(prev => [...prev, data.attachment]);
+        showToast(`✓ Attached — ${data.attachment.filename}`);
+      } else {
+        throw new Error(data.error);
+      }
     } catch (err) {
       setErrorBanner(err instanceof Error && err.message ? err.message : 'Could not attach the file. Please try again.');
     } finally {
       setPendingFileName(null);
+    }
+  };
+
+  const deleteAttachment = async (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+    try {
+      await fetch(`/api/attachments/${id}`, { method: 'DELETE' });
+    } catch {
+      // best-effort — the chip is already gone client-side
     }
   };
 
@@ -441,7 +438,7 @@ export default function NovaAI() {
         if (cancelled || !data.success) return;
         const loaded = data.messages.map((m: any) => ({
           id: m.id, sender: m.sender, text: m.text,
-          codeBlock: m.code_block || undefined, previewUrl: m.preview_url || undefined,
+          codeBlock: m.code_block || undefined,
           createdAt: new Date(m.created_at),
         }));
         setMessages(loaded);
@@ -449,8 +446,10 @@ export default function NovaAI() {
         if (lastWithCode) {
           setLastCode(lastWithCode.codeBlock!);
           setShowDeploy(true);
+          setActivePreviewMessageId(lastWithCode.id);
         } else {
           setShowDeploy(false);
+          setActivePreviewMessageId(null);
         }
       })
       .finally(() => { if (!cancelled) setLoadingMessages(false); });
@@ -467,6 +466,8 @@ export default function NovaAI() {
     setAttachments([]);
     setPreviewErrors({});
     setPreviewReloadKey({});
+    setActivePreviewMessageId(null);
+    setWorkspaceOpenMobile(false);
   };
 
   const deleteConversation = async (id: string) => {
@@ -582,13 +583,13 @@ export default function NovaAI() {
       const codeMatch = raw.match(/<<<NOVA_FINAL_CODE_START>>>\n([\s\S]*?)\n<<<NOVA_FINAL_CODE_END>>>/);
       const fixedCode = codeMatch ? codeMatch[1] : null;
       if (fixedCode) {
-        const previewUrl = toPreviewUrl(fixedCode);
         setMessages(prev => prev.map(m => m.id === messageId
-          ? { ...m, codeBlock: fixedCode, previewUrl, text: m.text + '\n\n✓ Nova detected and automatically fixed a runtime issue.' }
+          ? { ...m, codeBlock: fixedCode, text: m.text + '\n\n✓ Nova detected and automatically fixed a runtime issue.' }
           : m
         ));
         setPreviewErrors(prev => { const next = { ...prev }; delete next[messageId]; return next; });
         setPreviewReloadKey(prev => ({ ...prev, [messageId]: (prev[messageId] || 0) + 1 }));
+        setActivePreviewMessageId(messageId);
         setLastCode(fixedCode);
       }
     } catch (err) {
@@ -726,10 +727,8 @@ export default function NovaAI() {
       }
       if (!cleanText) cleanText = finalCode ? 'Your site is ready — check the preview.' : textOnly;
 
-      const previewUrl = finalCode ? toPreviewUrl(finalCode) : undefined;
-
       setMessages(prev => prev.map(m => m.id === streamId
-        ? { ...m, text: cleanText, codeBlock: finalCode || undefined, previewUrl }
+        ? { ...m, text: cleanText, codeBlock: finalCode || undefined }
         : m
       ));
       setStreamingId(null);
@@ -739,6 +738,8 @@ export default function NovaAI() {
       if (finalCode) {
         setLastCode(finalCode);
         setShowDeploy(true);
+        setActivePreviewMessageId(streamId);
+        setWorkspaceOpenMobile(true);
       }
 
       loadConversations();
@@ -830,7 +831,10 @@ export default function NovaAI() {
         body: JSON.stringify({ conversationId, filename: detected.suggestedFilename, fileType: detected.language, content: text }),
       });
       const data = await res.json();
-      if (data.success) setAttachments(prev => [...prev, data.attachment]);
+      if (data.success) {
+        setAttachments(prev => [...prev, data.attachment]);
+        showToast(`✓ Turned into a file — ${data.attachment.filename}`);
+      }
     } catch {
       // If turning it into an attachment fails for any reason, fall back
       // to normal paste behavior so the user doesn't lose their text.
@@ -849,19 +853,33 @@ export default function NovaAI() {
 
   return (
     <div style={{
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif',
+      fontFamily: th.fontBody,
       height: '100dvh', width: '100vw',
-      background: th.bg, color: th.text,
+      background: th.bg, backgroundImage: th.bgRadial,
+      color: th.text,
       margin: 0, padding: 0, position: 'relative', overflow: 'hidden',
     }}>
       <AmbientField />
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap');
+
         @keyframes spin { to{transform:rotate(360deg)} }
         @keyframes pulse { 0%,100%{opacity:0.35;transform:scale(0.75)} 50%{opacity:1;transform:scale(1.15)} }
         @keyframes slideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes fadeOut { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-8px)} }
         @keyframes heroIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes deployRotate { to{transform:rotate(360deg);border-top-color:${th.blueBright}} }
+        @keyframes deployRotate { to{transform:rotate(360deg);border-top-color:${th.accent}} }
+        @keyframes orbDrift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(4%,6%) scale(1.08)} }
+        @keyframes orbDrift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5%,4%) scale(0.94)} }
+        @keyframes orbDrift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(3%,-5%) scale(1.05)} }
+        @keyframes toastIn { from{opacity:0;transform:translate(-50%,8px)} to{opacity:1;transform:translate(-50%,0)} }
+
+        .nova-orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:0.5}
+        .nova-orb-1{width:46vw;height:46vw;top:-18%;left:-10%;background:radial-gradient(circle,${th.accentDeep}55,transparent 70%);animation:orbDrift1 22s ease-in-out infinite}
+        .nova-orb-2{width:38vw;height:38vw;bottom:-14%;right:-8%;background:radial-gradient(circle,${th.violet}3d,transparent 70%);animation:orbDrift2 26s ease-in-out infinite}
+        .nova-orb-3{width:30vw;height:30vw;top:35%;left:55%;background:radial-gradient(circle,${th.accent}26,transparent 70%);animation:orbDrift3 19s ease-in-out infinite}
+        .nova-grain{position:absolute;inset:-10%;opacity:0.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
         .nova-scroll::-webkit-scrollbar{width:5px}
         .nova-scroll::-webkit-scrollbar-thumb{background:${th.surface3};border-radius:4px}
         .nova-msg{animation:slideIn 0.28s ease}
@@ -869,13 +887,26 @@ export default function NovaAI() {
         .nova-hero-exit{animation:fadeOut 0.32s ease forwards}
         textarea{resize:none;overflow:hidden}
         .nova-chip{transition:border-color 0.18s ease, color 0.18s ease, background 0.18s ease}
-        .nova-chip:hover{border-color:${th.blue}66;color:#fff;background:${th.blueSoft}}
-        .nova-send:not(:disabled):hover{background:${th.blueBright} !important}
+        .nova-chip:hover{border-color:${th.accent}66;color:#fff;background:${th.accentSoft}}
+        .nova-send:not(:disabled):hover{background:${th.accentBright} !important}
         .nova-conv-row:hover{background:${th.surface2}}
+        .nova-workspace-card{transition:border-color 0.18s ease, transform 0.15s ease}
+        .nova-workspace-card:hover{border-color:${th.accent}88 !important;transform:translateY(-1px)}
+        .nova-toast{animation:toastIn 0.25s cubic-bezier(0.16,1,0.3,1)}
+
+        @media (max-width: 860px){
+          .nova-workspace-pane{
+            position:fixed !important; inset:0 !important; z-index:9500;
+            transform:translateX(100%); transition:transform 0.28s cubic-bezier(0.16,1,0.3,1);
+          }
+          .nova-workspace-pane-open{ transform:translateX(0) !important; }
+          .nova-workspace-close-mobile{ display:flex !important; }
+        }
         @media (prefers-reduced-motion: reduce){
-          .nova-msg,.nova-hero,.nova-hero-exit{animation:none !important}
+          .nova-msg,.nova-hero,.nova-hero-exit,.nova-orb-1,.nova-orb-2,.nova-orb-3{animation:none !important}
         }
       `}</style>
+
 
       {/* ── Sidebar ── */}
       <div style={{
@@ -955,18 +986,18 @@ export default function NovaAI() {
           }}>
             {[0, 1, 2].map(i => <div key={i} style={{ width: '17px', height: '2px', background: th.text, borderRadius: '1px' }} />)}
           </button>
-          <span style={{ fontWeight: 800, fontSize: '1.02rem', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            NOVA <span style={{ width: 5, height: 5, borderRadius: '50%', background: th.blueBright, boxShadow: `0 0 8px ${th.blueBright}` }} />
+          <span style={{ fontFamily: th.fontDisplay, fontWeight: 600, fontSize: '1.15rem', letterSpacing: '0.01em', display: 'flex', alignItems: 'center', gap: '7px' }}>
+            Nova <span style={{ width: 5, height: 5, borderRadius: '50%', background: th.accent, boxShadow: `0 0 10px ${th.accent}` }} />
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {showDeploy && !showLanding && (
             <button onClick={handleDeploy} className="nova-send" style={{
-              background: th.blue, border: 'none', color: '#fff',
+              background: th.accent, border: 'none', color: '#fff',
               padding: '8px 16px', borderRadius: '8px', cursor: 'pointer',
               fontSize: '0.8rem', fontWeight: 700,
-              boxShadow: `0 0 16px ${th.blueSoft}`,
+              boxShadow: `0 0 16px ${th.accentSoft}`,
               transition: 'background 0.15s ease',
             }}>
               Publish live
@@ -982,12 +1013,12 @@ export default function NovaAI() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '0 20px', textAlign: 'center', gap: '28px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', border: `1px solid ${th.border}`, background: 'rgba(255,255,255,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', border: `1px solid ${th.border}`, background: 'rgba(255,255,255,0.03)' }}>
             <SparkIcon />
             <span style={{ fontSize: '0.78rem', color: th.textMuted, fontWeight: 500 }}>Real websites, generated and edited live</span>
           </div>
 
-          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.2rem)', fontWeight: 800, margin: 0, lineHeight: 1.12, letterSpacing: '-0.02em', maxWidth: '760px' }}>
+          <h1 style={{ fontFamily: th.fontDisplay, fontSize: 'clamp(2.2rem, 5.5vw, 3.6rem)', fontWeight: 600, margin: 0, lineHeight: 1.12, letterSpacing: '-0.01em', maxWidth: '760px' }}>
             What do you want to build today?
           </h1>
           <p style={{ color: th.textMuted, fontSize: '1rem', maxWidth: '480px', margin: 0, lineHeight: 1.6 }}>
@@ -1007,270 +1038,345 @@ export default function NovaAI() {
         </div>
       )}
 
-      {/* ── Chat column ── */}
+      {/* ── Workspace layout: chat (left) + persistent preview (right) ── */}
       <div style={{
-        width: '100%', maxWidth: '760px', height: '100dvh',
-        margin: '0 auto',
-        display: 'flex', flexDirection: 'column',
-        paddingTop: '74px', paddingBottom: '22px', paddingInline: '20px',
-        boxSizing: 'border-box', position: 'relative', zIndex: 1,
+        display: 'flex', width: '100%', height: '100dvh',
+        paddingTop: '58px', boxSizing: 'border-box', position: 'relative', zIndex: 1,
       }}>
-        {sessionError && (
-          <div style={{
-            background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.28)',
-            color: '#fca5a5', borderRadius: '10px', padding: '10px 14px',
-            fontSize: '0.82rem', marginBottom: '12px',
-          }}>
-            {sessionError}
-          </div>
-        )}
-        {errorBanner && (
-          <div style={{
-            background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.28)',
-            color: '#fca5a5', borderRadius: '10px', padding: '10px 14px',
-            fontSize: '0.82rem', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
-          }}>
-            <span>{errorBanner}</span>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
-              <button onClick={retryLast} style={{ background: 'none', border: '1px solid rgba(220,38,38,0.4)', color: '#fca5a5', cursor: 'pointer', borderRadius: '6px', padding: '4px 10px', fontSize: '0.76rem', fontWeight: 600 }}>
-                Retry
-              </button>
-              <button onClick={() => setErrorBanner(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer' }}>✕</button>
-            </div>
-          </div>
-        )}
-
-        {!showLanding && (
-          loadingMessages ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: '26px', height: '26px', borderRadius: '50%', border: `3px solid ${th.surface3}`, borderTop: `3px solid ${th.blueBright}`, animation: 'spin 0.8s linear infinite' }} />
-            </div>
-          ) : (
-            <div ref={chatBoxRef} className="nova-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px', paddingBottom: '16px' }}>
-              {messages.map(m => (
-                <div key={m.id} className="nova-msg" style={{
-                  alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '8px',
-                }}>
-                  <div style={{
-                    background: m.sender === 'user' ? th.blue : 'transparent',
-                    color: m.sender === 'user' ? '#ffffff' : th.text,
-                    borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : 0,
-                    padding: m.sender === 'user' ? '11px 15px' : '0',
-                    fontSize: '0.92rem', lineHeight: 1.6, whiteSpace: 'pre-wrap',
-                    boxShadow: m.sender === 'user' ? `0 4px 18px ${th.blueSoft}` : 'none',
-                  }}>
-                    {m.id === streamingId && !m.text ? (
-                      <PhaseLabel phase={phase} muted={th.textMuted} />
-                    ) : m.text}
-                  </div>
-
-                  {m.id === streamingId && m.text && phase === 'reviewing' && (
-                    <div style={{ fontSize: '0.75rem', color: th.textMuted, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: th.blueBright, animation: 'pulse 1s infinite ease-in-out' }} />
-                      Reviewing the result…
-                    </div>
-                  )}
-
-                  {m.codeBlock && (
-                    <div style={{ border: `1px solid ${th.border}`, borderRadius: '14px', overflow: 'hidden', background: th.surface }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 13px', background: th.surface2, borderBottom: `1px solid ${th.border}` }}>
-                        <span style={{ fontSize: '0.74rem', color: th.textMuted, fontWeight: 600 }}>Generated site</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ display: 'flex', gap: '2px', background: th.surface3, borderRadius: '7px', padding: '2px' }}>
-                            <button onClick={() => setPreviewMode(prev => ({ ...prev, [m.id]: 'desktop' }))} aria-label="Desktop preview" style={{
-                              background: (previewMode[m.id] || 'desktop') === 'desktop' ? th.surface : 'none', border: 'none', borderRadius: '5px',
-                              padding: '4px 7px', cursor: 'pointer', color: (previewMode[m.id] || 'desktop') === 'desktop' ? th.text : th.textFaint, display: 'flex',
-                            }}>
-                              <DesktopIcon />
-                            </button>
-                            <button onClick={() => setPreviewMode(prev => ({ ...prev, [m.id]: 'mobile' }))} aria-label="Mobile preview" style={{
-                              background: previewMode[m.id] === 'mobile' ? th.surface : 'none', border: 'none', borderRadius: '5px',
-                              padding: '4px 7px', cursor: 'pointer', color: previewMode[m.id] === 'mobile' ? th.text : th.textFaint, display: 'flex',
-                            }}>
-                              <MobileIcon />
-                            </button>
-                          </div>
-                          <button onClick={() => { setPreviewReloadKey(prev => ({ ...prev, [m.id]: (prev[m.id] || 0) + 1 })); setPreviewErrors(prev => { const next = { ...prev }; delete next[m.id]; return next; }); }} aria-label="Reload preview" style={{
-                            background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer', display: 'flex',
-                          }}>
-                            <ReloadIcon />
-                          </button>
-                          <button onClick={() => toggleEditMode(m.id)} style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem',
-                            color: editModeMessageId === m.id ? th.blueBright : th.textMuted, fontWeight: editModeMessageId === m.id ? 700 : 500,
-                          }}>
-                            <SparkIcon /> {editModeMessageId === m.id ? 'Click an element…' : 'Point to edit'}
-                          </button>
-                          <button onClick={() => copyCode(m.id, m.codeBlock!)} style={{
-                            background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem',
-                          }}>
-                            <CopyIcon /> {copiedId === m.id ? 'Copied' : 'Copy'}
-                          </button>
-                        </div>
-                      </div>
-                      {previewErrors[m.id] && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 13px', background: 'rgba(220,38,38,0.08)', borderBottom: `1px solid ${th.border}`, fontSize: '0.75rem', color: '#fca5a5' }}>
-                          <span>⚠ Runtime error detected — Nova is fixing it automatically…</span>
-                        </div>
-                      )}
-                      {m.previewUrl && (
-                        <div style={{ display: 'flex', justifyContent: previewMode[m.id] === 'mobile' ? 'center' : 'stretch', background: previewMode[m.id] === 'mobile' ? '#000' : 'transparent', padding: previewMode[m.id] === 'mobile' ? '14px 0' : 0 }}>
-                          <iframe
-                            key={previewReloadKey[m.id] || 0}
-                            ref={el => { iframeRefs.current[m.id] = el; }}
-                            src={m.previewUrl}
-                            style={{
-                              width: previewMode[m.id] === 'mobile' ? '375px' : '100%',
-                              height: previewMode[m.id] === 'mobile' ? '640px' : '380px',
-                              border: previewMode[m.id] === 'mobile' ? `6px solid ${th.surface3}` : 'none',
-                              borderRadius: previewMode[m.id] === 'mobile' ? '20px' : 0,
-                              background: '#fff',
-                              transition: 'width 0.2s ease, height 0.2s ease',
-                            }}
-                            sandbox="allow-scripts"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {isThinking && !streamingId && (
-                <div className="nova-msg" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <PhaseLabel phase={phase} muted={th.textMuted} />
-                </div>
-              )}
-            </div>
-          )
-        )}
-
-        {/* ── Input bar ── */}
-        <div style={{ marginTop: showLanding ? 0 : 'auto', position: showLanding ? 'absolute' : 'static', left: 0, right: 0, bottom: showLanding ? '14%' : 'auto', paddingInline: showLanding ? '20px' : 0, zIndex: 3 }}>
-          {selectedElement && (
+        {/* ── Chat pane ── */}
+        <div style={{
+          width: activePreviewMessageId ? '440px' : '100%',
+          maxWidth: activePreviewMessageId ? '440px' : '760px',
+          margin: activePreviewMessageId ? 0 : '0 auto',
+          flexShrink: 0, height: '100%',
+          display: 'flex', flexDirection: 'column',
+          paddingTop: '16px', paddingBottom: '22px', paddingInline: '20px',
+          boxSizing: 'border-box', position: 'relative',
+          borderRight: activePreviewMessageId ? `1px solid ${th.border}` : 'none',
+          transition: 'width 0.25s ease, max-width 0.25s ease',
+        }}>
+          {sessionError && (
             <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
-              background: th.blueSoft, border: `1px solid ${th.blue}55`,
-              borderRadius: '10px', padding: '8px 12px', marginBottom: '8px', fontSize: '0.78rem',
+              background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.28)',
+              color: '#fca5a5', borderRadius: '10px', padding: '10px 14px',
+              fontSize: '0.82rem', marginBottom: '12px',
             }}>
-              <span style={{ color: th.blueBright, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <SparkIcon /> Editing <code style={{ color: th.text }}>&lt;{selectedElement.tag}&gt;</code>
-              </span>
-              <button onClick={() => setSelectedElement(null)} style={{ background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer' }}>✕</button>
+              {sessionError}
+            </div>
+          )}
+          {errorBanner && (
+            <div style={{
+              background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.28)',
+              color: '#fca5a5', borderRadius: '10px', padding: '10px 14px',
+              fontSize: '0.82rem', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>{errorBanner}</span>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+                <button onClick={retryLast} style={{ background: 'none', border: '1px solid rgba(220,38,38,0.4)', color: '#fca5a5', cursor: 'pointer', borderRadius: '6px', padding: '4px 10px', fontSize: '0.76rem', fontWeight: 600 }}>
+                  Retry
+                </button>
+                <button onClick={() => setErrorBanner(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer' }}>✕</button>
+              </div>
             </div>
           )}
 
-          {attachments.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-              {attachments.map(a => (
-                <div key={a.id} style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  background: th.surface2, border: `1px solid ${th.border}`,
-                  borderRadius: '8px', padding: '5px 10px', fontSize: '0.75rem', color: th.textMuted,
-                }}>
-                  <FileIcon />
-                  <span style={{ color: th.text }}>{a.filename}</span>
-                  <span>· {a.file_type}</span>
-                  <span>· {(a.size_bytes / 1024).toFixed(1)} KB</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {pendingFileName && (
-            <div style={{ fontSize: '0.75rem', color: th.textMuted, marginBottom: '8px' }}>
-              Attaching {pendingFileName}…
-            </div>
+          {!showLanding && (
+            loadingMessages ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '26px', height: '26px', borderRadius: '50%', border: `3px solid ${th.surface3}`, borderTop: `3px solid ${th.accentBright}`, animation: 'spin 0.8s linear infinite' }} />
+              </div>
+            ) : (
+              <div ref={chatBoxRef} className="nova-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px', paddingBottom: '16px' }}>
+                {messages.map(m => (
+                  <div key={m.id} className="nova-msg" style={{
+                    alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
+                    maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '8px',
+                  }}>
+                    <div style={{
+                      background: m.sender === 'user' ? th.accent : 'transparent',
+                      color: m.sender === 'user' ? '#ffffff' : th.text,
+                      borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : 0,
+                      padding: m.sender === 'user' ? '11px 15px' : '0',
+                      fontSize: '0.92rem', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                      boxShadow: m.sender === 'user' ? `0 4px 18px ${th.accentSoft}` : 'none',
+                    }}>
+                      {m.id === streamingId && !m.text ? (
+                        <PhaseLabel phase={phase} muted={th.textMuted} />
+                      ) : m.text}
+                    </div>
+
+                    {m.id === streamingId && m.text && phase === 'reviewing' && (
+                      <div style={{ fontSize: '0.75rem', color: th.textMuted, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: th.accentBright, animation: 'pulse 1s infinite ease-in-out' }} />
+                        Reviewing the result…
+                      </div>
+                    )}
+
+                    {m.codeBlock && (
+                      <button
+                        onClick={() => { setActivePreviewMessageId(m.id); setWorkspaceOpenMobile(true); }}
+                        className="nova-workspace-card"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left',
+                          border: `1px solid ${m.id === activePreviewMessageId ? th.accent + '66' : th.border}`,
+                          borderRadius: '12px', overflow: 'hidden', background: th.surface,
+                          padding: '10px 12px', cursor: 'pointer', width: '100%',
+                        }}
+                      >
+                        <div style={{
+                          width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0,
+                          background: `linear-gradient(135deg, ${th.accentSoft}, ${th.surface3})`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: th.accentBright,
+                        }}>
+                          <DesktopIcon />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: th.text }}>Generated site</div>
+                          <div style={{ fontSize: '0.72rem', color: th.textMuted }}>
+                            {m.id === activePreviewMessageId ? 'Open in workspace →' : 'Click to view in workspace'}
+                          </div>
+                        </div>
+                        {previewErrors[m.id] && (
+                          <span style={{ color: '#fca5a5', fontSize: '0.7rem', flexShrink: 0 }}>⚠ fixing…</span>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {isThinking && !streamingId && (
+                  <div className="nova-msg" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <PhaseLabel phase={phase} muted={th.textMuted} />
+                  </div>
+                )}
+              </div>
+            )
           )}
 
-          <div style={{
-            maxWidth: showLanding ? '640px' : 'none', margin: showLanding ? '0 auto' : 0,
-            background: th.surface2,
-            border: `1px solid ${th.borderStrong}`, borderRadius: '18px',
-            padding: '11px 12px', display: 'flex', alignItems: 'flex-end', gap: '10px',
-            boxShadow: showLanding ? '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02)' : '0 -2px 24px rgba(0,0,0,0.4)',
-            position: 'relative',
-          }}>
-            <input
-              ref={fileInputRef} type="file" style={{ display: 'none' }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); e.target.value = ''; }}
-            />
-            <input
-              ref={skillInputRef} type="file" accept=".md,.txt" style={{ display: 'none' }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSkillFile(f); e.target.value = ''; }}
-            />
-
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <button onClick={() => setShowAttachMenu(v => !v)} aria-label="Attach" style={{
-                background: 'none', border: 'none', width: '34px', height: '34px', borderRadius: '50%',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: th.text,
+          {/* ── Input bar ── */}
+          <div style={{ marginTop: showLanding ? 0 : 'auto', position: showLanding ? 'absolute' : 'static', left: 0, right: 0, bottom: showLanding ? '14%' : 'auto', paddingInline: showLanding ? '20px' : 0, zIndex: 3 }}>
+            {selectedElement && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+                background: th.accentSoft, border: `1px solid ${th.accent}55`,
+                borderRadius: '10px', padding: '8px 12px', marginBottom: '8px', fontSize: '0.78rem',
               }}>
-                <PlusIcon />
-              </button>
-              {showAttachMenu && (
-                <div style={{
-                  position: 'absolute', bottom: '42px', left: 0,
-                  background: th.surface2, border: `1px solid ${th.border}`, borderRadius: '10px',
-                  padding: '6px', minWidth: '180px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', zIndex: 10,
-                }}>
-                  <button onClick={() => { setShowAttachMenu(false); fileInputRef.current?.click(); }} style={menuItemStyle(th)}>
-                    <FileIcon /> Attach file
-                  </button>
-                  <button onClick={() => { setShowAttachMenu(false); skillInputRef.current?.click(); }} style={menuItemStyle(th)}>
-                    <SparkIcon /> Add Skill (SKILL.md)
-                  </button>
-                  <button onClick={() => { setShowAttachMenu(false); setShowSkillsPanel(true); }} style={menuItemStyle(th)}>
-                    <span style={{ width: 15, display: 'inline-block' }}>🧩</span> Manage Skills
-                  </button>
-                </div>
-              )}
-            </div>
+                <span style={{ color: th.accentBright, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <SparkIcon /> Editing <code style={{ color: th.text }}>&lt;{selectedElement.tag}&gt;</code>
+                </span>
+                <button onClick={() => setSelectedElement(null)} style={{ background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer' }}>✕</button>
+              </div>
+            )}
 
-            <button onClick={toggleVoice} aria-label="Voice input" style={{
-              background: isListening ? th.blueSoft : 'none',
-              border: isListening ? `1px solid ${th.blue}` : 'none',
-              width: '34px', height: '34px', borderRadius: '50%',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
+            {attachments.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                {attachments.map(a => (
+                  <div key={a.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: th.surface2, border: `1px solid ${th.border}`,
+                    borderRadius: '8px', padding: '5px 6px 5px 10px', fontSize: '0.75rem', color: th.textMuted,
+                  }}>
+                    <FileIcon />
+                    <span style={{ color: th.text }}>{a.filename}</span>
+                    <span>· {(a.size_bytes / 1024).toFixed(1)} KB</span>
+                    <button onClick={() => deleteAttachment(a.id)} aria-label={`Remove ${a.filename}`} style={{
+                      background: 'none', border: 'none', color: th.textFaint, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', padding: '2px', marginLeft: '2px', borderRadius: '4px',
+                    }}>
+                      <CloseIconSmall />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {pendingFileName && (
+              <div style={{ fontSize: '0.75rem', color: th.textMuted, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', border: `2px solid ${th.surface3}`, borderTop: `2px solid ${th.accentBright}`, animation: 'spin 0.7s linear infinite' }} />
+                Attaching {pendingFileName}…
+              </div>
+            )}
+
+            <div style={{
+              maxWidth: showLanding ? '640px' : 'none', margin: showLanding ? '0 auto' : 0,
+              background: th.surface2,
+              border: `1px solid ${th.borderStrong}`, borderRadius: '18px',
+              padding: '11px 12px', display: 'flex', alignItems: 'flex-end', gap: '10px',
+              boxShadow: showLanding ? '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02)' : '0 -2px 24px rgba(0,0,0,0.4)',
+              position: 'relative',
             }}>
-              <MicIcon active={isListening} />
-            </button>
+              <input
+                ref={fileInputRef} type="file" style={{ display: 'none' }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); e.target.value = ''; }}
+              />
+              <input
+                ref={skillInputRef} type="file" accept=".md,.txt" style={{ display: 'none' }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSkillFile(f); e.target.value = ''; }}
+              />
 
-            <textarea
-              ref={inputRef}
-              value={userInput}
-              onChange={handleInputChange}
-              onPaste={handlePaste}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder="Build a landing page, app UI, portfolio site..."
-              rows={1}
-              style={{
-                flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                color: th.text, fontSize: '0.93rem', padding: '6px 4px',
-                lineHeight: 1.5, minHeight: '34px', maxHeight: '160px',
-                fontFamily: 'inherit',
-              }}
-            />
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <button onClick={() => setShowAttachMenu(v => !v)} aria-label="Attach" style={{
+                  background: 'none', border: 'none', width: '34px', height: '34px', borderRadius: '50%',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: th.text,
+                }}>
+                  <PlusIcon />
+                </button>
+                {showAttachMenu && (
+                  <div style={{
+                    position: 'absolute', bottom: '42px', left: 0,
+                    background: th.surface2, border: `1px solid ${th.border}`, borderRadius: '10px',
+                    padding: '6px', minWidth: '180px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', zIndex: 10,
+                  }}>
+                    <button onClick={() => { setShowAttachMenu(false); fileInputRef.current?.click(); }} style={menuItemStyle(th)}>
+                      <FileIcon /> Attach file
+                    </button>
+                    <button onClick={() => { setShowAttachMenu(false); skillInputRef.current?.click(); }} style={menuItemStyle(th)}>
+                      <SparkIcon /> Add Skill (SKILL.md)
+                    </button>
+                    <button onClick={() => { setShowAttachMenu(false); setShowSkillsPanel(true); }} style={menuItemStyle(th)}>
+                      <SkillIconSmall /> Manage Skills
+                    </button>
+                  </div>
+                )}
+              </div>
 
-            <button
-              onClick={handleSend}
-              disabled={!userInput.trim()}
-              className="nova-send"
-              style={{
-                background: userInput.trim() ? th.blue : th.surface3,
-                border: 'none', width: '36px', height: '36px', borderRadius: '50%',
-                cursor: userInput.trim() ? 'pointer' : 'default',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, transition: 'background 0.15s ease',
-              }}
-            >
-              <SendIcon enabled={!!userInput.trim()} />
-            </button>
+              <button onClick={toggleVoice} aria-label="Voice input" style={{
+                background: isListening ? th.accentSoft : 'none',
+                border: isListening ? `1px solid ${th.accent}` : 'none',
+                width: '34px', height: '34px', borderRadius: '50%',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <MicIcon active={isListening} />
+              </button>
+
+              <textarea
+                ref={inputRef}
+                value={userInput}
+                onChange={handleInputChange}
+                onPaste={handlePaste}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Build a landing page, app UI, portfolio site..."
+                rows={1}
+                style={{
+                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                  color: th.text, fontSize: '0.93rem', padding: '6px 4px',
+                  lineHeight: 1.5, minHeight: '34px', maxHeight: '160px',
+                  fontFamily: 'inherit',
+                }}
+              />
+
+              <button
+                onClick={handleSend}
+                disabled={!userInput.trim()}
+                className="nova-send"
+                style={{
+                  background: userInput.trim() ? th.accent : th.surface3,
+                  border: 'none', width: '36px', height: '36px', borderRadius: '50%',
+                  cursor: userInput.trim() ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, transition: 'background 0.15s ease',
+                }}
+              >
+                <SendIcon enabled={!!userInput.trim()} />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* ── Workspace pane: persistent large preview, desktop ── */}
+        {activePreviewMessageId && (() => {
+          const activeMsg = messages.find(m => m.id === activePreviewMessageId);
+          if (!activeMsg?.codeBlock) return null;
+          const mode = previewMode[activePreviewMessageId] || 'desktop';
+          return (
+            <div className={`nova-workspace-pane ${workspaceOpenMobile ? 'nova-workspace-pane-open' : ''}`} style={{
+              flex: 1, height: '100%', display: 'flex', flexDirection: 'column',
+              background: th.bg, minWidth: 0,
+            }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '12px 18px', borderBottom: `1px solid ${th.border}`, flexShrink: 0,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button onClick={() => setWorkspaceOpenMobile(false)} className="nova-workspace-close-mobile" aria-label="Close workspace" style={{
+                    background: 'none', border: 'none', color: th.text, cursor: 'pointer', display: 'none', padding: '4px',
+                  }}>
+                    <BackIcon />
+                  </button>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: th.text }}>Workspace</span>
+                  <span style={{ fontSize: '0.74rem', color: th.textFaint }}>Generated site</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ display: 'flex', gap: '2px', background: th.surface3, borderRadius: '7px', padding: '2px' }}>
+                    <button onClick={() => setPreviewMode(prev => ({ ...prev, [activePreviewMessageId]: 'desktop' }))} aria-label="Desktop preview" style={{
+                      background: mode === 'desktop' ? th.surface : 'none', border: 'none', borderRadius: '5px',
+                      padding: '5px 9px', cursor: 'pointer', color: mode === 'desktop' ? th.text : th.textFaint, display: 'flex',
+                    }}>
+                      <DesktopIcon />
+                    </button>
+                    <button onClick={() => setPreviewMode(prev => ({ ...prev, [activePreviewMessageId]: 'mobile' }))} aria-label="Mobile preview" style={{
+                      background: mode === 'mobile' ? th.surface : 'none', border: 'none', borderRadius: '5px',
+                      padding: '5px 9px', cursor: 'pointer', color: mode === 'mobile' ? th.text : th.textFaint, display: 'flex',
+                    }}>
+                      <MobileIcon />
+                    </button>
+                  </div>
+                  <button onClick={() => { setPreviewReloadKey(prev => ({ ...prev, [activePreviewMessageId]: (prev[activePreviewMessageId] || 0) + 1 })); setPreviewErrors(prev => { const next = { ...prev }; delete next[activePreviewMessageId]; return next; }); }} aria-label="Reload preview" style={{
+                    background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer', display: 'flex',
+                  }}>
+                    <ReloadIcon />
+                  </button>
+                  <button onClick={() => toggleEditMode(activePreviewMessageId)} style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem',
+                    color: editModeMessageId === activePreviewMessageId ? th.accentBright : th.textMuted, fontWeight: editModeMessageId === activePreviewMessageId ? 700 : 500,
+                  }}>
+                    <SparkIcon /> {editModeMessageId === activePreviewMessageId ? 'Click an element…' : 'Point to edit'}
+                  </button>
+                  <button onClick={() => copyCode(activePreviewMessageId, activeMsg.codeBlock!)} style={{
+                    background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.76rem',
+                  }}>
+                    <CopyIcon /> {copiedId === activePreviewMessageId ? 'Copied' : 'Copy code'}
+                  </button>
+                </div>
+              </div>
+
+              {previewErrors[activePreviewMessageId] && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 18px', background: 'rgba(220,38,38,0.08)', borderBottom: `1px solid ${th.border}`, fontSize: '0.78rem', color: '#fca5a5', flexShrink: 0 }}>
+                  <span>⚠ Runtime error detected — Nova is fixing it automatically…</span>
+                </div>
+              )}
+
+              <div style={{
+                flex: 1, display: 'flex', justifyContent: 'center', alignItems: mode === 'mobile' ? 'center' : 'stretch',
+                background: mode === 'mobile' ? '#0d0c10' : '#ffffff', overflow: 'auto', padding: mode === 'mobile' ? '24px 0' : 0,
+              }}>
+                <PreviewFrame
+                  code={activeMsg.codeBlock}
+                  reloadKey={previewReloadKey[activePreviewMessageId] || 0}
+                  mobile={mode === 'mobile'}
+                  frameColor={th.surface3}
+                  fill={mode === 'desktop'}
+                  onRef={(el) => { iframeRefs.current[activePreviewMessageId] = el; }}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </div>
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div className="nova-toast" style={{
+          position: 'fixed', bottom: '28px', left: '50%',
+          background: th.surface2, border: `1px solid ${th.borderStrong}`,
+          borderRadius: '12px', padding: '10px 18px', fontSize: '0.84rem', fontWeight: 600, color: th.text,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 20000, whiteSpace: 'nowrap',
+        }}>
+          {toast}
+        </div>
+      )}
 
       {/* ── Deploy modal ── */}
       {deploying.active && (
@@ -1278,7 +1384,7 @@ export default function NovaAI() {
           <div style={{ width: '90%', maxWidth: '400px', background: th.surface, border: `1px solid ${th.border}`, padding: '44px 32px', borderRadius: '24px', textAlign: 'center' }}>
             {deploying.stage !== 'published' ? (
               <>
-                <div style={{ width: '58px', height: '58px', margin: '0 auto 24px', borderRadius: '50%', border: `4px solid ${th.surface3}`, borderTop: `4px solid ${th.blue}`, animation: 'deployRotate 0.9s linear infinite' }} />
+                <div style={{ width: '58px', height: '58px', margin: '0 auto 24px', borderRadius: '50%', border: `4px solid ${th.surface3}`, borderTop: `4px solid ${th.accent}`, animation: 'deployRotate 0.9s linear infinite' }} />
                 <p style={{ fontSize: '1.05rem', fontWeight: 700, color: th.text, margin: '0 0 16px' }}>
                   {{ preparing: 'Preparing…', building: 'Building…', checking: 'Checking…', publishing: 'Publishing…', verifying: 'Verifying…' }[deploying.stage]}
                 </p>
@@ -1290,7 +1396,7 @@ export default function NovaAI() {
                     return (
                       <div key={s} style={{
                         width: '8px', height: '8px', borderRadius: '50%',
-                        background: done || active ? th.blue : th.surface3,
+                        background: done || active ? th.accent : th.surface3,
                         transition: 'background 0.2s ease',
                       }} />
                     );
@@ -1299,13 +1405,13 @@ export default function NovaAI() {
               </>
             ) : (
               <>
-                <div style={{ width: '54px', height: '54px', borderRadius: '50%', border: `2px solid ${th.blue}`, background: th.blueSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                  <span style={{ color: th.blueBright, fontSize: '1.4rem' }}>✓</span>
+                <div style={{ width: '54px', height: '54px', borderRadius: '50%', border: `2px solid ${th.accent}`, background: th.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                  <span style={{ color: th.accentBright, fontSize: '1.4rem' }}>✓</span>
                 </div>
                 <h3 style={{ color: th.text, margin: '0 0 8px', fontSize: '1.2rem' }}>Published — verified live</h3>
                 <p style={{ color: th.textMuted, fontSize: '0.82rem', marginBottom: '20px' }}>Your site is live at:</p>
                 <div style={{ background: th.surface2, border: `1px solid ${th.border}`, borderRadius: '10px', padding: '12px', marginBottom: '22px' }}>
-                  <a href={deploying.url || '#'} target="_blank" rel="noreferrer" style={{ color: th.blueBright, fontSize: '0.9rem', wordBreak: 'break-all', fontWeight: 600 }}>
+                  <a href={deploying.url || '#'} target="_blank" rel="noreferrer" style={{ color: th.accentBright, fontSize: '0.9rem', wordBreak: 'break-all', fontWeight: 600 }}>
                     {deploying.url} ↗
                   </a>
                 </div>
@@ -1319,6 +1425,7 @@ export default function NovaAI() {
           </div>
         </div>
       )}
+
 
       {/* ── Skills panel ── */}
       {showSkillsPanel && (
@@ -1346,8 +1453,8 @@ export default function NovaAI() {
                     </div>
                     <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                       <button onClick={() => toggleSkill(s.id, !s.enabled)} style={{
-                        background: s.enabled ? th.blueSoft : th.surface3, border: `1px solid ${s.enabled ? th.blue : th.border}`,
-                        color: s.enabled ? th.blueBright : th.textMuted, borderRadius: '6px', padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 600,
+                        background: s.enabled ? th.accentSoft : th.surface3, border: `1px solid ${s.enabled ? th.accent : th.border}`,
+                        color: s.enabled ? th.accentBright : th.textMuted, borderRadius: '6px', padding: '3px 8px', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 600,
                       }}>
                         {s.enabled ? 'Enabled' : 'Disabled'}
                       </button>
@@ -1374,6 +1481,57 @@ export default function NovaAI() {
   );
 }
 
+// Renders a generated site's HTML via a blob: URL rather than a data: URI —
+// some browsers (Chrome in particular) briefly treat a large base64 data:
+// URI loaded inside a sandboxed iframe as downloadable content instead of
+// renderable content, which showed up as a flash of a download prompt that
+// then got cancelled. Blob URLs don't have that problem. This component
+// owns the blob URL's lifecycle so it's always revoked when replaced or
+// unmounted, instead of leaking memory.
+function PreviewFrame({
+  code,
+  reloadKey,
+  mobile,
+  frameColor,
+  onRef,
+  fill,
+}: {
+  code: string;
+  reloadKey: number;
+  mobile: boolean;
+  frameColor: string;
+  onRef: (el: HTMLIFrameElement | null) => void;
+  fill?: boolean;
+}) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = toPreviewBlobUrl(code);
+    setBlobUrl(url);
+    return () => URL.revokeObjectURL(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, reloadKey]);
+
+  if (!blobUrl) return null;
+
+  return (
+    <iframe
+      ref={onRef}
+      src={blobUrl}
+      style={{
+        width: mobile ? '375px' : '100%',
+        height: mobile ? '640px' : (fill ? '100%' : '380px'),
+        border: mobile ? `6px solid ${frameColor}` : 'none',
+        borderRadius: mobile ? '20px' : 0,
+        background: '#fff',
+        transition: 'width 0.2s ease, height 0.2s ease',
+        flex: fill ? 1 : undefined,
+      }}
+      sandbox="allow-scripts"
+    />
+  );
+}
+
 function PhaseLabel({ phase, muted }: { phase: string; muted: string }) {
   const labels: Record<string, string> = {
     planning: 'Planning the approach…',
@@ -1387,7 +1545,7 @@ function PhaseLabel({ phase, muted }: { phase: string; muted: string }) {
         {[0, 1, 2].map(i => (
           <div key={i} style={{
             width: '6px', height: '6px', borderRadius: '50%',
-            background: th.blueBright,
+            background: th.accentBright,
             animation: `pulse 1.2s infinite ease-in-out ${i * 0.18}s`,
           }} />
         ))}
