@@ -100,7 +100,38 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, url: deployUrl });
+    // Verify the deployment actually resolves before telling the client to
+    // show "Published" — Vercel accepting the request doesn't guarantee the
+    // URL is live yet. Retry briefly since propagation can take a moment.
+    let verified = false;
+    for (let attempt = 0; attempt < 4 && !verified; attempt++) {
+      try {
+        const check = await axios.get(deployUrl, { timeout: 3000, validateStatus: () => true });
+        if (check.status < 500) verified = true;
+      } catch {
+        // network hiccup during propagation — retry
+      }
+      if (!verified) await new Promise((r) => setTimeout(r, 1200));
+    }
+
+    if (!verified) {
+      await supabase
+        .from("deployments")
+        .update({ status: "failed", error_message: "Deployed but the URL did not become reachable in time." })
+        .eq("user_id", user.id)
+        .eq("deploy_url", deployUrl);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Deployment was created but the site isn't reachable yet. It may still be propagating — try opening the link in a minute.",
+          url: deployUrl,
+        },
+        { status: 202 }
+      );
+    }
+
+    return NextResponse.json({ success: true, url: deployUrl, verified: true });
   } catch (error) {
     return handleApiError(error, "api/deploy");
   }

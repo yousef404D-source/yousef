@@ -191,3 +191,34 @@ create policy "attachments_insert_own" on public.attachments
 drop policy if exists "attachments_delete_own" on public.attachments;
 create policy "attachments_delete_own" on public.attachments
   for delete using (auth.uid() = user_id);
+
+-- ---------- Project Memory (structured facts per conversation) ----------
+create table if not exists public.project_memory (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  key text not null,
+  value text not null,
+  updated_at timestamptz not null default now(),
+  unique (conversation_id, key)
+);
+
+create index if not exists project_memory_conversation_id_idx on public.project_memory(conversation_id);
+
+alter table public.project_memory enable row level security;
+
+drop policy if exists "project_memory_select_own" on public.project_memory;
+create policy "project_memory_select_own" on public.project_memory
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "project_memory_upsert_own" on public.project_memory;
+create policy "project_memory_upsert_own" on public.project_memory
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "project_memory_update_own" on public.project_memory;
+create policy "project_memory_update_own" on public.project_memory
+  for update using (auth.uid() = user_id);
+
+drop policy if exists "project_memory_delete_own" on public.project_memory;
+create policy "project_memory_delete_own" on public.project_memory
+  for delete using (auth.uid() = user_id);

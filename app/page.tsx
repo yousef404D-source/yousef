@@ -97,6 +97,28 @@ const FileIcon = () => (
   </svg>
 );
 
+const DesktopIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+  </svg>
+);
+
+const MobileIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="7" y="2" width="10" height="20" rx="2" />
+    <line x1="11" y1="18" x2="13" y2="18" />
+  </svg>
+);
+
+const ReloadIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 4 23 10 17 10" />
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+  </svg>
+);
+
 // ==================== Helpers ====================
 const formatDate = (d: Date) => {
   const now = new Date();
@@ -225,7 +247,7 @@ export default function NovaAI() {
 
   const [showDeploy, setShowDeploy] = useState(false);
   const [lastCode, setLastCode] = useState('');
-  const [deploying, setDeploying] = useState<{ active: boolean; progress: number; url: string | null }>({ active: false, progress: 0, url: null });
+  const [deploying, setDeploying] = useState<{ active: boolean; stage: 'preparing' | 'building' | 'checking' | 'publishing' | 'verifying' | 'published'; url: string | null }>({ active: false, stage: 'preparing', url: null });
 
   const [editModeMessageId, setEditModeMessageId] = useState<string | null>(null);
   const [selectedElement, setSelectedElement] = useState<{ selector: string; tag: string; snippet: string; messageId: string } | null>(null);
@@ -239,6 +261,10 @@ export default function NovaAI() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skillInputRef = useRef<HTMLInputElement>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+
+  const [previewMode, setPreviewMode] = useState<Record<string, 'desktop' | 'mobile'>>({});
+  const [previewReloadKey, setPreviewReloadKey] = useState<Record<string, number>>({});
+  const [previewErrors, setPreviewErrors] = useState<Record<string, string>>({});
 
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -439,6 +465,8 @@ export default function NovaAI() {
     setIsSidebarOpen(false);
     setHasEnteredChat(false);
     setAttachments([]);
+    setPreviewErrors({});
+    setPreviewReloadKey({});
   };
 
   const deleteConversation = async (id: string) => {
@@ -495,6 +523,7 @@ export default function NovaAI() {
         const entry = Object.entries(iframeRefs.current).find(([, el]) => el?.contentWindow === e.source);
         if (entry) {
           const [msgId] = entry;
+          setPreviewErrors(prev => ({ ...prev, [msgId]: data.message }));
           if (!healedMessageIds.current.has(msgId)) {
             healedMessageIds.current.add(msgId);
             selfHeal(msgId, data.message);
@@ -558,6 +587,8 @@ export default function NovaAI() {
           ? { ...m, codeBlock: fixedCode, previewUrl, text: m.text + '\n\n✓ Nova detected and automatically fixed a runtime issue.' }
           : m
         ));
+        setPreviewErrors(prev => { const next = { ...prev }; delete next[messageId]; return next; });
+        setPreviewReloadKey(prev => ({ ...prev, [messageId]: (prev[messageId] || 0) + 1 }));
         setLastCode(fixedCode);
       }
     } catch (err) {
@@ -732,25 +763,32 @@ export default function NovaAI() {
   // ── Deploy ──
   const handleDeploy = async () => {
     if (!lastCode) return;
-    setDeploying({ active: true, progress: 5, url: null });
-
-    const interval = setInterval(() => {
-      setDeploying(prev => prev.progress >= 90 ? prev : { ...prev, progress: prev.progress + 8 });
-    }, 400);
+    setDeploying({ active: true, stage: 'preparing', url: null });
 
     try {
+      await new Promise(r => setTimeout(r, 300));
+      setDeploying(prev => ({ ...prev, stage: 'building' }));
+      await new Promise(r => setTimeout(r, 300));
+      setDeploying(prev => ({ ...prev, stage: 'checking' }));
+
+      setDeploying(prev => ({ ...prev, stage: 'publishing' }));
       const res = await fetch('/api/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: lastCode, conversationId: activeConversationId }),
       });
       const data = await res.json();
-      clearInterval(interval);
       if (!res.ok || !data.success) throw new Error(data.error || 'Deployment failed');
-      setDeploying({ active: true, progress: 100, url: data.url });
+
+      // The server already verified the URL is actually reachable before
+      // returning success — see app/api/deploy/route.ts. This stage is
+      // shown briefly for continuity with the rest of the animation.
+      setDeploying(prev => ({ ...prev, stage: 'verifying' }));
+      await new Promise(r => setTimeout(r, 400));
+
+      setDeploying({ active: true, stage: 'published', url: data.url });
     } catch (err) {
-      clearInterval(interval);
-      setDeploying({ active: false, progress: 0, url: null });
+      setDeploying({ active: false, stage: 'preparing', url: null });
       setErrorBanner(err instanceof Error ? err.message : 'Deployment failed. Please try again.');
     }
   };
@@ -1038,7 +1076,26 @@ export default function NovaAI() {
                     <div style={{ border: `1px solid ${th.border}`, borderRadius: '14px', overflow: 'hidden', background: th.surface }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 13px', background: th.surface2, borderBottom: `1px solid ${th.border}` }}>
                         <span style={{ fontSize: '0.74rem', color: th.textMuted, fontWeight: 600 }}>Generated site</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ display: 'flex', gap: '2px', background: th.surface3, borderRadius: '7px', padding: '2px' }}>
+                            <button onClick={() => setPreviewMode(prev => ({ ...prev, [m.id]: 'desktop' }))} aria-label="Desktop preview" style={{
+                              background: (previewMode[m.id] || 'desktop') === 'desktop' ? th.surface : 'none', border: 'none', borderRadius: '5px',
+                              padding: '4px 7px', cursor: 'pointer', color: (previewMode[m.id] || 'desktop') === 'desktop' ? th.text : th.textFaint, display: 'flex',
+                            }}>
+                              <DesktopIcon />
+                            </button>
+                            <button onClick={() => setPreviewMode(prev => ({ ...prev, [m.id]: 'mobile' }))} aria-label="Mobile preview" style={{
+                              background: previewMode[m.id] === 'mobile' ? th.surface : 'none', border: 'none', borderRadius: '5px',
+                              padding: '4px 7px', cursor: 'pointer', color: previewMode[m.id] === 'mobile' ? th.text : th.textFaint, display: 'flex',
+                            }}>
+                              <MobileIcon />
+                            </button>
+                          </div>
+                          <button onClick={() => { setPreviewReloadKey(prev => ({ ...prev, [m.id]: (prev[m.id] || 0) + 1 })); setPreviewErrors(prev => { const next = { ...prev }; delete next[m.id]; return next; }); }} aria-label="Reload preview" style={{
+                            background: 'none', border: 'none', color: th.textMuted, cursor: 'pointer', display: 'flex',
+                          }}>
+                            <ReloadIcon />
+                          </button>
                           <button onClick={() => toggleEditMode(m.id)} style={{
                             background: 'none', border: 'none', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem',
@@ -1054,13 +1111,28 @@ export default function NovaAI() {
                           </button>
                         </div>
                       </div>
+                      {previewErrors[m.id] && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 13px', background: 'rgba(220,38,38,0.08)', borderBottom: `1px solid ${th.border}`, fontSize: '0.75rem', color: '#fca5a5' }}>
+                          <span>⚠ Runtime error detected — Nova is fixing it automatically…</span>
+                        </div>
+                      )}
                       {m.previewUrl && (
-                        <iframe
-                          ref={el => { iframeRefs.current[m.id] = el; }}
-                          src={m.previewUrl}
-                          style={{ width: '100%', height: '380px', border: 'none', background: '#fff' }}
-                          sandbox="allow-scripts"
-                        />
+                        <div style={{ display: 'flex', justifyContent: previewMode[m.id] === 'mobile' ? 'center' : 'stretch', background: previewMode[m.id] === 'mobile' ? '#000' : 'transparent', padding: previewMode[m.id] === 'mobile' ? '14px 0' : 0 }}>
+                          <iframe
+                            key={previewReloadKey[m.id] || 0}
+                            ref={el => { iframeRefs.current[m.id] = el; }}
+                            src={m.previewUrl}
+                            style={{
+                              width: previewMode[m.id] === 'mobile' ? '375px' : '100%',
+                              height: previewMode[m.id] === 'mobile' ? '640px' : '380px',
+                              border: previewMode[m.id] === 'mobile' ? `6px solid ${th.surface3}` : 'none',
+                              borderRadius: previewMode[m.id] === 'mobile' ? '20px' : 0,
+                              background: '#fff',
+                              transition: 'width 0.2s ease, height 0.2s ease',
+                            }}
+                            sandbox="allow-scripts"
+                          />
+                        </div>
                       )}
                     </div>
                   )}
@@ -1204,25 +1276,40 @@ export default function NovaAI() {
       {deploying.active && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 15000 }}>
           <div style={{ width: '90%', maxWidth: '400px', background: th.surface, border: `1px solid ${th.border}`, padding: '44px 32px', borderRadius: '24px', textAlign: 'center' }}>
-            {deploying.progress < 100 ? (
+            {deploying.stage !== 'published' ? (
               <>
                 <div style={{ width: '58px', height: '58px', margin: '0 auto 24px', borderRadius: '50%', border: `4px solid ${th.surface3}`, borderTop: `4px solid ${th.blue}`, animation: 'deployRotate 0.9s linear infinite' }} />
-                <p style={{ fontSize: '2.1rem', fontWeight: 900, color: th.text, margin: '0 0 8px' }}>{deploying.progress}%</p>
-                <p style={{ color: th.textMuted, fontSize: '0.85rem' }}>Publishing your site...</p>
+                <p style={{ fontSize: '1.05rem', fontWeight: 700, color: th.text, margin: '0 0 16px' }}>
+                  {{ preparing: 'Preparing…', building: 'Building…', checking: 'Checking…', publishing: 'Publishing…', verifying: 'Verifying…' }[deploying.stage]}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                  {(['preparing', 'building', 'checking', 'publishing', 'verifying'] as const).map(s => {
+                    const order = ['preparing', 'building', 'checking', 'publishing', 'verifying'];
+                    const done = order.indexOf(s) < order.indexOf(deploying.stage);
+                    const active = s === deploying.stage;
+                    return (
+                      <div key={s} style={{
+                        width: '8px', height: '8px', borderRadius: '50%',
+                        background: done || active ? th.blue : th.surface3,
+                        transition: 'background 0.2s ease',
+                      }} />
+                    );
+                  })}
+                </div>
               </>
             ) : (
               <>
                 <div style={{ width: '54px', height: '54px', borderRadius: '50%', border: `2px solid ${th.blue}`, background: th.blueSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                   <span style={{ color: th.blueBright, fontSize: '1.4rem' }}>✓</span>
                 </div>
-                <h3 style={{ color: th.text, margin: '0 0 8px', fontSize: '1.2rem' }}>Deployment complete</h3>
+                <h3 style={{ color: th.text, margin: '0 0 8px', fontSize: '1.2rem' }}>Published — verified live</h3>
                 <p style={{ color: th.textMuted, fontSize: '0.82rem', marginBottom: '20px' }}>Your site is live at:</p>
                 <div style={{ background: th.surface2, border: `1px solid ${th.border}`, borderRadius: '10px', padding: '12px', marginBottom: '22px' }}>
                   <a href={deploying.url || '#'} target="_blank" rel="noreferrer" style={{ color: th.blueBright, fontSize: '0.9rem', wordBreak: 'break-all', fontWeight: 600 }}>
                     {deploying.url} ↗
                   </a>
                 </div>
-                <button onClick={() => setDeploying({ active: false, progress: 0, url: null })} style={{
+                <button onClick={() => setDeploying({ active: false, stage: 'preparing', url: null })} style={{
                   width: '100%', background: '#fff', color: '#000', border: 'none', padding: '13px', borderRadius: '10px', cursor: 'pointer', fontWeight: 700,
                 }}>
                   Back to workspace

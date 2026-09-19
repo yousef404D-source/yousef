@@ -11,6 +11,7 @@ import { runConversationAgent } from "@/lib/agents/conversation";
 import { buildBuilderSystemPrompt } from "@/lib/agents/builder";
 import { runReviewerAgent } from "@/lib/agents/reviewer";
 import { retrieveRelevantSkills, skillsToPromptBlock } from "@/lib/skills/retrieval";
+import { getProjectMemory, upsertProjectMemory, memoryToPromptBlock } from "@/lib/agents/memory";
 
 // See maxDuration note: sequential model calls (router -> builder -> reviewer)
 // need headroom beyond Vercel Hobby's 10s default — requires Fluid Compute.
@@ -172,8 +173,20 @@ export async function POST(req: Request) {
           }
         }
 
+        // Project Memory: a small fixed set of established facts (framework,
+        // design system, prior decisions) — never the full history again.
+        let memoryBlock = "";
+        if (conversationId) {
+          try {
+            const memory = await getProjectMemory(supabase, conversationId);
+            memoryBlock = memoryToPromptBlock(memory);
+          } catch (err) {
+            console.error("[api/nova memory retrieval]", err);
+          }
+        }
+
         const builderMessages: ApiChatMsg[] = [
-          { role: "system", content: buildBuilderSystemPrompt(decision.scope, skillsBlock + visualBlock) },
+          { role: "system", content: buildBuilderSystemPrompt(decision.scope, skillsBlock + visualBlock + memoryBlock) },
           ...conversationContext,
         ];
         if (attachmentBlock) {
@@ -241,6 +254,15 @@ export async function POST(req: Request) {
                 preview_url: previewUrl,
               },
             ]);
+
+            // Record a few durable facts after a fresh build so future turns
+            // in this conversation stay consistent without resending the
+            // whole site every time.
+            if (finalCode && decision.scope === "FULL") {
+              await upsertProjectMemory(supabase, conversationId, user.id, "framework", "Static HTML + Tailwind CSS");
+              const isArabic = /lang=["']ar["']/.test(finalCode);
+              await upsertProjectMemory(supabase, conversationId, user.id, "language", isArabic ? "Arabic (RTL)" : "English");
+            }
           } catch (err) {
             console.error("[api/nova persist:build]", err);
           }
