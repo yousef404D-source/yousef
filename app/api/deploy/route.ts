@@ -72,7 +72,19 @@ export async function POST(req: Request) {
         {
           name: projectName,
           files: [{ file: "index.html", data: code }],
-          projectSettings: { framework: null },
+          // Vercel requires a complete projectSettings object on the FIRST
+          // deployment of a new project (every deploy here creates a new
+          // project, since the name is randomized each time) — a partial
+          // object like { framework: null } alone can be rejected with
+          // "missing_project_settings". Providing every field explicitly
+          // as null/appropriate avoids that.
+          projectSettings: {
+            framework: null,
+            buildCommand: null,
+            devCommand: null,
+            installCommand: null,
+            outputDirectory: null,
+          },
           target: "production",
         },
         { headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } }
@@ -87,9 +99,14 @@ export async function POST(req: Request) {
       const response = (err as { response?: { data?: any; status?: number } })?.response;
       if (response) {
         const rawMessage = response.data?.error?.message || `Vercel API error (${response.status ?? "unknown"})`;
-        deployError = /not authorized.*scope/i.test(rawMessage)
-          ? `Vercel rejected this token for your team/project scope. Set VERCEL_TEAM_ID to your team's ID in the environment variables, or use a token created specifically for this project's scope. (${rawMessage})`
-          : rawMessage;
+        const rawCode = response.data?.error?.code || "";
+        if (rawCode === "missing_project_settings" || /projectSettings.*required/i.test(rawMessage)) {
+          deployError = `Vercel rejected the deployment: missing project settings. This should be fixed already in this version — if you still see this, check that the request body includes a complete projectSettings object. (${rawMessage})`;
+        } else if (/not authorized.*scope/i.test(rawMessage)) {
+          deployError = `Vercel rejected this token for your team/project scope. Set VERCEL_TEAM_ID to your team's ID in the environment variables, or use a token created specifically for this project's scope. (${rawMessage})`;
+        } else {
+          deployError = rawMessage;
+        }
         console.error("[api/deploy] Vercel rejected the deployment:", response.data ?? err);
       } else {
         deployError = err instanceof Error ? err.message : "Vercel deployment failed";
